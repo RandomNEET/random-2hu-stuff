@@ -1,0 +1,87 @@
+/* 排序控件样式 */
+.sort-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px 0;
+  background-color: #1e1e2e;
+}
+
+.sort-buttons {
+  display: flex;
+  gap: 8px;
+  background: rgba(30, 30, 46, 0.8);
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(203, 166, 247, 0.3);
+}
+
+.sort-btn {
+  background-color: rgba(49, 50, 68, 0.8) !important;
+  color: #cdd6f4 !important;
+  border: 1px solid rgba(203, 166, 247, 0.3) !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 0 12px !important;
+  min-width: auto !important;
+}
+
+.sort-btn:hover {
+  background-color: rgba(203, 166, 247, 0.2) !important;
+  color: #cba6f7 !important;
+}
+
+.sort-btn.active {
+  background-color: #cba6f7 !important;
+  color: #1e1e2e !important;
+  border-color: #cba6f7 !important;
+}
+
+.sort-btn span {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* 移动端排序控件 */
+@media (max-width: 768px) {
+  .sort-controls {
+    padding: 12px 16px 0;
+  }
+  
+  .sort-buttons {
+    gap: 6px;
+    padding: 6px;
+    border-radius: 10px;
+  }
+  
+  .sort-btn {
+    padding: 0 8px !important;
+    gap: 3px !important;
+  }
+  
+  .sort-btn span {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sort-controls {
+    padding: 10px 12px 0;
+  }
+  
+  .sort-buttons {
+    gap: 4px;
+    padding: 4px;
+    border-radius: 8px;
+  }
+  
+  .sort-btn {
+    padding: 0 6px !important;
+    gap: 2px !important;
+  }
+  
+  .sort-btn span {
+    font-size: 0.75rem;
+  }
+}
