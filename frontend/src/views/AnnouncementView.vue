@@ -29,7 +29,7 @@
       </div>
 
       <!-- 共同维护 -->
-      <!-- <div class="announcement-section">
+      <div class="announcement-section">
         <div class="section-header">
           <v-icon class="section-icon">mdi-account-group</v-icon>
           <h2 class="section-title">共同维护</h2>
@@ -37,7 +37,7 @@
         
         <div class="collaboration-simple">
           <p class="collaboration-text">
-            作者懒狗一条，欢迎对MMD视频比较熟悉的车万一起维护网站，会编辑excel表格就行
+            欢迎对MMD比较熟悉的车万人一起维护网站，会编辑在线表格就行
           </p>
           
           <div class="group-link">
@@ -45,16 +45,16 @@
               variant="outlined"
               color="blue"
               prepend-icon="mdi-account-group"
-              href="#"
+              href="https://qm.qq.com/q/NuSbWCMd8"
               target="_blank"
               class="contact-btn"
               size="large"
             >
-              QQ群
+              QQ群：976462503
             </v-btn>
           </div>
         </div>
-      </div> -->
+      </div>
     </div>
   </div>
 </template>
@@ -225,6 +225,10 @@ onUnmounted(() => {
   color: #89b4fa !important;
   border-color: #89b4fa !important;
   padding: 12px 32px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
 }
 
 .contact-btn:hover {
