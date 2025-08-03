@@ -164,9 +164,11 @@ const getVideoSource = (url) => {
 
 const getTranslationStatusClass = (status) => {
   switch (status) {
-    case 0: return 'status-none';
-    case 1: return 'status-full';
-    case 2: return 'status-partial';
+    case 1: return 'status-full';      // 中文内嵌 - 完整翻译
+    case 2: return 'status-full';      // CC字幕 - 完整翻译
+    case 3: return 'status-partial';   // 弹幕翻译 - 部分翻译
+    case 4: return 'status-full';      // 无需翻译 - 视为完整
+    case 5: return 'status-none';      // 暂无翻译 - 无翻译
     default: return 'status-unknown';
   }
 };
