@@ -91,7 +91,7 @@ app.get("/api/author/:id/videos", (req, res) => {
   }
 
   db.all(
-    `SELECT id, original_name, original_url, date, repost_name, repost_url, translation_status 
+    `SELECT id, original_name, original_url, date, repost_name, repost_url, translation_status, comment 
      FROM videos 
      WHERE author = ? 
      ORDER BY date ASC, id ASC`,
@@ -120,7 +120,7 @@ app.get("/api/search/videos", (req, res) => {
   }
   
   db.all(
-    `SELECT v.id, v.original_name, v.original_url, v.date, v.repost_name, v.repost_url, v.translation_status,
+    `SELECT v.id, v.original_name, v.original_url, v.date, v.repost_name, v.repost_url, v.translation_status, v.comment,
             a.id as author_id, a.name as author_name, a.avatar as author_avatar
      FROM videos v
      JOIN authors a ON v.author = a.id

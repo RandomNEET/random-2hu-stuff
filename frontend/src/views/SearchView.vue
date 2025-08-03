@@ -22,8 +22,13 @@
             class="video-row"
           >
             <div class="video-header-row">
-              <div class="video-date" v-if="video.date">
-                📅 {{ formatDate(video.date) }}
+              <div class="video-info-section">
+                <div class="video-date" v-if="video.date">
+                  📅 {{ formatDate(video.date) }}
+                </div>
+                <div class="video-comment" v-if="video.comment">
+                  {{ video.comment }}
+                </div>
               </div>
               <div class="author-info-small" @click="goToAuthor(video.author_id, video.author_name)">
                 <v-avatar size="24" class="author-avatar-small">
@@ -40,9 +45,18 @@
                 :class="{ 'clickable-column': video.original_url, 'disabled-column': !video.original_url }"
                 @click="video.original_url && openUrl(video.original_url)"
               >
-                <h3 class="video-title">
-                   {{ video.original_name || '暂无原视频' }}
-                </h3>
+                <div class="original-header">
+                  <h3 class="video-title">
+                     {{ video.original_name || '暂无原视频' }}
+                  </h3>
+                  
+                  <!-- 视频来源 -->
+                  <div class="video-source" v-if="video.original_url && getVideoSource(video.original_url)">
+                    <span :class="getVideoSource(video.original_url).class">
+                      {{ getVideoSource(video.original_url).text }}
+                    </span>
+                  </div>
+                </div>
               </div>
               
               <!-- 转载列 -->
@@ -164,7 +178,27 @@ const getTranslationStatusText = (status) => {
     case 1: return '中文内嵌';
     case 2: return 'CC字幕';
     case 3: return '弹幕翻译';
-    default: return '暂无翻译';
+    case 4: return '无需翻译';
+    case 5: return '暂无翻译';
+    default: return '';
+  }
+};
+
+const getVideoSource = (url) => {
+  if (!url) return null;
+  
+  const lowerUrl = url.toLowerCase();
+  
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
+    return { text: 'YouTube', class: 'source-youtube' };
+  } else if (lowerUrl.includes('nicovideo.jp') || lowerUrl.includes('nico.ms')) {
+    return { text: 'NicoNico', class: 'source-niconico' };
+  } else if (lowerUrl.includes('bilibili.com')) {
+    return { text: 'Bilibili', class: 'source-bilibili' };
+  } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
+    return { text: 'Twitter/X', class: 'source-twitter' };
+  } else {
+    return { text: '其他', class: 'source-other' };
   }
 };
 
@@ -363,8 +397,16 @@ watch(() => route.query.q, (newQuery) => {
 .video-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
+  gap: 16px;
+}
+
+.video-info-section {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .video-date {
@@ -374,6 +416,17 @@ watch(() => route.query.q, (newQuery) => {
   padding: 6px 12px;
   border-radius: 8px;
   display: inline-block;
+}
+
+.video-comment {
+  font-size: 0.9rem;
+  color: #f2cdcd; /* Catppuccin Mocha Flamingo */
+  background: rgba(242, 205, 205, 0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  border: 1px solid rgba(242, 205, 205, 0.3);
+  font-style: italic;
 }
 
 .author-info-small {
@@ -472,6 +525,16 @@ watch(() => route.query.q, (newQuery) => {
   gap: 12px;
 }
 
+.original-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-source {
+  align-self: flex-start;
+}
+
 .translation-status {
   align-self: flex-start;
 }
@@ -514,6 +577,57 @@ watch(() => route.query.q, (newQuery) => {
   font-size: 0.8rem;
   font-weight: 500;
   border: 1px solid rgba(108, 112, 134, 0.3);
+}
+
+/* 视频来源样式 */
+.source-youtube {
+  color: #f38ba8; /* Catppuccin Mocha Red */
+  background: rgba(243, 139, 168, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(243, 139, 168, 0.3);
+}
+
+.source-niconico {
+  color: #fab387; /* Catppuccin Mocha Peach */
+  background: rgba(250, 179, 135, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(250, 179, 135, 0.3);
+}
+
+.source-bilibili {
+  color: #89b4fa; /* Catppuccin Mocha Blue */
+  background: rgba(137, 180, 250, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(137, 180, 250, 0.3);
+}
+
+.source-twitter {
+  color: #74c7ec; /* Catppuccin Mocha Sapphire */
+  background: rgba(116, 199, 236, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(116, 199, 236, 0.3);
+}
+
+.source-other {
+  color: #cba6f7; /* Catppuccin Mocha Mauve */
+  background: rgba(203, 166, 247, 0.15);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(203, 166, 247, 0.3);
 }
 
 .author-card {
@@ -646,6 +760,12 @@ watch(() => route.query.q, (newQuery) => {
     gap: 12px;
   }
   
+  .video-info-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
   .author-info-small {
     align-self: flex-end;
   }
@@ -664,6 +784,10 @@ watch(() => route.query.q, (newQuery) => {
   }
   
   .repost-header {
+    gap: 8px;
+  }
+  
+  .original-header {
     gap: 8px;
   }
 }
@@ -690,9 +814,19 @@ watch(() => route.query.q, (newQuery) => {
   .status-none,
   .status-full,
   .status-partial,
-  .status-unknown {
+  .status-unknown,
+  .source-youtube,
+  .source-niconico,
+  .source-bilibili,
+  .source-twitter,
+  .source-other {
     font-size: 0.7rem; /* 状态标签字体也相应缩小 */
     padding: 2px 6px;
+  }
+  
+  .video-comment {
+    font-size: 0.8rem;
+    padding: 4px 8px;
   }
 }
 </style>

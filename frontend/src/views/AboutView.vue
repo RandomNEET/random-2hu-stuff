@@ -14,7 +14,7 @@
           <h2 class="section-title">简介</h2>
         </div>
         <p class="section-text">
-          本网站以作者为核心，系统性地收录每位MMD作者的全部作品，同时整理对应的转载视频，
+          本网站主要收录外网作者的MMD作品，同时整理对应的转载视频，
           希望能提供一个完整、便捷的MMD系列视频浏览体验。PS：因为作者头像来自原频道，裸连的话应该是加载不出图片的，推荐使用代理访问以获得最佳体验。
         </p>
         <p class="section-text" style="margin-top: 16px;">
