@@ -13,8 +13,19 @@
           <v-icon class="section-icon">mdi-update</v-icon>
           <h2 class="section-title">最新更新</h2>
         </div>
-        
+
         <div class="update-timeline">
+          <div class="update-item">
+            <div class="update-date">2025.08.03</div>
+            <div class="update-content">
+              <h3>日常更新</h3>
+              <ul>
+                <li>功能：视频列表支持按照翻译状态排序，为部分视频添加备注</li>
+                <li>内容：新增20位作者，363个视频，感谢群友的整理</li>
+              </ul>
+            </div>
+          </div>
+          
           <div class="update-item">
             <div class="update-date">2025.08.01</div>
             <div class="update-content">
@@ -34,12 +45,12 @@
           <v-icon class="section-icon">mdi-account-group</v-icon>
           <h2 class="section-title">共同维护</h2>
         </div>
-        
+
         <div class="collaboration-simple">
           <p class="collaboration-text">
             欢迎对MMD比较熟悉的车万人一起维护网站，会编辑在线表格就行
           </p>
-          
+
           <div class="group-link">
             <v-btn
               variant="outlined"
@@ -60,7 +71,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from "vue";
 
 const showBackToTop = ref(false);
 
@@ -75,11 +86,11 @@ const scrollToTop = () => {
 };
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  window.addEventListener("scroll", handleScroll);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener("scroll", handleScroll);
 });
 </script>
 
@@ -240,24 +251,24 @@ onUnmounted(() => {
   .container {
     padding: 0 16px;
   }
-  
+
   .page-title {
     font-size: 2rem;
   }
-  
+
   .announcement-section {
     padding: 20px;
   }
-  
+
   .update-item {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .update-date {
     min-width: auto;
   }
-  
+
   .collaboration-text {
     font-size: 1rem;
   }
@@ -267,24 +278,24 @@ onUnmounted(() => {
   .announcement-page {
     padding: 16px 0;
   }
-  
+
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .page-subtitle {
     font-size: 1rem;
   }
-  
+
   .section-title {
     font-size: 1.4rem;
   }
-  
+
   .announcement-section {
     padding: 16px;
     margin-bottom: 20px;
   }
-  
+
   .collaboration-text {
     font-size: 0.95rem;
   }
