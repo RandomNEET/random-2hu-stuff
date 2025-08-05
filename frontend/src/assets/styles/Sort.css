@@ -1,87 +1,93 @@
-/* 排序控件样式 */
+/* Sort control component styles */
 .sort-controls {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-end; /* Align sort controls to the right */
   padding: 16px 24px 0;
-  background-color: #1e1e2e;
+  background-color: #1e1e2e; /* Catppuccin Mocha Base */
 }
 
+/* Sort buttons container with glassmorphism effect */
 .sort-buttons {
   display: flex;
-  gap: 8px;
-  background: rgba(30, 30, 46, 0.8);
+  gap: 8px; /* Spacing between sort buttons */
+  background: rgba(30, 30, 46, 0.8); /* Semi-transparent background */
   padding: 8px;
   border-radius: 12px;
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid rgba(203, 166, 247, 0.3); /* Subtle theme color border */
 }
 
+/* Individual sort button styling */
 .sort-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important;
-  color: #cdd6f4 !important;
-  border: 1px solid rgba(203, 166, 247, 0.3) !important;
-  transition: all 0.3s ease !important;
+  background-color: rgba(49, 50, 68, 0.8) !important; /* Catppuccin Mocha Surface0 with transparency */
+  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
+  border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
+  transition: all 0.3s ease !important; /* Smooth transitions for all properties */
   display: flex !important;
-  align-items: center !important;
-  gap: 4px !important;
+  align-items: center !important; /* Vertically center content */
+  gap: 4px !important; /* Space between icon and text */
   padding: 0 12px !important;
-  min-width: auto !important;
+  min-width: auto !important; /* Allow buttons to size based on content */
 }
 
+/* Sort button hover effects */
 .sort-btn:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important;
-  color: #cba6f7 !important;
+  background-color: rgba(203, 166, 247, 0.2) !important; /* Light theme color on hover */
+  color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
 }
 
+/* Active sort button styling */
 .sort-btn.active {
-  background-color: #cba6f7 !important;
-  color: #1e1e2e !important;
-  border-color: #cba6f7 !important;
+  background-color: #cba6f7 !important; /* Full theme color for active state */
+  color: #1e1e2e !important; /* Dark text for contrast against active background */
+  border-color: #cba6f7 !important; /* Matching border color */
 }
 
+/* Sort button text styling */
 .sort-btn span {
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 500; /* Medium weight for readability */
 }
 
-/* 移动端排序控件 */
+/* Responsive design for mobile devices */
 @media (max-width: 768px) {
   .sort-controls {
-    padding: 12px 16px 0;
+    padding: 12px 16px 0; /* Reduced padding for mobile */
   }
   
   .sort-buttons {
-    gap: 6px;
-    padding: 6px;
-    border-radius: 10px;
+    gap: 6px; /* Tighter spacing on mobile */
+    padding: 6px; /* Smaller container padding */
+    border-radius: 10px; /* Slightly smaller border radius */
   }
   
   .sort-btn {
-    padding: 0 8px !important;
-    gap: 3px !important;
+    padding: 0 8px !important; /* Reduced button padding */
+    gap: 3px !important; /* Tighter spacing between icon and text */
   }
   
   .sort-btn span {
-    font-size: 0.8rem;
+    font-size: 0.8rem; /* Smaller text for mobile */
   }
 }
 
+/* Extra compact styling for very small screens */
 @media (max-width: 480px) {
   .sort-controls {
-    padding: 10px 12px 0;
+    padding: 10px 12px 0; /* Minimal padding for small screens */
   }
   
   .sort-buttons {
-    gap: 4px;
-    padding: 4px;
-    border-radius: 8px;
+    gap: 4px; /* Minimal spacing between buttons */
+    padding: 4px; /* Minimal container padding */
+    border-radius: 8px; /* Smaller border radius for compact look */
   }
   
   .sort-btn {
-    padding: 0 6px !important;
-    gap: 2px !important;
+    padding: 0 6px !important; /* Very compact button padding */
+    gap: 2px !important; /* Minimal spacing between elements */
   }
   
   .sort-btn span {
-    font-size: 0.75rem;
+    font-size: 0.75rem; /* Smallest readable text size */
   }
 }

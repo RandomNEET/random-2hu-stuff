@@ -1,0 +1,251 @@
+/* Pagination component styles */
+/* Desktop-only display control */
+.desktop-only {
+  display: none; /* Hidden by default for mobile-first approach */
+}
+
+@media (min-width: 769px) {
+  .desktop-only {
+    display: flex; /* Show on desktop screens */
+  }
+}
+
+/* Main pagination container */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  background-color: #1e1e2e; /* Catppuccin Mocha Base */
+}
+
+/* Pagination wrapper with glassmorphism effect */
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 30, 46, 0.8); /* Semi-transparent background */
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 166, 247, 0.3); /* Subtle border with theme color */
+}
+
+/* Page numbers container */
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Tight spacing between page buttons */
+}
+
+/* Navigation buttons (previous/next) */
+.nav-button {
+  background-color: rgba(49, 50, 68, 0.8) !important; /* Catppuccin Mocha Surface0 with transparency */
+  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
+  border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
+}
+
+.nav-button:hover {
+  background-color: rgba(203, 166, 247, 0.2) !important; /* Light theme color on hover */
+  color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
+}
+
+/* Individual page number buttons */
+.page-btn {
+  background-color: rgba(49, 50, 68, 0.8) !important; /* Consistent with nav buttons */
+  color: #cdd6f4 !important;
+  border: 1px solid rgba(203, 166, 247, 0.3) !important;
+  min-width: 36px !important; /* Ensure minimum touch target size */
+  height: 36px !important;
+}
+
+.page-btn:hover {
+  background-color: rgba(203, 166, 247, 0.2) !important;
+  color: #cba6f7 !important;
+}
+
+/* Active/current page styling */
+.page-btn.active {
+  background-color: #cba6f7 !important; /* Full theme color for active state */
+  color: #1e1e2e !important; /* Dark text for contrast */
+  border-color: #cba6f7 !important;
+}
+
+/* Ellipsis buttons for page skipping */
+.ellipsis-btn {
+  background-color: rgba(49, 50, 68, 0.8) !important;
+  color: #89b4fa !important; /* Catppuccin Mocha Blue for distinction */
+  border: 1px solid rgba(137, 180, 250, 0.3) !important; /* Blue border to match text */
+  min-width: 36px !important;
+  height: 36px !important;
+}
+
+.ellipsis-btn:hover {
+  background-color: rgba(137, 180, 250, 0.2) !important; /* Blue hover effect */
+  color: #74c7ec !important; /* Catppuccin Mocha Sapphire on hover */
+}
+
+/* Page input section for manual navigation */
+.page-input-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(203, 166, 247, 0.3); /* Visual separator */
+}
+
+/* Input labels styling */
+.page-input-label {
+  color: #cdd6f4; /* Catppuccin Mocha Text */
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.page-unit-label {
+  color: #cdd6f4;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Page input field styling */
+.page-input {
+  width: 60px !important; /* Compact width for page numbers */
+}
+
+/* Deep styling for Vuetify input components */
+.page-input :deep(.v-field) {
+  background-color: rgba(49, 50, 68, 0.8) !important; /* Match theme background */
+  border-radius: 8px !important;
+}
+
+.page-input :deep(.v-field__input) {
+  color: #cdd6f4 !important; /* Theme text color */
+  text-align: center; /* Center-align page numbers */
+  padding: 4px 8px !important;
+  min-height: 32px !important;
+}
+
+.page-input :deep(.v-field__outline) {
+  border-color: rgba(203, 166, 247, 0.4) !important; /* Theme border color */
+}
+
+.page-input :deep(.v-field--focused .v-field__outline) {
+  border-color: #cba6f7 !important; /* Focused state with full theme color */
+}
+
+/* Responsive design for pagination */
+@media (max-width: 768px) {
+  .pagination-wrapper {
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    padding: 8px 12px; /* Reduced padding for mobile */
+    gap: 6px;
+    max-width: 100%;
+    overflow-x: auto; /* Allow horizontal scrolling if needed */
+  }
+
+  .page-numbers {
+    gap: 2px; /* Tighter spacing on mobile */
+  }
+
+  /* Mobile button sizing */
+  .nav-button {
+    min-width: 32px !important; /* Smaller buttons for mobile */
+    height: 32px !important;
+  }
+
+  .page-btn {
+    min-width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important; /* Smaller text for mobile */
+  }
+
+  .ellipsis-btn {
+    min-width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Mobile input section adjustments */
+  .page-input-section {
+    margin-left: 8px; /* Reduced margins for mobile */
+    padding-left: 8px;
+    gap: 4px;
+  }
+
+  .page-input-label {
+    font-size: 0.8rem; /* Smaller label text */
+  }
+
+  .page-unit-label {
+    font-size: 0.8rem;
+  }
+
+  .page-input {
+    width: 50px !important; /* Narrower input for mobile */
+  }
+
+  .page-input :deep(.v-field__input) {
+    padding: 2px 4px !important; /* Reduced input padding */
+    min-height: 28px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Extra small screen optimizations */
+@media (max-width: 480px) {
+  .pagination-container {
+    padding: 16px 8px; /* Minimal container padding */
+  }
+
+  .pagination-wrapper {
+    padding: 6px 8px; /* Very compact wrapper */
+    gap: 4px;
+    border-radius: 12px; /* Smaller border radius */
+  }
+
+  .page-numbers {
+    gap: 1px; /* Minimal gap between buttons */
+  }
+
+  /* Ultra-compact button sizing */
+  .nav-button {
+    min-width: 28px !important; /* Smallest practical size */
+    height: 28px !important;
+  }
+
+  .page-btn {
+    min-width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important; /* Smallest readable text */
+  }
+
+  .ellipsis-btn {
+    min-width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Ultra-compact input section */
+  .page-input-section {
+    margin-left: 6px; /* Minimal spacing */
+    padding-left: 6px;
+    gap: 3px;
+  }
+
+  .page-input-label {
+    font-size: 0.75rem; /* Smallest label size */
+  }
+
+  .page-unit-label {
+    font-size: 0.75rem;
+  }
+
+  .page-input {
+    width: 45px !important; /* Ultra-narrow input */
+  }
+
+  .page-input :deep(.v-field__input) {
+    padding: 2px 3px !important; /* Minimal input padding */
+    min-height: 26px !important;
+    font-size: 0.75rem !important;
+  }
+}

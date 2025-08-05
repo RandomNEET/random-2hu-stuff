@@ -1,26 +1,26 @@
--- 重新整理videos表的ID，使其连续递增
--- 备份当前数据到临时表
+-- Reorganize video table IDs to make them consecutive and incremental
+-- Backup current data to temporary table
 
--- 创建临时表存储当前数据
+-- Create temporary table to store current data
 CREATE TEMPORARY TABLE videos_backup AS 
 SELECT * FROM videos ORDER BY id;
 
--- 清空现有表
+-- Clear existing table
 DELETE FROM videos;
 
--- 重置自增序列
+-- Reset auto-increment sequence
 DELETE FROM sqlite_sequence WHERE name='videos';
 
--- 按原有顺序重新插入数据，让ID自动递增
-INSERT INTO videos (author, original_name, original_url, date, repost_name, repost_url, translation_status)
-SELECT author, original_name, original_url, date, repost_name, repost_url, translation_status
+-- Reinsert data in original order, allowing IDs to auto-increment
+INSERT INTO videos (author, original_name, original_url, original_thumbnail, date, repost_name, repost_url, repost_thumbnail, translation_status, comment)
+SELECT author, original_name, original_url, original_thumbnail, date, repost_name, repost_url, repost_thumbnail, translation_status, comment
 FROM videos_backup
 ORDER BY id;
 
--- 删除临时表
+-- Drop temporary table
 DROP TABLE videos_backup;
 
--- 显示结果统计
+-- Show result statistics
 SELECT 'Total videos:' as info, COUNT(*) as count FROM videos
 UNION ALL
 SELECT 'Min ID:', MIN(id) FROM videos
