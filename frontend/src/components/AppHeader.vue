@@ -6,14 +6,14 @@
     height="70"
   >
     <v-container class="d-flex align-center">
-      <!-- 网站标题 -->
+      <!-- Site title -->
       <div class="site-title" @click="$router.push('/')" style="cursor: pointer">
         <h1 class="title-text">random 2hu stuff</h1>
       </div>
 
       <v-spacer></v-spacer>
 
-      <!-- 搜索栏 -->
+      <!-- Desktop search bar -->
       <div class="search-container">
         <v-text-field
           v-model="searchQuery"
@@ -29,9 +29,9 @@
 
       <v-spacer></v-spacer>
 
-      <!-- 导航菜单 -->
+      <!-- Navigation menu -->
       <div class="nav-menu">
-        <!-- 手机端搜索按钮 -->
+        <!-- Mobile search toggle button -->
         <v-btn
           icon
           class="mobile-search-btn"
@@ -66,7 +66,7 @@
       </div>
     </v-container>
 
-    <!-- 手机端弹出搜索框 -->
+    <!-- Mobile search popup overlay -->
     <div v-if="showMobileSearch" class="mobile-search-overlay" @click="showMobileSearch = false">
       <div class="mobile-search-popup" @click.stop>
         <v-text-field
@@ -102,7 +102,7 @@ const showMobileSearch = ref(false);
 
 const handleSearch = () => {
   if (searchQuery.value.trim()) {
-    // 跳转到搜索结果页面，并传递搜索参数
+    // Navigate to search results page with query parameter
     router.push({
       path: '/search',
       query: { q: searchQuery.value.trim() }
@@ -112,12 +112,12 @@ const handleSearch = () => {
 
 const handleMobileSearch = () => {
   if (searchQuery.value.trim()) {
-    // 跳转到搜索结果页面，并传递搜索参数
+    // Navigate to search results page with query parameter
     router.push({
       path: '/search',
       query: { q: searchQuery.value.trim() }
     });
-    showMobileSearch.value = false; // 关闭弹出层
+    showMobileSearch.value = false; // Close the popup overlay
   }
 };
 </script>
@@ -125,6 +125,7 @@ const handleMobileSearch = () => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+/* Header with Catppuccin Mocha theme */
 .app-header {
   background: linear-gradient(135deg, #1e1e2e 0%, #313244 100%) !important; /* Catppuccin Mocha gradient */
   border-bottom: 2px solid #45475a; /* Catppuccin Mocha Surface1 */
@@ -137,7 +138,7 @@ const handleMobileSearch = () => {
 
 .site-title {
   transition: transform 0.2s ease;
-  flex-shrink: 0; /* 防止标题被压缩 */
+  flex-shrink: 0; /* Prevent title from being compressed */
 }
 
 .site-title:hover {
@@ -158,28 +159,30 @@ const handleMobileSearch = () => {
 }
 
 .mobile-search-container {
-  display: none; /* 默认隐藏手机端搜索 */
+  display: none; /* Hidden by default for mobile search */
   width: 100px;
   margin-right: 8px;
 }
 
 .mobile-search-btn {
-  display: none; /* 默认隐藏手机端搜索按钮 */
+  display: none; /* Hidden by default for mobile search button */
   color: #cdd6f4 !important;
   transition: all 0.2s ease;
+  border: 1px solid #585b70 !important; /* Add border for normal state */
 }
 
 .mobile-search-btn:hover {
   background-color: rgba(137, 180, 250, 0.1) !important;
   color: #89b4fa !important;
+  border-color: #89b4fa !important; /* Change border color on hover */
 }
 
 .desktop-search {
-  display: block; /* 默认显示桌面端搜索 */
+  display: block; /* Show desktop search by default */
 }
 
 .mobile-search {
-  display: none; /* 默认隐藏手机端搜索 */
+  display: none; /* Hide mobile search by default */
 }
 
 .search-field :deep(.v-field) {
@@ -210,21 +213,23 @@ const handleMobileSearch = () => {
 .nav-menu {
   display: flex;
   gap: 8px;
-  flex-shrink: 0; /* 防止在小屏幕上被压缩 */
-  align-items: center; /* 确保按钮垂直居中对齐 */
+  flex-shrink: 0; /* Prevent compression on small screens */
+  align-items: center; /* Ensure buttons are vertically centered */
 }
 
 .nav-button {
   color: #cdd6f4 !important; /* Catppuccin Mocha Text */
   transition: all 0.2s ease;
+  border: 1px solid #585b70 !important; /* Add border for normal state */
 }
 
 .nav-button:hover {
   background-color: rgba(137, 180, 250, 0.1) !important; /* Catppuccin Mocha Blue with opacity */
   color: #89b4fa !important; /* Catppuccin Mocha Blue */
+  border-color: #89b4fa !important; /* Change border color on hover */
 }
 
-/* 手机端弹出搜索框样式 */
+/* Mobile search popup overlay styles */
 .mobile-search-overlay {
   position: fixed;
   top: 0;
@@ -236,7 +241,7 @@ const handleMobileSearch = () => {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 80px; /* 留出header空间 */
+  padding-top: 80px; /* Leave space for header */
 }
 
 .mobile-search-popup {
@@ -266,28 +271,28 @@ const handleMobileSearch = () => {
   color: #f38ba8 !important;
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 960px) {
   .title-text {
     font-size: 1.2rem;
   }
   
   .search-container {
-    display: none; /* 隐藏桌面端搜索框 */
+    display: none; /* Hide desktop search bar */
   }
   
   .desktop-search {
-    display: none !important; /* 隐藏桌面端搜索 */
+    display: none !important; /* Hide desktop search */
   }
   
   .mobile-search-btn {
-    display: flex !important; /* 显示手机端搜索按钮 */
+    display: flex !important; /* Show mobile search button */
   }
 }
 
 @media (max-width: 600px) {
   .app-header :deep(.v-container) {
-    padding: 0 12px !important; /* 手机端适当padding */
+    padding: 0 12px !important; /* Appropriate padding for mobile */
   }
   
   .title-text {
@@ -295,17 +300,19 @@ const handleMobileSearch = () => {
   }
   
   .nav-menu {
-    gap: 4px; /* 减少按钮间距 */
+    gap: 4px; /* Reduce button spacing */
   }
   
   .nav-button {
-    min-width: 40px !important; /* 图标按钮最小宽度 */
-    padding: 0 8px !important;
+    width: 40px !important; /* Set fixed width */
+    height: 40px !important; /* Set fixed height to maintain circular shape */
+    min-width: 40px !important; /* Minimum width */
   }
   
   .mobile-search-btn {
+    width: 40px !important; /* Set fixed width */
+    height: 40px !important; /* Set fixed height to maintain circular shape */
     min-width: 40px !important;
-    padding: 0 8px !important;
   }
   
   .mobile-search-popup {

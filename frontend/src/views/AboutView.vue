@@ -1,54 +1,53 @@
 <template>
   <div class="about-page">
     <div class="container">
-      <!-- 页面标题 -->
+      <!-- Page title section -->
       <div class="page-header">
         <v-icon size="48" class="header-icon">mdi-information</v-icon>
         <h1 class="page-title">关于 random 2hu stuff</h1>
       </div>
 
-      <!-- 简介 -->
+      <!-- Introduction section -->
       <div class="about-section">
         <div class="section-header">
           <v-icon class="section-icon">mdi-book-open-variant</v-icon>
           <h2 class="section-title">简介</h2>
         </div>
         <p class="section-text">
-          本网站主要收录外网作者的MMD作品，同时整理对应的转载视频，
-          希望能提供一个完整、便捷的MMD系列视频浏览体验。PS：因为作者头像来自原频道，裸连的话应该是加载不出图片的，推荐使用代理访问以获得最佳体验。
+          本网站主要收录组员寻思好看并大力推荐的东方相关二创视频，同时整理对应的出处。
         </p>
-        <p class="section-text" style="margin-top: 16px;">
-          由于网站目前只有我一个人在维护，转载视频的收集是最麻烦的部分<del> 首页刷到就顺手更新一下吧大概 </del>。
-          如果发现有遗漏或未及时更新的情况，直接在评论区@我就好。
-          如果希望增加对新作者的收录，或者对网站功能有任何建议，也欢迎直接私信告诉我。
+        <p class="section-text" style="margin-top: 16px">
+          PS：因为作者头像和视频封面来自原频道，裸连的话应该是加载不出图片的，推荐使用代理访问以获得最佳体验。
         </p>
       </div>
 
-      <!-- 联系方式 -->
+      <!-- Collaborative maintenance section -->
       <div class="about-section">
         <div class="section-header">
-          <v-icon class="section-icon">mdi-account-circle</v-icon>
-          <h2 class="section-title">联系方式</h2>
+          <v-icon class="section-icon">mdi-account-group</v-icon>
+          <h2 class="section-title">共同维护</h2>
         </div>
-        <div class="contact-content">
-          <div class="contact-links">
-            <v-btn variant="outlined" color="pink" prepend-icon="mdi-play" href="https://space.bilibili.com/9217280"
-              target="_blank" class="contact-btn">
-              Bilibili
-            </v-btn>
-            <v-btn variant="outlined" color="green" prepend-icon="mdi-email" href="mailto:dev@randomneet.me"
-              class="contact-btn">
-              邮箱
-            </v-btn>
-            <v-btn variant="outlined" color="blue" prepend-icon="mdi-github" href="https://github.com/RandomNEET"
-              target="_blank" class="contact-btn">
-              GitHub
-            </v-btn>
-          </div>
+        <p class="section-text">
+          如果你也有想要推荐的作品，强烈欢迎加入一起维护网站！
+        </p>
+        <p class="section-text" style="margin-top: 16px">
+          PS：会复制粘贴就行了，没有技术要求。
+        </p>
+        <div class="group-link" style="margin-top: 20px; text-align: center">
+          <v-btn
+            variant="outlined"
+            color="primary"
+            prepend-icon="mdi-account-group"
+            href="https://qm.qq.com/q/NuSbWCMd8"
+            target="_blank"
+            size="large"
+          >
+            QQ群：976462503
+          </v-btn>
         </div>
       </div>
 
-      <!-- 数据统计 -->
+      <!-- Statistics section -->
       <div class="about-section">
         <div class="section-header">
           <v-icon class="section-icon">mdi-chart-bar</v-icon>
@@ -89,51 +88,56 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { API_URLS } from '@/config/api.js';
+import { ref, onMounted } from "vue";
+import { API_URLS } from "@/config/api.js";
 
+// Reactive data for statistics
 const totalAuthors = ref(0);
 const totalVideos = ref(0);
 const translatedVideos = ref(0);
 
+// Fetch statistics data from API
 const fetchStats = async () => {
   try {
-    // 使用统计API获取准确数据
+    // Use stats API to get accurate data
     const statsRes = await fetch(API_URLS.STATS);
     const stats = await statsRes.json();
-    
+
     totalAuthors.value = stats.totalAuthors;
     totalVideos.value = stats.totalVideos;
     translatedVideos.value = stats.translatedVideos;
   } catch (error) {
-    console.error('获取统计数据失败:', error);
-    // 设置默认值
+    console.error("Failed to fetch statistics:", error);
+    // Set default values on error
     totalAuthors.value = null;
     totalVideos.value = null;
     translatedVideos.value = null;
   }
 };
 
+// Initialize data on component mount
 onMounted(() => {
   fetchStats();
 });
 </script>
 
 <style scoped>
+/* Main about page container with gradient background */
 .about-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%);
-  color: #cdd6f4;
+  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%); /* Catppuccin Mocha Base to Crust gradient */
+  color: #cdd6f4; /* Catppuccin Mocha Text */
   padding: 32px 0;
 }
 
+/* Content container with responsive width */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
-/* 页面标题 */
+/* Page header section styling */
 .page-header {
   text-align: center;
   margin-bottom: 48px;
@@ -141,166 +145,143 @@ onMounted(() => {
 }
 
 .header-icon {
-  color: #f9e2af;
+  color: #f9e2af; /* Catppuccin Mocha Yellow */
   margin-bottom: 16px;
 }
 
 .page-title {
   font-size: 3rem;
   font-weight: bold;
-  color: #f9e2af;
+  color: #f9e2af; /* Catppuccin Mocha Yellow */
   margin-bottom: 8px;
-  text-shadow: 0 2px 8px rgba(249, 226, 175, 0.3);
+  text-shadow: 0 2px 8px rgba(249, 226, 175, 0.3); /* Subtle glow effect */
 }
 
 .page-subtitle {
   font-size: 1.2rem;
-  color: #a6adc8;
+  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
   margin: 0;
 }
 
-/* 关于区块 */
+/* About section cards with glassmorphism effect */
 .about-section {
-  background: rgba(49, 50, 68, 0.4);
+  background: rgba(49, 50, 68, 0.4); /* Semi-transparent Surface0 */
   border-radius: 16px;
   padding: 32px;
   margin-bottom: 32px;
-  border: 1px solid rgba(203, 166, 247, 0.2);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(203, 166, 247, 0.2); /* Subtle Mauve border */
+  backdrop-filter: blur(10px); /* Glassmorphism blur effect */
 }
 
+/* Section headers with icon and title */
 .section-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid rgba(203, 166, 247, 0.3);
+  border-bottom: 2px solid rgba(203, 166, 247, 0.3); /* Mauve accent line */
 }
 
 .section-icon {
-  color: #cba6f7;
+  color: #cba6f7; /* Catppuccin Mocha Mauve */
   font-size: 28px;
 }
 
 .section-title {
-  color: #cba6f7;
+  color: #cba6f7; /* Catppuccin Mocha Mauve */
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
 }
 
 .section-text {
-  color: #cdd6f4;
+  color: #cdd6f4; /* Catppuccin Mocha Text */
   font-size: 1.1rem;
-  line-height: 1.6;
+  line-height: 1.6; /* Improved readability */
   margin: 0;
 }
 
-/* 联系方式 */
-.contact-content {
-  text-align: center;
-}
-
-.contact-links {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.contact-btn {
-  color: #89b4fa !important;
-  border-color: #89b4fa !important;
-}
-
-.contact-btn:hover {
-  background-color: rgba(137, 180, 250, 0.1) !important;
-}
-
-/* 统计数据 */
+/* Statistics grid layout */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive grid */
   gap: 24px;
 }
 
+/* Individual statistics cards */
 .stat-card {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 24px;
-  background: rgba(30, 30, 46, 0.6);
+  background: rgba(30, 30, 46, 0.6); /* Semi-transparent Base */
   border-radius: 12px;
-  border: 1px solid rgba(137, 180, 250, 0.2);
-  transition: all 0.3s ease;
+  border: 1px solid rgba(137, 180, 250, 0.2); /* Blue border */
+  transition: all 0.3s ease; /* Smooth hover transitions */
 }
 
 .stat-card:hover {
-  background: rgba(30, 30, 46, 0.8);
-  border-color: rgba(137, 180, 250, 0.4);
-  transform: translateY(-2px);
+  background: rgba(30, 30, 46, 0.8); /* Darker on hover */
+  border-color: rgba(137, 180, 250, 0.4); /* Brighter border on hover */
+  transform: translateY(-2px); /* Subtle lift effect */
 }
 
+/* Statistics card content styling */
 .stat-icon {
-  color: #89b4fa;
-  flex-shrink: 0;
+  color: #89b4fa; /* Catppuccin Mocha Blue */
+  flex-shrink: 0; /* Prevent icon from shrinking */
 }
 
 .stat-content {
-  flex: 1;
+  flex: 1; /* Take remaining space */
 }
 
 .stat-number {
   font-size: 2rem;
   font-weight: bold;
-  color: #89b4fa;
+  color: #89b4fa; /* Catppuccin Mocha Blue */
   margin-bottom: 4px;
 }
 
 .stat-label {
-  color: #a6adc8;
+  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
   font-size: 0.9rem;
   font-weight: 500;
 }
 
-/* 响应式设计 */
+/* Responsive design for mobile and tablet */
 @media (max-width: 768px) {
   .container {
-    padding: 0 16px;
+    padding: 0 16px; /* Reduced padding on mobile */
   }
 
   .page-title {
-    font-size: 2rem;
+    font-size: 2rem; /* Smaller title on mobile */
   }
 
   .about-section {
-    padding: 20px;
+    padding: 20px; /* Reduced section padding */
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Single column on mobile */
   }
 
   .stat-card {
-    justify-content: center;
+    justify-content: center; /* Center content on mobile */
     text-align: center;
-  }
-
-  .contact-links {
-    flex-direction: column;
-    align-items: center;
   }
 }
 
+/* Extra small screen optimizations */
 @media (max-width: 480px) {
   .about-page {
-    padding: 16px 0;
+    padding: 16px 0; /* Minimal page padding */
   }
 
   .page-title {
-    font-size: 1.5rem;
+    font-size: 1.5rem; /* Smallest title size */
   }
 
   .page-subtitle {
@@ -308,11 +289,11 @@ onMounted(() => {
   }
 
   .section-title {
-    font-size: 1.4rem;
+    font-size: 1.4rem; /* Smaller section titles */
   }
 
   .about-section {
-    padding: 16px;
+    padding: 16px; /* Minimal section padding */
     margin-bottom: 20px;
   }
 }
