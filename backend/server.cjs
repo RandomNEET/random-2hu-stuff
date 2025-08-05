@@ -5,24 +5,25 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// 优化SQLite配置
+// Optimize SQLite configuration for better performance
 const db = new sqlite3.Database("./random-2hu-stuff.db", (err) => {
   if (err) {
     console.error('Error opening database:', err);
   } else {
     console.log('Connected to SQLite database');
-    // 优化SQLite性能
-    db.run("PRAGMA journal_mode=WAL");
-    db.run("PRAGMA synchronous=NORMAL");
-    db.run("PRAGMA cache_size=10000");
-    db.run("PRAGMA temp_store=MEMORY");
+    // Performance optimizations for SQLite
+    db.run("PRAGMA journal_mode=WAL"); // Write-Ahead Logging for better concurrency
+    db.run("PRAGMA synchronous=NORMAL"); // Balance between performance and safety
+    db.run("PRAGMA cache_size=10000"); // Increase cache size for better read performance
+    db.run("PRAGMA temp_store=MEMORY"); // Store temporary tables in memory
   }
 });
 
-// 简单的内存缓存
+// Simple in-memory cache implementation for API responses
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache duration
 
+// Store data in cache with timestamp for TTL management
 function setCache(key, data) {
   cache.set(key, {
     data,
@@ -30,16 +31,18 @@ function setCache(key, data) {
   });
 }
 
+// Retrieve data from cache, checking TTL expiration
 function getCache(key) {
   const item = cache.get(key);
   if (item && (Date.now() - item.timestamp) < CACHE_TTL) {
     return item.data;
   }
+  // Remove expired cache entry
   cache.delete(key);
   return null;
 }
 
-// 清理过期缓存
+// Periodic cache cleanup to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
   for (const [key, item] of cache.entries()) {
@@ -47,16 +50,19 @@ setInterval(() => {
       cache.delete(key);
     }
   }
-}, 60000); // 每分钟清理一次
+}, 60000); // Clean up every minute
 
+// GET /api/authors - Retrieve all authors with their video statistics
 app.get("/api/authors", (req, res) => {
   const cacheKey = 'authors';
   const cached = getCache(cacheKey);
   
+  // Return cached data if available and not expired
   if (cached) {
     return res.json(cached);
   }
 
+  // SQL query to get authors with video count and last update date
   const query = `
     SELECT 
       a.id, 
@@ -76,22 +82,26 @@ app.get("/api/authors", (req, res) => {
       res.status(500).json({ error: err.message });
       return;
     }
+    // Cache the results and send response
     setCache(cacheKey, rows);
     res.json(rows);
   });
 });
 
+// GET /api/author/:id/videos - Retrieve all videos for a specific author
 app.get("/api/author/:id/videos", (req, res) => {
   const authorId = req.params.id;
   const cacheKey = `author_videos_${authorId}`;
   const cached = getCache(cacheKey);
   
+  // Return cached data if available
   if (cached) {
     return res.json(cached);
   }
 
+  // Query to get all videos for the specified author, ordered chronologically
   db.all(
-    `SELECT id, original_name, original_url, date, repost_name, repost_url, translation_status, comment 
+    `SELECT id, original_name, original_url, original_thumbnail, date, repost_name, repost_url, repost_thumbnail, translation_status, comment 
      FROM videos 
      WHERE author = ? 
      ORDER BY date ASC, id ASC`,
@@ -104,13 +114,14 @@ app.get("/api/author/:id/videos", (req, res) => {
   );
 });
 
+// GET /api/search/videos - Search videos by title with fuzzy matching
 app.get("/api/search/videos", (req, res) => {
   const query = req.query.q;
   if (!query) {
-    return res.status(400).json({ error: "搜索关键词不能为空" });
+    return res.status(400).json({ error: "Search query cannot be empty" });
   }
   
-  // 限制搜索结果数量
+  // Limit search results to prevent excessive memory usage and improve performance
   const limit = Math.min(parseInt(req.query.limit) || 100, 500);
   const cacheKey = `search_${query}_${limit}`;
   const cached = getCache(cacheKey);
@@ -119,8 +130,9 @@ app.get("/api/search/videos", (req, res) => {
     return res.json(cached);
   }
   
+  // Search in both original and repost video names with author information
   db.all(
-    `SELECT v.id, v.original_name, v.original_url, v.date, v.repost_name, v.repost_url, v.translation_status, v.comment,
+    `SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
             a.id as author_id, a.name as author_name, a.avatar as author_avatar
      FROM videos v
      JOIN authors a ON v.author = a.id
@@ -136,6 +148,7 @@ app.get("/api/search/videos", (req, res) => {
   );
 });
 
+// GET /api/stats - Retrieve database statistics for dashboard display
 app.get("/api/stats", (req, res) => {
   const cacheKey = 'stats';
   const cached = getCache(cacheKey);
@@ -144,6 +157,7 @@ app.get("/api/stats", (req, res) => {
     return res.json(cached);
   }
 
+  // Query to calculate total authors, videos, and translated videos count
   db.all(
     `SELECT 
       COUNT(DISTINCT a.id) as totalAuthors,
@@ -163,15 +177,16 @@ app.get("/api/stats", (req, res) => {
   );
 });
 
-// 健康检查端点
+// Health check endpoint for monitoring and debugging
 app.get("/health", (req, res) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(),
-    cacheSize: cache.size 
+    cacheSize: cache.size // Current number of cached items
   });
 });
 
+// Start the server on port 3000
 app.listen(3000, () => {
   console.log("API server running on http://localhost:3000");
   console.log("Health check: http://localhost:3000/health");

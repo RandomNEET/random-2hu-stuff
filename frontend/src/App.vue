@@ -27,14 +27,14 @@ body,
 
 .v-main {
   background: #1e1e2e !important; /* Catppuccin Mocha Base */
-  padding-top: 70px; /* Header 高度 */
+  padding-top: 70px; /* Header height */
 }
 
 body {
   background: #1e1e2e !important; /* Catppuccin Mocha Base */
 }
 
-/* 覆盖 Vuetify 默认样式 */
+/* Override Vuetify default styles */
 .v-application .primary {
   background-color: #89b4fa !important; /* Catppuccin Mocha Blue */
 }
@@ -43,7 +43,7 @@ body {
   background-color: #cba6f7 !important; /* Catppuccin Mocha Mauve */
 }
 
-/* 滚动条样式 */
+/* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
 }

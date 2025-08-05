@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-// 你的页面组件（根据自己的实际路径调整）
-import AuthorGrid from "../components/AuthorGrid.vue";
-import VideoList from "../components/VideoList.vue";
-import AboutView from "../views/AboutView.vue";
-import SearchView from "../views/SearchView.vue";
-import AnnouncementView from "../views/AnnouncementView.vue";
+// Use lazy loading to reduce initial bundle size
+const AuthorGrid = () => import("../components/AuthorGrid.vue");
+const VideoList = () => import("../components/VideoList.vue");
+const AboutView = () => import("../views/AboutView.vue");
+const SearchView = () => import("../views/SearchView.vue");
+const AnnouncementView = () => import("../views/AnnouncementView.vue");
 
 const routes = [
   { path: "/", component: AuthorGrid },
@@ -16,7 +16,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(), // 使用history模式（推荐）
+  history: createWebHistory(), // Use history mode (recommended)
   routes,
 });
 

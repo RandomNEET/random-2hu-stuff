@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Random 2hu Stuff 项目上传脚本
-# 构建并上传项目到服务器
+# Random 2hu Stuff Project Upload Script
+# Build and upload project to server
 
-set -e  # 遇到错误立即退出
+set -e  # Exit immediately on any error
 
-# 配置变量
+# Configuration variables
 LOCAL_PROJECT_ROOT="$HOME/repo/random-2hu-stuff"
 REMOTE_SERVER="root@38.148.249.102"
 REMOTE_TARGET="/var/www/"
@@ -13,14 +13,14 @@ FRONTEND_DIR="$LOCAL_PROJECT_ROOT/frontend"
 BACKEND_DIR="$LOCAL_PROJECT_ROOT/backend"
 DEPLOY_DIR="$LOCAL_PROJECT_ROOT/deploy"
 
-# 颜色输出
+# Color output configuration
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 日志函数
+# Logging functions
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -37,113 +37,113 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 检查依赖
+# Check dependencies
 check_dependencies() {
-    log_info "检查依赖..."
+    log_info "Checking dependencies..."
     
     local deps=("node" "npm" "rsync" "ssh")
     for dep in "${deps[@]}"; do
         if ! command -v $dep &> /dev/null; then
-            log_error "$dep 未安装"
+            log_error "$dep is not installed"
             exit 1
         fi
     done
     
-    log_success "所有依赖检查通过"
+    log_success "All dependency checks passed"
 }
 
-# 测试SSH连接
+# Test SSH connection
 test_ssh_connection() {
-    log_info "测试SSH连接..."
+    log_info "Testing SSH connection..."
     
-    if ssh -o ConnectTimeout=10 -o BatchMode=yes "$REMOTE_SERVER" "echo 'SSH连接成功'" 2>/dev/null; then
-        log_success "SSH连接测试通过"
+    if ssh -o ConnectTimeout=10 -o BatchMode=yes "$REMOTE_SERVER" "echo 'SSH connection successful'" 2>/dev/null; then
+        log_success "SSH connection test passed"
     else
-        log_error "SSH连接失败，请检查："
-        echo "  1. SSH密钥是否正确配置"
-        echo "  2. 服务器是否可达"
-        echo "  3. 用户权限是否正确"
+        log_error "SSH connection failed, please check:"
+        echo "  1. SSH key is properly configured"
+        echo "  2. Server is reachable"
+        echo "  3. User permissions are correct"
         exit 1
     fi
 }
 
-# 构建前端
+# Build frontend
 build_frontend() {
-    log_info "构建前端项目..."
+    log_info "Building frontend project..."
     
     cd "$FRONTEND_DIR"
     
-    # 检查package.json是否存在
+    # Check if package.json exists
     if [ ! -f "package.json" ]; then
-        log_error "前端package.json不存在"
+        log_error "Frontend package.json does not exist"
         exit 1
     fi
     
-    # 安装依赖
-    log_info "安装前端依赖..."
+    # Install dependencies
+    log_info "Installing frontend dependencies..."
     npm ci --production=false
     
-    # 构建项目
-    log_info "构建前端..."
+    # Build project
+    log_info "Building frontend..."
     npm run build
     
-    # 检查构建结果
+    # Check build result
     if [ ! -d "dist" ]; then
-        log_error "前端构建失败，dist目录不存在"
+        log_error "Frontend build failed, dist directory does not exist"
         exit 1
     fi
     
-    log_success "前端构建完成"
+    log_success "Frontend build completed"
 }
 
-# 准备后端文件
+# Prepare backend files
 prepare_backend() {
-    log_info "准备后端文件..."
+    log_info "Preparing backend files..."
     
     cd "$BACKEND_DIR"
     
-    # 检查必要文件
+    # Check required files
     local required_files=("server.cjs" "package.json")
     for file in "${required_files[@]}"; do
         if [ ! -f "$file" ]; then
-            log_error "后端文件不存在: $file"
+            log_error "Backend file does not exist: $file"
             exit 1
         fi
     done
     
-    log_success "后端文件检查完成"
+    log_success "Backend file check completed"
 }
 
-# 创建临时上传目录
+# Create temporary upload directory
 create_upload_structure() {
     local temp_dir="/tmp/random-2hu-stuff-upload"
     
-    # 清理并创建临时目录
+    # Clean and create temporary directory
     rm -rf "$temp_dir"
     mkdir -p "$temp_dir/random-2hu-stuff"
     
-    # 复制前端构建文件（如果存在）
+    # Copy frontend build files (if exists)
     if [ -d "$FRONTEND_DIR/dist" ]; then
         mkdir -p "$temp_dir/random-2hu-stuff/frontend/dist"
         cp -r "$FRONTEND_DIR/dist/"* "$temp_dir/random-2hu-stuff/frontend/dist/"
     fi
     
-    # 复制后端文件
+    # Copy backend files
     mkdir -p "$temp_dir/random-2hu-stuff/backend"
     cp "$BACKEND_DIR/server.cjs" "$temp_dir/random-2hu-stuff/backend/"
     cp "$BACKEND_DIR/package.json" "$temp_dir/random-2hu-stuff/backend/"
     
-    # 复制 ecosystem.config.js 文件（如果存在）
+    # Copy ecosystem.config.js file (if exists)
     if [ -f "$BACKEND_DIR/ecosystem.config.js" ]; then
         cp "$BACKEND_DIR/ecosystem.config.js" "$temp_dir/random-2hu-stuff/backend/"
     fi
     
-    # 复制 package-lock.json 文件（如果存在）
+    # Copy package-lock.json file (if exists)
     if [ -f "$BACKEND_DIR/package-lock.json" ]; then
         cp "$BACKEND_DIR/package-lock.json" "$temp_dir/random-2hu-stuff/backend/"
     fi
     
-    # 复制数据库文件（如果存在）
+    # Copy database file (if exists)
     if [ -f "$BACKEND_DIR/random-2hu-stuff.db" ]; then
         cp "$BACKEND_DIR/random-2hu-stuff.db" "$temp_dir/random-2hu-stuff/backend/"
     fi
@@ -151,173 +151,168 @@ create_upload_structure() {
     echo "$temp_dir"
 }
 
-# 仅上传数据库文件
+# Upload database file only
 upload_database_only() {
-    log_info "仅上传数据库文件..."
+    log_info "Uploading database file only..."
     
-    # 检查数据库文件是否存在
+    # Check if database file exists
     if [ ! -f "$BACKEND_DIR/random-2hu-stuff.db" ]; then
-        log_error "数据库文件不存在: $BACKEND_DIR/random-2hu-stuff.db"
+        log_error "Database file does not exist: $BACKEND_DIR/random-2hu-stuff.db"
         exit 1
     fi
     
-    # 直接使用 rsync 上传数据库文件
+    # Upload database file directly using rsync
     rsync -avzh --progress \
         "$BACKEND_DIR/random-2hu-stuff.db" \
         "$REMOTE_SERVER:$REMOTE_TARGET/random-2hu-stuff/backend/"
     
-    log_success "数据库文件上传完成"
+    log_success "Database file upload completed"
 }
 
-# 上传文件到服务器
+# Upload files to server
 upload_files() {
     local temp_dir="$1"
     
-    log_info "上传文件到服务器..."
+    log_info "Starting file upload..."
     
-    # rsync参数说明：
-    # -a: 归档模式，保持文件属性
-    # -v: 详细输出
-    # -z: 压缩传输
-    # -h: 人类可读的输出
-    # --progress: 显示进度
-    # --delete: 删除目标中不存在的文件
-    # --exclude: 排除不需要的文件
-    
-    rsync -avzh --progress --delete \
-        --exclude="node_modules" \
-        --exclude=".git" \
-        --exclude="*.log" \
-        --exclude=".DS_Store" \
-        --exclude="Thumbs.db" \
+    # Upload files using rsync
+    if rsync -avz --delete --progress \
         "$temp_dir/random-2hu-stuff/" \
-        "$REMOTE_SERVER:$REMOTE_TARGET/random-2hu-stuff/"
-    
-    log_success "文件上传完成"
-}
-
-# 远程安装后端依赖
-install_remote_dependencies() {
-    log_info "在服务器上安装后端依赖..."
-    
-    ssh "$REMOTE_SERVER" << 'EOF'
-        cd /var/www/random-2hu-stuff/backend
-        
-        # 尝试使用 npm ci，如果失败则使用 npm install
-        if [ -f "package-lock.json" ]; then
-            npm ci --production || npm install --production
-        else
-            npm install --production
-        fi
-EOF
-    
-    log_success "远程依赖安装完成"
-}
-
-# 远程重启服务
-restart_remote_services() {
-    log_info "重启远程服务..."
-    
-    ssh "$REMOTE_SERVER" << 'EOF'
-        # 重启PM2服务
-        if command -v pm2 &> /dev/null; then
-            cd /var/www/random-2hu-stuff/backend
-            pm2 restart random-2hu-api || pm2 start ecosystem.config.js
-            pm2 save
-        fi
-        
-        # 重启Nginx
-        if command -v nginx &> /dev/null; then
-            nginx -t && systemctl reload nginx
-        fi
-        
-        echo "服务重启完成"
-EOF
-    
-    log_success "远程服务重启完成"
-}
-
-# 健康检查
-health_check() {
-    log_info "执行健康检查..."
-    
-    sleep 5  # 等待服务启动
-    
-    # 检查HTTP响应
-    if curl -f -s "https://random-2hu-stuff.randomneet.me/health" > /dev/null; then
-        log_success "健康检查通过"
+        "$REMOTE_SERVER:$REMOTE_TARGET/random-2hu-stuff/"; then
+        log_success "File upload completed successfully"
+        return 0
     else
-        log_warning "健康检查失败，请手动检查服务状态"
+        log_error "File upload failed"
+        return 1
     fi
 }
 
-# 清理临时文件
+# Install backend dependencies on remote server
+install_remote_dependencies() {
+    log_info "Installing backend dependencies on remote server..."
+    
+    if ssh "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && npm ci --production"; then
+        log_success "Backend dependencies installed successfully"
+        return 0
+    else
+        log_error "Failed to install backend dependencies"
+        return 1
+    fi
+}
+
+# Restart PM2 process on remote server
+restart_pm2_on_remote() {
+    log_info "Restarting PM2 process on remote server..."
+    
+    if ssh "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js --env production"; then
+        log_success "PM2 process restarted successfully"
+        return 0
+    else
+        log_error "Failed to restart PM2 process"
+        return 1
+    fi
+}
+
+# Restart services on remote server
+restart_remote_services() {
+    log_info "Restarting services on remote server..."
+    
+    # Restart PM2 service
+    if ssh "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js"; then
+        log_success "PM2 service restarted successfully"
+    else
+        log_warning "Failed to restart PM2 service"
+    fi
+    
+    # Restart nginx service
+    if ssh "$REMOTE_SERVER" "sudo systemctl reload nginx"; then
+        log_success "nginx service reloaded successfully"
+    else
+        log_warning "Failed to reload nginx service"
+    fi
+}
+
+# Health check
+health_check() {
+    log_info "Performing health check..."
+    
+    sleep 5  # Wait for services to start
+    
+    # Check HTTP response
+    if curl -f -s "https://random-2hu-stuff.randomneet.me/health" > /dev/null; then
+        log_success "Health check passed"
+    else
+        log_warning "Health check failed, please manually check service status"
+    fi
+}
+
+# Clean up temporary files
 cleanup() {
     local temp_dir="$1"
     if [ -d "$temp_dir" ]; then
         rm -rf "$temp_dir"
-        log_info "清理临时文件完成"
+        log_info "Temporary file cleanup completed"
     fi
 }
 
-# 显示上传信息
+# Display upload information
 show_upload_info() {
-    log_info "上传信息:"
+    log_info "Upload information:"
     echo "=========================="
-    echo "本地项目: $LOCAL_PROJECT_ROOT"
-    echo "远程服务器: $REMOTE_SERVER"
-    echo "远程路径: $REMOTE_TARGET/random-2hu-stuff/"
-    echo "前端地址: https://random-2hu-stuff.randomneet.me"
-    echo "后端API: https://random-2hu-stuff.randomneet.me/api"
+    echo "Local project: $LOCAL_PROJECT_ROOT"
+    echo "Remote server: $REMOTE_SERVER"
+    echo "Remote path: $REMOTE_TARGET/random-2hu-stuff/"
+    echo "Frontend URL: https://random-2hu-stuff.randomneet.me"
+    echo "Backend API: https://random-2hu-stuff.randomneet.me/api"
     echo "=========================="
 }
 
-# 主函数
+# Main function
 main() {
-    log_info "开始上传 Random 2hu Stuff 项目..."
+    log_info "Starting Random 2hu Stuff project upload..."
     show_upload_info
     echo ""
     
-    # 确认上传
-    read -p "确认要上传到生产服务器吗？(y/N): " -n 1 -r
+    # Confirm upload
+    read -p "Are you sure you want to upload to production server? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_info "上传已取消"
+        log_info "Upload cancelled"
         exit 0
     fi
     
     local temp_dir
     
-    # 执行上传步骤
+    # Execute upload steps
     check_dependencies
     test_ssh_connection
     build_frontend
     prepare_backend
     
-    log_info "创建上传目录结构..."
+    log_info "Creating upload directory structure..."
     temp_dir=$(create_upload_structure)
     
-    # 显示包含的文件信息
+    # Display included file information
     if [ -d "$FRONTEND_DIR/dist" ]; then
-        log_info "✓ 已包含前端文件"
+        log_info "✓ Frontend files included"
     else
-        log_warning "✗ 前端dist目录不存在，跳过前端文件"
+        log_warning "✗ Frontend dist directory not found, skipping frontend files"
     fi
     
     if [ -f "$BACKEND_DIR/package-lock.json" ]; then
-        log_info "✓ 已包含后端依赖锁定文件"
+        log_info "✓ Backend dependency lock file included"
     else
-        log_info "✗ 未找到后端package-lock.json文件"
+        log_info "✗ Backend package-lock.json file not found"
     fi
     
     if [ -f "$BACKEND_DIR/random-2hu-stuff.db" ]; then
         local db_size=$(du -h "$BACKEND_DIR/random-2hu-stuff.db" | cut -f1)
-        log_info "✓ 已包含数据库文件 (大小: $db_size)"
+        log_info "✓ Database file included (size: $db_size)"
     else
-        log_warning "✗ 数据库文件不存在，将不会上传数据库"
+        log_warning "✗ Database file does not exist, will not upload database"
     fi
     
-    # 设置清理trap
+    # Set cleanup trap
     trap "cleanup '$temp_dir'" EXIT
     
     upload_files "$temp_dir"
@@ -325,44 +320,44 @@ main() {
     restart_remote_services
     health_check
     
-    log_success "上传完成！"
-    log_info "网站地址: https://random-2hu-stuff.randomneet.me"
+    log_success "Upload completed!"
+    log_info "Website URL: https://random-2hu-stuff.randomneet.me"
 }
 
-# 处理命令行参数
+# Handle command line arguments
 case "${1:-}" in
     "build-only")
-        log_info "仅构建项目..."
+        log_info "Building project only..."
         check_dependencies
         build_frontend
         prepare_backend
-        log_success "构建完成"
+        log_success "Build completed"
         ;;
     "upload-only")
-        log_info "仅上传文件（跳过构建）..."
+        log_info "Uploading files only (skipping build)..."
         check_dependencies
         temp_dir=$(create_upload_structure)
         trap "cleanup '$temp_dir'" EXIT
         upload_files "$temp_dir"
-        log_success "上传完成"
+        log_success "Upload completed"
         ;;
     "database-only")
-        log_info "仅上传数据库文件..."
+        log_info "Uploading database file only..."
         check_dependencies
         test_ssh_connection
         upload_database_only
         restart_remote_services
-        log_success "数据库上传并重启服务完成"
+        log_success "Database upload and service restart completed"
         ;;
     "")
         main
         ;;
     *)
-        echo "用法: $0 [build-only|upload-only|database-only]"
-        echo "  无参数: 完整构建并上传"
-        echo "  build-only: 仅构建项目"
-        echo "  upload-only: 仅上传文件"
-        echo "  database-only: 仅上传数据库文件"
+        echo "Usage: $0 [build-only|upload-only|database-only]"
+        echo "  No arguments: Complete build and upload"
+        echo "  build-only: Build project only"
+        echo "  upload-only: Upload files only"
+        echo "  database-only: Upload database file only"
         exit 1
         ;;
 esac
