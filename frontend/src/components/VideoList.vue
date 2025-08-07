@@ -381,7 +381,17 @@ const openUrl = (url) => {
   if (url) {
     // Ensure URL has protocol prefix
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-    window.open(fullUrl, "_blank", "noopener,noreferrer");
+    
+    // Check if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // On mobile, use location.href for direct app redirection
+      window.location.href = fullUrl;
+    } else {
+      // For desktop, use window.open
+      window.open(fullUrl, "_blank", "noopener,noreferrer");
+    }
   }
 };
 
