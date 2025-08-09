@@ -17,9 +17,17 @@
         <div class="update-timeline">
 
           <div class="update-item">
+            <div class="update-date">2025.08.09</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者12位，视频169个，熟肉156个，感谢组员的整理与校对</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2025.08.05</div>
             <div class="update-content">
-              <h3>第二次更新</h3>
               <ul>
                 <li>功能：支持封面显示</li>
                 <li>内容：新收录24位作者，494个视频，287个熟肉，感谢组员的整理与校对</li>
@@ -30,7 +38,6 @@
           <div class="update-item">
             <div class="update-date">2025.08.03</div>
             <div class="update-content">
-              <h3>第一次更新</h3>
               <ul>
                 <li>功能：视频列表支持按照翻译状态排序，为部分视频添加备注</li>
                 <li>内容：新增20位作者，363个视频，感谢群友的整理</li>
