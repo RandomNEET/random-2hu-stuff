@@ -7,6 +7,7 @@ Standardize YouTube, NicoNico, Bilibili link formats
 import csv
 import re
 import sys
+import requests
 from urllib.parse import urlparse, parse_qs
 
 def clean_youtube_url(url):
@@ -53,25 +54,53 @@ def clean_niconico_url(url_or_id):
 
 def clean_bilibili_url(url):
     """Standardize bilibili links"""
-    if not url or 'bilibili.com' not in url:
+    if not url:
         return url
     
-    # Clean trailing slashes and parameters
-    url = url.split('?')[0].rstrip('/')
+    # Handle b23.tv short links
+    if 'b23.tv' in url:
+        try:
+            # Follow redirects to get the actual URL
+            response = requests.head(url, allow_redirects=True, timeout=10)
+            url = response.url
+        except Exception as e:
+            print(f"Warning: Failed to resolve short link {url}: {e}")
+            return url
+    
+    if 'bilibili.com' not in url:
+        return url
+    
+    # Parse URL to extract parameters
+    from urllib.parse import urlparse, parse_qs, urlencode
+    parsed = urlparse(url)
     
     # Extract av number
-    av_match = re.search(r'/video/av([0-9]+)', url)
+    av_match = re.search(r'/video/av([0-9]+)', parsed.path)
     if av_match:
         av_id = av_match.group(1)
-        return f"https://www.bilibili.com/video/av{av_id}"
+        base_url = f"https://www.bilibili.com/video/av{av_id}"
+    else:
+        # Extract BV number
+        bv_match = re.search(r'/video/(BV[a-zA-Z0-9]+)', parsed.path)
+        if bv_match:
+            bv_id = bv_match.group(1)
+            base_url = f"https://www.bilibili.com/video/{bv_id}"
+        else:
+            return url
     
-    # Extract BV number
-    bv_match = re.search(r'/video/(BV[a-zA-Z0-9]+)', url)
-    if bv_match:
-        bv_id = bv_match.group(1)
-        return f"https://www.bilibili.com/video/{bv_id}"
+    # Parse query parameters and keep only 'p' (episode number)
+    query_params = parse_qs(parsed.query)
+    filtered_params = {}
     
-    return url
+    if 'p' in query_params:
+        filtered_params['p'] = query_params['p'][0]  # Keep episode number
+    
+    # Construct final URL
+    if filtered_params:
+        query_string = urlencode(filtered_params)
+        return f"{base_url}?{query_string}"
+    else:
+        return base_url
 
 def clean_url(url):
     """Select appropriate cleaning function based on URL type"""
@@ -88,8 +117,8 @@ def clean_url(url):
     if 'nicovideo.jp' in url or re.match(r'^[a-z]{2}[0-9]+$', url):
         return clean_niconico_url(url)
     
-    # Bilibili
-    if 'bilibili.com' in url:
+    # Bilibili (including b23.tv short links)
+    if 'bilibili.com' in url or 'b23.tv' in url:
         return clean_bilibili_url(url)
     
     return url
@@ -189,6 +218,8 @@ def main():
     print("- YouTube: https://www.youtube.com/watch?v=VIDEO_ID")
     print("- NicoNico: https://www.nicovideo.jp/watch/smXXXXX")
     print("- Bilibili: https://www.bilibili.com/video/avXXXXX or https://www.bilibili.com/video/BVXXXXX")
+    print("- Bilibili short links (b23.tv) will be resolved to full URLs")
+    print("- Bilibili episode numbers (p parameter) will be preserved")
     print()
     
     success = process_csv(input_file, output_file)
