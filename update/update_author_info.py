@@ -13,6 +13,7 @@ Optional arguments:
 --force: Force update all author info (including authors with existing info)
 --author-id: Only update author with specified ID
 --author-name: Only update author with specified name
+--author-id-after: Update all authors with ID greater than specified value
 --update-names: Enable author name update feature
 --update-avatars: Enable avatar update feature
 --update-all: Update both author names and avatars (equivalent to --update-names --update-avatars)
@@ -150,7 +151,7 @@ def get_author_info_from_url(author_url, debug=False):
             print(f"  Failed to get author info: {e}")
         return None, None
 
-def get_authors_to_update(conn, force=False, author_id=None, author_name=None, update_names=False, update_avatars=False):
+def get_authors_to_update(conn, force=False, author_id=None, author_name=None, author_id_after=None, update_names=False, update_avatars=False):
     """Get list of authors that need info update"""
     cursor = conn.cursor()
     
@@ -160,9 +161,32 @@ def get_authors_to_update(conn, force=False, author_id=None, author_name=None, u
     elif author_name:
         # Update author with specified name
         cursor.execute("SELECT id, name, url, avatar FROM authors WHERE name = ?", (author_name,))
+    elif author_id_after is not None:
+        # Update all authors with ID greater than specified value
+        if force:
+            cursor.execute("SELECT id, name, url, avatar FROM authors WHERE id > ? AND url IS NOT NULL AND url != '' ORDER BY id", (author_id_after,))
+        else:
+            # Build query conditions based on update options
+            conditions = [f"id > {author_id_after}", "url IS NOT NULL AND url != ''"]
+            
+            if update_names and update_avatars:
+                # Update authors without name or avatar
+                conditions.append("(name IS NULL OR name = '' OR avatar IS NULL OR avatar = '')")
+            elif update_names:
+                # Only update authors without name
+                conditions.append("(name IS NULL OR name = '')")
+            elif update_avatars:
+                # Only update authors without avatar
+                conditions.append("(avatar IS NULL OR avatar = '')")
+            else:
+                # Default behavior: update authors without avatar
+                conditions.append("(avatar IS NULL OR avatar = '')")
+            
+            query = f"SELECT id, name, url, avatar FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"
+            cursor.execute(query)
     elif force:
         # Force update all authors with URLs
-        cursor.execute("SELECT id, name, url, avatar FROM authors WHERE url IS NOT NULL AND url != ''")
+        cursor.execute("SELECT id, name, url, avatar FROM authors WHERE url IS NOT NULL AND url != '' ORDER BY id")
     else:
         # Build query conditions based on update options
         conditions = ["url IS NOT NULL AND url != ''"]
@@ -180,7 +204,7 @@ def get_authors_to_update(conn, force=False, author_id=None, author_name=None, u
             # Default behavior: update authors without avatar
             conditions.append("(avatar IS NULL OR avatar = '')")
         
-        query = f"SELECT id, name, url, avatar FROM authors WHERE {' AND '.join(conditions)}"
+        query = f"SELECT id, name, url, avatar FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"
         cursor.execute(query)
     
     return cursor.fetchall()
@@ -212,13 +236,13 @@ def update_author_info(conn, author_id, author_name=None, avatar_url=None, debug
             print(f"  Database update failed: {e}")
         return False
 
-def process_authors(conn, force=False, author_id=None, author_name=None, update_names=False, update_avatars=False, debug=False):
+def process_authors(conn, force=False, author_id=None, author_name=None, author_id_after=None, update_names=False, update_avatars=False, debug=False):
     """Process author info updates"""
     # If no update options specified, default to update avatars
     if not update_names and not update_avatars:
         update_avatars = True
     
-    authors = get_authors_to_update(conn, force, author_id, author_name, update_names, update_avatars)
+    authors = get_authors_to_update(conn, force, author_id, author_name, author_id_after, update_names, update_avatars)
     
     if not authors:
         print("No authors found that need updating")
@@ -317,6 +341,7 @@ def main():
     parser.add_argument('--force', action='store_true', help='Force update all author info (including authors with existing info)')
     parser.add_argument('--author-id', type=int, help='Only update author with specified ID')
     parser.add_argument('--author-name', help='Only update author with specified name')
+    parser.add_argument('--author-id-after', type=int, help='Update all authors with ID greater than specified value')
     parser.add_argument('--update-names', action='store_true', help='Enable author name update feature')
     parser.add_argument('--update-avatars', action='store_true', help='Enable avatar update feature')
     parser.add_argument('--update-all', action='store_true', help='Update both author names and avatars (equivalent to --update-names --update-avatars)')
@@ -346,6 +371,8 @@ def main():
             print(f"*** Only update author ID: {args.author_id} ***")
         if args.author_name:
             print(f"*** Only update author: {args.author_name} ***")
+        if args.author_id_after is not None:
+            print(f"*** Update all authors with ID > {args.author_id_after} ***")
         
         # Show update options
         if update_names and update_avatars:
@@ -358,7 +385,7 @@ def main():
             print("*** Default mode - Only update avatars ***")
         
         # Process author info updates
-        process_authors(conn, args.force, args.author_id, args.author_name, update_names, update_avatars, args.debug)
+        process_authors(conn, args.force, args.author_id, args.author_name, args.author_id_after, update_names, update_avatars, args.debug)
     
     finally:
         conn.close()
