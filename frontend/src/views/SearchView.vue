@@ -36,12 +36,12 @@
 
                 <div
                   class="author-info-small"
-                  @click="goToAuthor(video.author_id, video.author_name)"
+                  @click="goToAuthor(video.author_id, getVideoAuthorName(video))"
                 >
                   <v-avatar size="24" class="author-avatar-small">
-                    <v-img :src="video.author_avatar" />
+                    <v-img :src="getVideoAuthorAvatar(video)" />
                   </v-avatar>
-                  <span class="author-name-small">{{ video.author_name }}</span>
+                  <span class="author-name-small">{{ getVideoAuthorName(video) }}</span>
                 </div>
               </div>
             </div>
@@ -203,14 +203,14 @@
             hover
             @click="
               $router.push({
-                path: `/author/${author.name}`,
+                path: `/author/${getDisplayName(author)}`,
                 query: { id: author.id },
               })
             "
           >
-            <v-img :src="author.avatar" class="author-avatar" />
+            <v-img :src="getDisplayAvatar(author)" class="author-avatar" />
             <div class="author-info">
-              <div class="author-name">{{ author.name }}</div>
+              <div class="author-name">{{ getDisplayName(author) }}</div>
               <div class="author-works">视频数：{{ author.worksCount }}</div>
             </div>
           </v-card>
@@ -398,6 +398,33 @@ const openUrl = (url) => {
   }
 };
 
+// Helper functions for author data handling with priority rules
+const getDisplayName = (author) => {
+  if (!author) return "Unknown";
+  return author.yt_name || author.nico_name || "Unknown";
+};
+
+const getDisplayUrl = (author) => {
+  if (!author) return null;
+  return author.yt_url || author.nico_url;
+};
+
+const getDisplayAvatar = (author) => {
+  if (!author) return null;
+  return author.nico_avatar || author.yt_avatar;
+};
+
+// Helper functions for video author data handling with priority rules
+const getVideoAuthorName = (video) => {
+  if (!video) return "Unknown";
+  return video.yt_name || video.nico_name || "Unknown";
+};
+
+const getVideoAuthorAvatar = (video) => {
+  if (!video) return null;
+  return video.nico_avatar || video.yt_avatar;
+};
+
 // Filter authors based on search query with fuzzy matching
 // Filter authors based on search query with fuzzy matching
 const filteredAuthors = computed(() => {
@@ -406,9 +433,12 @@ const filteredAuthors = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return authors.value
     .filter(
-      (author) =>
-        author.name.toLowerCase().includes(query) ||
-        (author.url && author.url.toLowerCase().includes(query)),
+      (author) => {
+        const displayName = getDisplayName(author);
+        const displayUrl = getDisplayUrl(author);
+        return displayName.toLowerCase().includes(query) ||
+               (displayUrl && displayUrl.toLowerCase().includes(query));
+      }
     )
     .sort((a, b) => b.worksCount - a.worksCount); // Sort by video count descending
 });
