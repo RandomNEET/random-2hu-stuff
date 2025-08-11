@@ -3,7 +3,8 @@
 
 export const API_CONFIG = {
   // Base API URL - modify this to switch between different backend servers
-  BASE_URL: 'https://random-2hu-stuff.randomneet.me',
+  // BASE_URL: 'https://random-2hu-stuff.randomneet.me',
+  BASE_URL: 'http://localhost:3000', // Uncomment for local development
   
   // API endpoint paths
   ENDPOINTS: {
