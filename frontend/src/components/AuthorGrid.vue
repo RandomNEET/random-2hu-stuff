@@ -51,7 +51,7 @@
         class="card-item"
         @click="
           $router.push({
-            path: `/author/${author.name}`,
+            path: `/author/${getDisplayName(author)}`,
             query: { id: author.id },
           })
         "
@@ -59,27 +59,64 @@
         <!-- Avatar as background -->
         <div
           class="avatar-background"
-          :style="{ backgroundImage: `url(${author.avatar})` }"
+          :style="{ backgroundImage: getDisplayAvatar(author) ? `url(${getDisplayAvatar(author)})` : 'none' }"
         ></div>
 
         <!-- Acrylic glass overlay -->
         <div class="acrylic-overlay"></div>
 
         <!-- External link button in top-left corner -->
-        <v-btn
-          v-if="author.url"
-          icon
-          size="small"
-          class="url-button-top-left"
-          @click.stop="openUrl(author.url)"
-          title="访问作者频道"
+        <div 
+          v-if="getDisplayUrl(author)"
+          class="url-button-container"
+          @mouseenter="hoveredAuthorId = author.id"
+          @mouseleave="hoveredAuthorId = null"
         >
-          <v-icon size="16">mdi-open-in-new</v-icon>
-        </v-btn>
+          <v-btn
+            icon
+            size="small"
+            class="url-button-top-left"
+            @click.stop="handleUrlClick(author)"
+            :title="hasBothUrls(author) ? '访问作者频道' : `访问${author.yt_url ? 'YouTube' : 'NicoNico'}频道`"
+          >
+            <v-icon size="16">mdi-open-in-new</v-icon>
+          </v-btn>
+
+          <!-- Show platform-specific buttons when hovering and has both URLs -->
+          <div 
+            v-if="hasBothUrls(author) && hoveredAuthorId === author.id"
+            class="platform-buttons"
+          >
+            <v-btn
+              v-if="author.yt_url"
+              icon
+              size="small"
+              class="platform-btn youtube-btn"
+              @click.stop="openSpecificUrl(author.yt_url)"
+              title="YouTube频道"
+            >
+              <v-icon size="14">mdi-youtube</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="author.nico_url"
+              icon
+              size="small"
+              class="platform-btn nico-btn"
+              @click.stop="openSpecificUrl(author.nico_url)"
+              title="NicoNico频道"
+            >
+              <img 
+                src="https://www.nicovideo.jp/favicon.ico" 
+                alt="NicoNico" 
+                style="width: 14px; height: 14px;"
+              />
+            </v-btn>
+          </div>
+        </div>
 
         <!-- Info section in center -->
         <div class="info-section">
-          <div class="name">{{ author.name }}</div>
+          <div class="name">{{ getDisplayName(author) }}</div>
         </div>
 
         <!-- Video count in bottom-right corner -->
@@ -193,6 +230,7 @@ const pageInput = ref("");
 const windowWidth = ref(window.innerWidth);
 const showBackToTop = ref(false);
 const cardsPerRow = ref(4); // Number of cards per row
+const hoveredAuthorId = ref(null); // Track which author card is being hovered
 
 // Load saved sort settings from localStorage, use defaults if none exist
 const getSavedSortSettings = () => {
@@ -249,6 +287,45 @@ const setSortBy = (field) => {
   currentPage.value = 1; // Reset to first page
 };
 
+// Helper function to get display name based on priority
+const getDisplayName = (author) => {
+  return author.yt_name || author.nico_name || "Unknown";
+};
+
+// Helper function to get display URL based on priority
+const getDisplayUrl = (author) => {
+  return author.yt_url || author.nico_url;
+};
+
+// Helper function to get display avatar based on priority
+const getDisplayAvatar = (author) => {
+  return author.nico_avatar || author.yt_avatar;
+};
+
+// Check if author has both URLs
+const hasBothUrls = (author) => {
+  return author && author.yt_url && author.nico_url;
+};
+
+// Handle URL button click - direct navigation if only one URL
+const handleUrlClick = (author) => {
+  if (!hasBothUrls(author)) {
+    const url = getDisplayUrl(author);
+    if (url) {
+      openUrl(url);
+    }
+  }
+  // If has both URLs, do nothing on click - let hover handle it
+};
+
+// Open specific URL (YouTube or NicoNico)
+const openSpecificUrl = (url) => {
+  if (url) {
+    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+    window.open(fullUrl, "_blank", "noopener,noreferrer");
+  }
+};
+
 const sortAuthors = () => {
   const sorted = [...originalAuthors.value].sort((a, b) => {
     let comparison = 0;
@@ -256,7 +333,9 @@ const sortAuthors = () => {
     switch (sortBy.value) {
       case "name":
         // Use Japanese-friendly sorting, supporting kana and kanji
-        comparison = a.name.localeCompare(b.name, ["ja-JP", "zh-CN", "en-US"], {
+        const nameA = getDisplayName(a);
+        const nameB = getDisplayName(b);
+        comparison = nameA.localeCompare(nameB, ["ja-JP", "zh-CN", "en-US"], {
           sensitivity: "base",
           numeric: true,
           ignorePunctuation: true,
@@ -643,15 +722,21 @@ onUnmounted(() => {
 }
 
 /* External link button in top-left corner */
-.url-button-top-left {
-  position: absolute !important;
+.url-button-container {
+  position: absolute;
   top: 12px;
   left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.url-button-top-left {
   background-color: rgba(30, 30, 46, 0.9) !important;
   color: #89b4fa !important;
   /* Catppuccin Mocha Blue */
   transition: all 0.3s ease;
-  z-index: 10;
   backdrop-filter: blur(12px);
   border: 2px solid rgba(137, 180, 250, 0.4);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -664,6 +749,56 @@ onUnmounted(() => {
   transform: scale(1.15);
   border-color: rgba(116, 199, 236, 0.6);
   box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
+}
+
+/* Platform-specific buttons */
+.platform-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  opacity: 0;
+  transform: translateX(-10px);
+  animation: slideInFade 0.3s ease-out forwards;
+}
+
+@keyframes slideInFade {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.platform-btn {
+  background-color: rgba(30, 30, 46, 0.9) !important;
+  color: #89b4fa !important;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(12px);
+  border: 2px solid rgba(137, 180, 250, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.platform-btn:hover {
+  background-color: rgba(137, 180, 250, 0.2) !important;
+  color: #74c7ec !important;
+  transform: scale(1.15);
+  border-color: rgba(116, 199, 236, 0.6);
+  box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
+}
+
+.youtube-btn {
+  color: #ff0000 !important;
+}
+
+.youtube-btn:hover {
+  color: #ff3333 !important;
+}
+
+.nico-btn {
+  color: #ff6b00 !important;
+}
+
+.nico-btn:hover {
+  color: #ff8533 !important;
 }
 
 /* Info section styling - occupies entire card, centered display */
@@ -733,7 +868,7 @@ onUnmounted(() => {
     right: 8px;
   }
 
-  .url-button-top-left {
+  .url-button-container {
     top: 8px;
     left: 8px;
   }
@@ -748,7 +883,7 @@ onUnmounted(() => {
     padding: 12px;
   }
 
-  .url-button-top-left {
+  .url-button-container {
     top: 6px;
     left: 6px;
   }

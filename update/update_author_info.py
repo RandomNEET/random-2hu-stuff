@@ -4,6 +4,14 @@ Author Information Update Script
 
 Get author names and avatars from author URLs in database and update to database
 
+Database Structure:
+- Authors table now has separate fields for different platforms:
+  * yt_name, yt_url, yt_avatar (YouTube)
+  * nico_name, nico_url, nico_avatar (NicoNico)
+- Priority rules:
+  * name and url: YouTube first, then NicoNico
+  * avatar: NicoNico first, then YouTube
+
 Usage:
 python3 update_author_info.py
 
@@ -157,78 +165,173 @@ def get_authors_to_update(conn, force=False, author_id=None, author_name=None, a
     
     if author_id:
         # Update author with specified ID
-        cursor.execute("SELECT id, name, url, avatar FROM authors WHERE id = ?", (author_id,))
+        cursor.execute("""SELECT id, 
+                                 COALESCE(yt_name, nico_name) as name, 
+                                 COALESCE(yt_url, nico_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                          FROM authors WHERE id = ?""", (author_id,))
     elif author_name:
         # Update author with specified name
-        cursor.execute("SELECT id, name, url, avatar FROM authors WHERE name = ?", (author_name,))
+        cursor.execute("""SELECT id, 
+                                 COALESCE(yt_name, nico_name) as name, 
+                                 COALESCE(yt_url, nico_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                          FROM authors WHERE COALESCE(yt_name, nico_name) = ?""", (author_name,))
     elif author_id_after is not None:
         # Update all authors with ID greater than specified value
         if force:
-            cursor.execute("SELECT id, name, url, avatar FROM authors WHERE id > ? AND url IS NOT NULL AND url != '' ORDER BY id", (author_id_after,))
+            cursor.execute("""SELECT id, 
+                                     COALESCE(yt_name, nico_name) as name, 
+                                     COALESCE(yt_url, nico_url) as url, 
+                                     COALESCE(nico_avatar, yt_avatar) as avatar,
+                                     yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                              FROM authors WHERE id > ? AND (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '') ORDER BY id""", (author_id_after,))
         else:
             # Build query conditions based on update options
-            conditions = [f"id > {author_id_after}", "url IS NOT NULL AND url != ''"]
+            conditions = [f"id > {author_id_after}", "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '')"]
             
             if update_names and update_avatars:
-                # Update authors without name or avatar
-                conditions.append("(name IS NULL OR name = '' OR avatar IS NULL OR avatar = '')")
+                # Update authors missing any platform-specific name or avatar
+                conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')))")
             elif update_names:
-                # Only update authors without name
-                conditions.append("(name IS NULL OR name = '')")
+                # Update authors missing platform-specific names
+                conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')))")
             elif update_avatars:
-                # Only update authors without avatar
-                conditions.append("(avatar IS NULL OR avatar = '')")
+                # Update authors missing platform-specific avatars
+                conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))")
             else:
-                # Default behavior: update authors without avatar
-                conditions.append("(avatar IS NULL OR avatar = '')")
+                # Default behavior: update authors missing platform-specific avatars
+                conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))")
             
-            query = f"SELECT id, name, url, avatar FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"
+            query = f"""SELECT id, 
+                               COALESCE(yt_name, nico_name) as name, 
+                               COALESCE(yt_url, nico_url) as url, 
+                               COALESCE(nico_avatar, yt_avatar) as avatar,
+                               yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                        FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
             cursor.execute(query)
     elif force:
         # Force update all authors with URLs
-        cursor.execute("SELECT id, name, url, avatar FROM authors WHERE url IS NOT NULL AND url != '' ORDER BY id")
+        cursor.execute("""SELECT id, 
+                                 COALESCE(yt_name, nico_name) as name, 
+                                 COALESCE(yt_url, nico_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                          FROM authors WHERE (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '') ORDER BY id""")
     else:
         # Build query conditions based on update options
-        conditions = ["url IS NOT NULL AND url != ''"]
+        conditions = ["(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '')"]
         
         if update_names and update_avatars:
-            # Update authors without name or avatar
-            conditions.append("(name IS NULL OR name = '' OR avatar IS NULL OR avatar = '')")
+            # Update authors missing any platform-specific name or avatar
+            conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')))")
         elif update_names:
-            # Only update authors without name
-            conditions.append("(name IS NULL OR name = '')")
+            # Update authors missing platform-specific names
+            conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')))")
         elif update_avatars:
-            # Only update authors without avatar
-            conditions.append("(avatar IS NULL OR avatar = '')")
+            # Update authors missing platform-specific avatars
+            conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))")
         else:
-            # Default behavior: update authors without avatar
-            conditions.append("(avatar IS NULL OR avatar = '')")
+            # Default behavior: update authors missing platform-specific avatars
+            conditions.append("((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))")
         
-        query = f"SELECT id, name, url, avatar FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"
+        query = f"""SELECT id, 
+                           COALESCE(yt_name, nico_name) as name, 
+                           COALESCE(yt_url, nico_url) as url, 
+                           COALESCE(nico_avatar, yt_avatar) as avatar,
+                           yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                    FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
         cursor.execute(query)
     
     return cursor.fetchall()
 
-def update_author_info(conn, author_id, author_name=None, avatar_url=None, debug=False):
-    """Update author info"""
+def update_author_info(conn, author_id, author_url, author_name=None, avatar_url=None, debug=False):
+    """Update author info based on URL source"""
     cursor = conn.cursor()
     
     try:
-        if author_name and avatar_url:
-            cursor.execute("UPDATE authors SET name = ?, avatar = ? WHERE id = ?", (author_name, avatar_url, author_id))
-            if debug:
-                print(f"  Updated author name and avatar")
-        elif author_name:
-            cursor.execute("UPDATE authors SET name = ? WHERE id = ?", (author_name, author_id))
-            if debug:
-                print(f"  Updated author name: {author_name}")
-        elif avatar_url:
-            cursor.execute("UPDATE authors SET avatar = ? WHERE id = ?", (avatar_url, author_id))
-            if debug:
-                print(f"  Updated avatar: {avatar_url}")
+        # Determine which fields to update based on URL source
+        if 'youtube.com' in author_url:
+            # YouTube source - update yt_* fields
+            updates = []
+            params = []
+            
+            if author_name:
+                updates.append("yt_name = ?")
+                params.append(author_name)
+            if avatar_url:
+                updates.append("yt_avatar = ?")
+                params.append(avatar_url)
+            
+            if updates:
+                params.append(author_id)
+                query = f"UPDATE authors SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                if debug:
+                    if author_name and avatar_url:
+                        print(f"  Updated YouTube name and avatar")
+                    elif author_name:
+                        print(f"  Updated YouTube name: {author_name}")
+                    elif avatar_url:
+                        print(f"  Updated YouTube avatar: {avatar_url}")
+        
+        elif 'nicovideo.jp' in author_url:
+            # NicoNico source - update nico_* fields
+            updates = []
+            params = []
+            
+            if author_name:
+                updates.append("nico_name = ?")
+                params.append(author_name)
+            if avatar_url:
+                updates.append("nico_avatar = ?")
+                params.append(avatar_url)
+            
+            if updates:
+                params.append(author_id)
+                query = f"UPDATE authors SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                if debug:
+                    if author_name and avatar_url:
+                        print(f"  Updated NicoNico name and avatar")
+                    elif author_name:
+                        print(f"  Updated NicoNico name: {author_name}")
+                    elif avatar_url:
+                        print(f"  Updated NicoNico avatar: {avatar_url}")
+        
+        elif 'bilibili.com' in author_url:
+            # Bilibili source - for now, treat as YouTube fields (can be adjusted)
+            updates = []
+            params = []
+            
+            if author_name:
+                updates.append("yt_name = ?")
+                params.append(author_name)
+            if avatar_url:
+                updates.append("yt_avatar = ?")
+                params.append(avatar_url)
+            
+            if updates:
+                params.append(author_id)
+                query = f"UPDATE authors SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                if debug:
+                    if author_name and avatar_url:
+                        print(f"  Updated Bilibili name and avatar")
+                    elif author_name:
+                        print(f"  Updated Bilibili name: {author_name}")
+                    elif avatar_url:
+                        print(f"  Updated Bilibili avatar: {avatar_url}")
         else:
+            if debug:
+                print(f"  Unknown URL source: {author_url}")
             return False
         
+        if not updates:
+            return False
+            
         conn.commit()
         return True
     except Exception as e:
@@ -263,64 +366,106 @@ def process_authors(conn, force=False, author_id=None, author_name=None, author_
         'skipped': 0
     }
     
-    for i, (author_id, name, url, current_avatar) in enumerate(authors, 1):
+    for i, row in enumerate(authors, 1):
+        # Unpack the row - now includes all the individual fields
+        author_id, name, url, current_avatar = row[0], row[1], row[2], row[3]
+        yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar = row[4], row[5], row[6], row[7], row[8], row[9]
+        
         print(f"\n[{i}/{len(authors)}] Processing author: {name or 'Unknown'} (ID: {author_id})")
         
-        if not url:
-            print("  Skipped: No author URL")
-            stats['skipped'] += 1
-            continue
-        
-        # Check if should skip
-        skip_name = update_names and name and not force
-        skip_avatar = update_avatars and current_avatar and not force
-        
-        if skip_name and skip_avatar:
-            print(f"  Skipped: Already has complete info")
-            stats['skipped'] += 1
-            continue
-        elif skip_name and not update_avatars:
-            print(f"  Skipped: Already has author name")
-            stats['skipped'] += 1
-            continue
-        elif skip_avatar and not update_names:
-            print(f"  Skipped: Already has avatar")
-            stats['skipped'] += 1
-            continue
-        
-        print(f"  Author URL: {url}")
-        
-        try:
-            fetched_name, fetched_avatar = get_author_info_from_url(url, debug)
+        # Process YouTube URL if exists
+        yt_updated = False
+        if yt_url:
+            print(f"  YouTube URL: {yt_url}")
             
-            # Determine what info to update
-            update_name = None
-            update_avatar = None
+            # Check if should skip based on existing data
+            skip_yt_name = update_names and yt_name and not force
+            skip_yt_avatar = update_avatars and yt_avatar and not force
             
-            if update_names and fetched_name and (not name or force):
-                update_name = fetched_name
-            
-            if update_avatars and fetched_avatar and (not current_avatar or force):
-                update_avatar = fetched_avatar
-            
-            if update_name or update_avatar:
-                if update_author_info(conn, author_id, update_name, update_avatar, debug):
-                    success_msg = "  ✓ Update successful:"
-                    if update_name:
-                        success_msg += f" Author name: {update_name}"
-                    if update_avatar:
-                        success_msg += f" Avatar: {update_avatar}"
-                    print(success_msg)
-                    stats['updated'] += 1
-                else:
-                    print(f"  ✗ Database update failed")
-                    stats['failed'] += 1
+            if not (skip_yt_name and skip_yt_avatar):
+                try:
+                    fetched_name, fetched_avatar = get_author_info_from_url(yt_url, debug)
+                    
+                    # Determine what info to update for YouTube
+                    update_yt_name = None
+                    update_yt_avatar = None
+                    
+                    if update_names and fetched_name and (not yt_name or force):
+                        update_yt_name = fetched_name
+                    
+                    if update_avatars and fetched_avatar and (not yt_avatar or force):
+                        update_yt_avatar = fetched_avatar
+                    
+                    if update_yt_name or update_yt_avatar:
+                        if update_author_info(conn, author_id, yt_url, update_yt_name, update_yt_avatar, debug):
+                            success_msg = "  ✓ YouTube update successful:"
+                            if update_yt_name:
+                                success_msg += f" Name: {update_yt_name}"
+                            if update_yt_avatar:
+                                success_msg += f" Avatar: {update_yt_avatar}"
+                            print(success_msg)
+                            yt_updated = True
+                        else:
+                            print(f"  ✗ YouTube database update failed")
+                    else:
+                        print(f"  - No updatable YouTube info found")
+                
+                except Exception as e:
+                    print(f"  ✗ YouTube processing failed: {e}")
             else:
-                print(f"  - No updatable info found")
-                stats['failed'] += 1
+                print(f"  - Skipped YouTube: Already has complete info")
         
-        except Exception as e:
-            print(f"  ✗ Processing failed: {e}")
+        # Process NicoNico URL if exists
+        nico_updated = False
+        if nico_url:
+            print(f"  NicoNico URL: {nico_url}")
+            
+            # Check if should skip based on existing data
+            skip_nico_name = update_names and nico_name and not force
+            skip_nico_avatar = update_avatars and nico_avatar and not force
+            
+            if not (skip_nico_name and skip_nico_avatar):
+                try:
+                    fetched_name, fetched_avatar = get_author_info_from_url(nico_url, debug)
+                    
+                    # Determine what info to update for NicoNico
+                    update_nico_name = None
+                    update_nico_avatar = None
+                    
+                    if update_names and fetched_name and (not nico_name or force):
+                        update_nico_name = fetched_name
+                    
+                    if update_avatars and fetched_avatar and (not nico_avatar or force):
+                        update_nico_avatar = fetched_avatar
+                    
+                    if update_nico_name or update_nico_avatar:
+                        if update_author_info(conn, author_id, nico_url, update_nico_name, update_nico_avatar, debug):
+                            success_msg = "  ✓ NicoNico update successful:"
+                            if update_nico_name:
+                                success_msg += f" Name: {update_nico_name}"
+                            if update_nico_avatar:
+                                success_msg += f" Avatar: {update_nico_avatar}"
+                            print(success_msg)
+                            nico_updated = True
+                        else:
+                            print(f"  ✗ NicoNico database update failed")
+                    else:
+                        print(f"  - No updatable NicoNico info found")
+                
+                except Exception as e:
+                    print(f"  ✗ NicoNico processing failed: {e}")
+            else:
+                print(f"  - Skipped NicoNico: Already has complete info")
+        
+        # Check if no URLs available
+        if not yt_url and not nico_url:
+            print("  Skipped: No author URLs")
+            stats['skipped'] += 1
+        elif yt_updated or nico_updated:
+            stats['updated'] += 1
+        elif not yt_url and not nico_url:
+            stats['skipped'] += 1
+        else:
             stats['failed'] += 1
         
         # Add delay to avoid too frequent requests
