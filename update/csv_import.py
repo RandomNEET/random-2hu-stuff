@@ -184,20 +184,23 @@ def get_video_metadata(url, debug=False, browser_cookies=None):
                     if debug:
                         print(f"Date formatting error: {upload_date} -> {e}")
             
-                # Get author information
+                # Get author information with platform identification
                 author_info = {
                     'name': uploader,
                     'url': None,
-                    'avatar': None
+                    'avatar': None,
+                    'platform': None  # Add platform identification
                 }
             
-            # Build author URL
+            # Build author URL and identify platform
             if 'youtube.com' in url or 'youtu.be' in url:
+                author_info['platform'] = 'youtube'
                 uploader_url = info.get('uploader_url') or info.get('channel_url')
                 if uploader_url:
                     author_info['url'] = uploader_url
             
             elif 'nicovideo.jp' in url:
+                author_info['platform'] = 'niconico'
                 uploader_id = info.get('uploader_id')
                 if uploader_id:
                     author_info['url'] = f"https://www.nicovideo.jp/user/{uploader_id}"
@@ -211,62 +214,191 @@ def get_video_metadata(url, debug=False, browser_cookies=None):
         raise e
 
 def get_or_create_author(conn, csv_author_name, author_info, debug=False):
-    """Get or create author, return author ID"""
+    """Get or create author with new platform-specific fields, return author ID"""
     cursor = conn.cursor()
     
     # Clean author name
     csv_author_name = clean_author_name(csv_author_name)
     
-    # First try to find by CSV author name
-    cursor.execute("SELECT id, name, url FROM authors WHERE name = ?", (csv_author_name,))
+    # Step 1: Try to find by CSV author name in both platform name fields
+    cursor.execute("""
+        SELECT id, yt_name, yt_url, nico_name, nico_url 
+        FROM authors 
+        WHERE yt_name = ? OR nico_name = ?
+    """, (csv_author_name, csv_author_name))
     result = cursor.fetchone()
     
     if result:
         author_id = result[0]
         if debug:
-            print(f"Found existing author: {csv_author_name} (ID: {author_id})")
+            print(f"Found existing author by name: {csv_author_name} (ID: {author_id})")
         
-        # If more information obtained from video metadata, update author info
-        if author_info and author_info.get('url') and not result[2]:
-            cursor.execute("UPDATE authors SET url = ? WHERE id = ?", (author_info['url'], author_id))
+        # If we have video metadata, update the corresponding platform fields
+        if author_info and author_info.get('platform'):
+            platform = author_info['platform']
+            name = author_info.get('name')
+            url = author_info.get('url')
+            
+            if platform == 'youtube' and url:
+                # Update YouTube fields if empty
+                if not result[2]:  # yt_url is empty
+                    cursor.execute("UPDATE authors SET yt_url = ? WHERE id = ?", (url, author_id))
+                    if debug:
+                        print(f"Updated YouTube URL for author: {csv_author_name}")
+                if not result[1] and name:  # yt_name is empty
+                    cursor.execute("UPDATE authors SET yt_name = ? WHERE id = ?", (name, author_id))
+                    if debug:
+                        print(f"Updated YouTube name for author: {csv_author_name}")
+                        
+            elif platform == 'niconico' and url:
+                # Update NicoNico fields if empty
+                if not result[4]:  # nico_url is empty
+                    cursor.execute("UPDATE authors SET nico_url = ? WHERE id = ?", (url, author_id))
+                    if debug:
+                        print(f"Updated NicoNico URL for author: {csv_author_name}")
+                if not result[3] and name:  # nico_name is empty
+                    cursor.execute("UPDATE authors SET nico_name = ? WHERE id = ?", (name, author_id))
+                    if debug:
+                        print(f"Updated NicoNico name for author: {csv_author_name}")
+            
             conn.commit()
-            if debug:
-                print(f"Updated author URL: {csv_author_name}")
         
         return author_id
     
-    else:
-        # If not found, try to find by author URL (if metadata available)
-        if author_info and author_info.get('url'):
-            cursor.execute("SELECT id FROM authors WHERE url = ?", (author_info['url'],))
-            result = cursor.fetchone()
-            if result:
-                author_id = result[0]
-                if debug:
-                    print(f"Found existing author by URL, updating name: {csv_author_name} (ID: {author_id})")
-                # Update author name to name from CSV
-                cursor.execute("UPDATE authors SET name = ? WHERE id = ?", (csv_author_name, author_id))
-                conn.commit()
-                return author_id
+    # Step 2: If not found by name, try to find by URL
+    if author_info and author_info.get('url'):
+        platform = author_info.get('platform')
+        url = author_info['url']
         
-        # Create new author - prioritize author name from URL, if none use name from CSV
-        if author_info and author_info.get('name'):
-            author_name = clean_author_name(author_info['name'])  # Also clean author name from URL
-            if debug:
-                print(f"Using author name from URL: {author_name}")
+        if platform == 'youtube':
+            cursor.execute("SELECT id FROM authors WHERE yt_url = ?", (url,))
+        elif platform == 'niconico':
+            cursor.execute("SELECT id FROM authors WHERE nico_url = ?", (url,))
         else:
-            author_name = csv_author_name  # If no author name from URL, use name from CSV
+            cursor.execute("SELECT id FROM authors WHERE yt_url = ? OR nico_url = ?", (url, url))
+        
+        result = cursor.fetchone()
+        if result:
+            author_id = result[0]
             if debug:
-                print(f"No author name in URL, using name from CSV: {author_name}")
+                print(f"Found existing author by URL, updating name: {csv_author_name} (ID: {author_id})")
+            
+            # Update the appropriate name field based on platform
+            if platform == 'youtube':
+                cursor.execute("UPDATE authors SET yt_name = ? WHERE id = ?", (csv_author_name, author_id))
+            elif platform == 'niconico':
+                cursor.execute("UPDATE authors SET nico_name = ? WHERE id = ?", (csv_author_name, author_id))
+            else:
+                # If platform unknown, update both (fallback)
+                cursor.execute("UPDATE authors SET yt_name = ?, nico_name = ? WHERE id = ?", 
+                             (csv_author_name, csv_author_name, author_id))
+            
+            conn.commit()
+            return author_id
+    
+    # Step 3: Create new author
+    # Determine which fields to populate based on platform
+    yt_name = None
+    yt_url = None
+    nico_name = None
+    nico_url = None
+    
+    if author_info and author_info.get('platform'):
+        platform = author_info['platform']
+        metadata_name = clean_author_name(author_info.get('name')) if author_info.get('name') else None
+        metadata_url = author_info.get('url')
         
-        author_url = author_info.get('url') if author_info else None
+        if platform == 'youtube':
+            # For YouTube, use metadata name if available, otherwise CSV name
+            yt_name = metadata_name or csv_author_name
+            yt_url = metadata_url
+            if debug:
+                print(f"Creating new author with YouTube info: {yt_name}")
+        elif platform == 'niconico':
+            # For NicoNico, use metadata name if available, otherwise CSV name
+            nico_name = metadata_name or csv_author_name
+            nico_url = metadata_url
+            if debug:
+                print(f"Creating new author with NicoNico info: {nico_name}")
+    else:
+        # No platform info, use CSV name for both (fallback for compatibility)
+        yt_name = csv_author_name
+        nico_name = csv_author_name
+        if debug:
+            print(f"Creating new author without platform info, using CSV name: {csv_author_name}")
+    
+    cursor.execute("""
+        INSERT INTO authors (yt_name, yt_url, nico_name, nico_url) 
+        VALUES (?, ?, ?, ?)
+    """, (yt_name, yt_url, nico_name, nico_url))
+    conn.commit()
+    author_id = cursor.lastrowid
+    
+    # Show which fields were populated
+    populated_fields = []
+    if yt_name:
+        populated_fields.append(f"yt_name='{yt_name}'")
+    if yt_url:
+        populated_fields.append(f"yt_url='{yt_url}'")
+    if nico_name:
+        populated_fields.append(f"nico_name='{nico_name}'")
+    if nico_url:
+        populated_fields.append(f"nico_url='{nico_url}'")
+    
+    print(f"Created new author (ID: {author_id}): {', '.join(populated_fields)}")
+    return author_id
+
+def simulate_author_creation(csv_author_name, author_info, debug=False):
+    """Simulate author creation for dry-run mode, return mock author info"""
+    csv_author_name = clean_author_name(csv_author_name)
+    
+    # Simulate the logic without database operations
+    yt_name = None
+    yt_url = None
+    nico_name = None
+    nico_url = None
+    
+    if author_info and author_info.get('platform'):
+        platform = author_info['platform']
+        metadata_name = clean_author_name(author_info.get('name')) if author_info.get('name') else None
+        metadata_url = author_info.get('url')
         
-        cursor.execute("INSERT INTO authors (name, url) VALUES (?, ?)", 
-                      (author_name, author_url))
-        conn.commit()
-        author_id = cursor.lastrowid
-        print(f"Created new author: {author_name} (ID: {author_id})")
-        return author_id
+        if platform == 'youtube':
+            yt_name = metadata_name or csv_author_name
+            yt_url = metadata_url
+        elif platform == 'niconico':
+            nico_name = metadata_name or csv_author_name
+            nico_url = metadata_url
+    else:
+        # No platform info, use CSV name for both
+        yt_name = csv_author_name
+        nico_name = csv_author_name
+    
+    # Show which fields would be populated
+    populated_fields = []
+    if yt_name:
+        populated_fields.append(f"yt_name='{yt_name}'")
+    if yt_url:
+        populated_fields.append(f"yt_url='{yt_url}'")
+    if nico_name:
+        populated_fields.append(f"nico_name='{nico_name}'")
+    if nico_url:
+        populated_fields.append(f"nico_url='{nico_url}'")
+    
+    print(f"[DRY RUN] Would create author: {', '.join(populated_fields)}")
+    
+    # Return display name for video assignment
+    return yt_name or nico_name or csv_author_name
+
+def get_author_display_name(conn, author_id):
+    """Get author display name based on priority: yt_name > nico_name"""
+    cursor = conn.cursor()
+    cursor.execute("SELECT yt_name, nico_name FROM authors WHERE id = ?", (author_id,))
+    result = cursor.fetchone()
+    if result:
+        yt_name, nico_name = result
+        return yt_name or nico_name or 'Unknown'
+    return 'Unknown'
 
 def insert_video_wrapper(conn, author_id, title, original_url, date_str, repost_name, repost_url, translation_status, comment=None, debug=False, interactive_mode=False, supplementary_note=None):
     """Video insertion wrapper function, adapted for new database structure
@@ -308,9 +440,7 @@ def insert_video_wrapper(conn, author_id, title, original_url, date_str, repost_
                 print(f"   Notes: {existing_comment or 'None'}")
                 
                 # Get existing record author information
-                cursor.execute("SELECT name FROM authors WHERE id = ?", (existing_author_id,))
-                existing_author = cursor.fetchone()
-                existing_author_name = existing_author[0] if existing_author else 'Unknown'
+                existing_author_name = get_author_display_name(conn, existing_author_id)
                 print(f"   Author: {existing_author_name}")
                 
                 print(f"\n🆕 New record information:")
@@ -326,9 +456,7 @@ def insert_video_wrapper(conn, author_id, title, original_url, date_str, repost_
                     print(f"   📝 Supplementary note: {supplementary_note}")
                 
                 # Get new record author information
-                cursor.execute("SELECT name FROM authors WHERE id = ?", (author_id,))
-                new_author = cursor.fetchone()
-                new_author_name = new_author[0] if new_author else 'Unknown'
+                new_author_name = get_author_display_name(conn, author_id)
                 print(f"   Author: {new_author_name}")
                 
                 print(f"\nPlease choose action:")
@@ -679,6 +807,14 @@ def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=Fals
                         author_id = get_or_create_author(conn, csv_author, author_info, debug)
                         author_id_cache[csv_author] = author_id
                 else:
+                    # Dry-run mode: simulate author creation and show details
+                    if csv_author in author_id_cache:
+                        author_display_name = author_id_cache[csv_author]
+                        if debug:
+                            print(f"[DRY RUN] Using cached author: {author_display_name}")
+                    else:
+                        author_display_name = simulate_author_creation(csv_author, author_info, debug)
+                        author_id_cache[csv_author] = author_display_name
                     author_id = 1  # Mock ID
                 
                 # Get video metadata
@@ -730,6 +866,7 @@ def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=Fals
                         stats['errors'] += 1
                 else:
                     print(f"[DRY RUN] Will add video: {title or 'No title'}")
+                    print(f"  → Assigned to author: {author_id_cache.get(csv_author, csv_author)}")
                     if repost_name:
                         print(f"  Repost title: {repost_name}")
                     if repost_url:

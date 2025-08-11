@@ -66,15 +66,18 @@ app.get("/api/authors", (req, res) => {
   const query = `
     SELECT 
       a.id, 
-      a.name, 
-      a.url, 
-      a.avatar,
+      a.yt_name,
+      a.yt_url,
+      a.yt_avatar,
+      a.nico_name,
+      a.nico_url,
+      a.nico_avatar,
       COUNT(v.id) as worksCount,
       MAX(v.date) as lastUpdate
     FROM authors a
     LEFT JOIN videos v ON a.id = v.author
-    GROUP BY a.id, a.name, a.url, a.avatar
-    ORDER BY a.name ASC
+    GROUP BY a.id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar
+    ORDER BY COALESCE(a.yt_name, a.nico_name) ASC
   `;
   
   db.all(query, [], (err, rows) => {
@@ -133,7 +136,7 @@ app.get("/api/search/videos", (req, res) => {
   // Search in both original and repost video names with author information
   db.all(
     `SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
-            a.id as author_id, a.name as author_name, a.avatar as author_avatar
+            a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar
      FROM videos v
      JOIN authors a ON v.author = a.id
      WHERE v.original_name LIKE ? OR v.repost_name LIKE ?
