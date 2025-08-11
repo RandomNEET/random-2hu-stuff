@@ -117,7 +117,74 @@ app.get("/api/author/:id/videos", (req, res) => {
   );
 });
 
-// GET /api/search/videos - Search videos by title with fuzzy matching
+// Helper function for Chinese-Japanese-English friendly search normalization
+function normalizeForSearch(text) {
+  if (!text) return '';
+  
+  // Convert to lowercase and normalize Unicode for consistent comparison
+  let normalized = text.toLowerCase().normalize('NFD');
+  
+  // Remove common CJK punctuation and symbols that might interfere with search
+  normalized = normalized.replace(/[・･｜·]/g, ' '); // Replace middle dots and vertical bars with space
+  normalized = normalized.replace(/[「」『』【】〔〕〈〉《》（）()]/g, ''); // Remove brackets (both CJK and ASCII)
+  normalized = normalized.replace(/[！？｡､。，、]/g, ''); // Remove CJK punctuation
+  normalized = normalized.replace(/[~～]/g, ''); // Remove tilde variations
+  
+  // Handle special characters that might cause issues
+  normalized = normalized.replace(/['"'""`]/g, ''); // Remove various quote marks
+  normalized = normalized.replace(/[＃#]/g, ''); // Remove hash symbols
+  normalized = normalized.replace(/[％%]/g, ''); // Remove percent symbols
+  
+  // Normalize spacing - replace multiple spaces (including full-width) with single space and trim
+  normalized = normalized.replace(/[　\s]+/g, ' ').trim();
+  
+  return normalized;
+}
+
+// Helper function to create search patterns for Chinese-Japanese-English text
+function createSearchPatterns(query) {
+  const patterns = [];
+  const normalizedQuery = normalizeForSearch(query);
+  
+  // Always include the original query as the first priority (exact match)
+  patterns.push(`%${query}%`);
+  
+  // Only add normalized pattern if it's meaningfully different and not too aggressive
+  if (normalizedQuery !== query.toLowerCase() && normalizedQuery.length >= query.length * 0.7) {
+    patterns.push(`%${normalizedQuery}%`);
+  }
+  
+  // For longer queries (more than 4 characters), add some partial matching
+  if (query.length > 4) {
+    // Handle different script combinations for CJK search
+    // Split query into meaningful segments for better partial matching
+    const segments = [];
+    
+    // Split by spaces first
+    const spaceSegments = normalizedQuery.split(/\s+/).filter(seg => seg.length > 0);
+    segments.push(...spaceSegments);
+    
+    // For CJK text, also try to split at script boundaries (Hiragana/Katakana/Kanji/Latin)
+    const scriptBoundaryPattern = /([ひ-ゟ]+|[ア-ヿ]+|[一-龯]+|[a-z0-9]+)/g;
+    const scriptSegments = normalizedQuery.match(scriptBoundaryPattern) || [];
+    segments.push(...scriptSegments);
+    
+    // Add patterns for meaningful segments (be more conservative)
+    [...new Set(segments)].forEach(segment => {
+      const isCJK = /[一-龯ひ-ゟア-ヿ]/.test(segment);
+      const minLength = isCJK ? 2 : 3; // Require at least 2 CJK chars or 3 Latin chars
+      
+      if (segment.length >= minLength && segment !== normalizedQuery && segment !== query.toLowerCase()) {
+        patterns.push(`%${segment}%`);
+      }
+    });
+  }
+  
+  // Remove duplicates while preserving order (exact match first)
+  return [...new Set(patterns)];
+}
+
+// GET /api/search/videos - Search videos by title with Chinese-Japanese-English friendly fuzzy matching
 app.get("/api/search/videos", (req, res) => {
   const query = req.query.q;
   if (!query) {
@@ -125,7 +192,8 @@ app.get("/api/search/videos", (req, res) => {
   }
   
   // Limit search results to prevent excessive memory usage and improve performance
-  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  // Increase default limit for better search coverage, especially for series content
+  const limit = Math.min(parseInt(req.query.limit) || 300, 1000);
   const cacheKey = `search_${query}_${limit}`;
   const cached = getCache(cacheKey);
   
@@ -133,22 +201,52 @@ app.get("/api/search/videos", (req, res) => {
     return res.json(cached);
   }
   
+  // Create search patterns for better Japanese matching
+  const searchPatterns = createSearchPatterns(query);
+  
+  // Build dynamic WHERE clause for multiple search patterns
+  const whereConditions = [];
+  const queryParams = [];
+  
+  searchPatterns.forEach(pattern => {
+    whereConditions.push('(v.original_name LIKE ? OR v.repost_name LIKE ?)');
+    queryParams.push(pattern, pattern);
+  });
+  
+  const whereClause = whereConditions.join(' OR ');
+  
   // Search in both original and repost video names with author information
-  db.all(
-    `SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
-            a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar
-     FROM videos v
-     JOIN authors a ON v.author = a.id
-     WHERE v.original_name LIKE ? OR v.repost_name LIKE ?
-     ORDER BY v.date DESC, v.id DESC
-     LIMIT ?`,
-    [`%${query}%`, `%${query}%`, limit],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      setCache(cacheKey, rows);
-      res.json(rows);
-    }
-  );
+  // Use COLLATE NOCASE for case-insensitive search that works better with Unicode
+  // Order by relevance: exact matches first, then by series order, then by date
+  const searchQuery = `
+    SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
+           a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar,
+           CASE 
+             WHEN v.original_name LIKE ? OR v.repost_name LIKE ? THEN 1
+             ELSE 2
+           END as relevance_score,
+           CASE
+             WHEN v.original_name LIKE ? OR v.repost_name LIKE ? THEN 1
+             ELSE 2
+           END as series_priority
+    FROM videos v
+    JOIN authors a ON v.author = a.id
+    WHERE ${whereClause}
+    ORDER BY relevance_score ASC, series_priority ASC, v.date ASC, v.id ASC
+    LIMIT ?`;
+  
+  // Add exact match patterns for relevance scoring
+  queryParams.unshift(`%${query}%`, `%${query}%`);
+  // Add series detection patterns (for titles like "その1", "その2", etc.)
+  const seriesPattern = `%${query}%その%`;
+  queryParams.unshift(seriesPattern, seriesPattern);
+  queryParams.push(limit);
+  
+  db.all(searchQuery, queryParams, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    setCache(cacheKey, rows);
+    res.json(rows);
+  });
 });
 
 // GET /api/stats - Retrieve database statistics for dashboard display
