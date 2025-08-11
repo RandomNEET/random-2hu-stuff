@@ -15,7 +15,57 @@
 
       <!-- Video search results section with detailed video information -->
       <div v-if="searchedVideos.length > 0" class="results-section">
-        <h2 class="section-title">相关视频</h2>
+        <div class="section-header">
+          <h2 class="section-title">相关视频</h2>
+          
+          <!-- Sort controls -->
+          <div class="sort-controls">
+            <div class="sort-buttons">
+              <v-btn
+                class="sort-btn"
+                :class="{ active: sortType === 'date' }"
+                @click="setSortType('date')"
+                size="small"
+                rounded="lg"
+              >
+                <v-icon size="16">mdi-clock-outline</v-icon>
+                <span>按时间</span>
+                <v-icon size="14" v-if="sortType === 'date'">
+                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                </v-icon>
+              </v-btn>
+
+              <v-btn
+                class="sort-btn"
+                :class="{ active: sortType === 'translation' }"
+                @click="setSortType('translation')"
+                size="small"
+                rounded="lg"
+              >
+                <v-icon size="16">mdi-translate</v-icon>
+                <span>按翻译</span>
+                <v-icon size="14" v-if="sortType === 'translation'">
+                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                </v-icon>
+              </v-btn>
+
+              <v-btn
+                class="sort-btn"
+                :class="{ active: sortType === 'relevance' }"
+                @click="setSortType('relevance')"
+                size="small"
+                rounded="lg"
+              >
+                <v-icon size="16">mdi-star-outline</v-icon>
+                <span>按相关性</span>
+                <v-icon size="14" v-if="sortType === 'relevance'">
+                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                </v-icon>
+              </v-btn>
+            </div>
+          </div>
+        </div>
+        
         <div class="videos-list">
           <div
             v-for="video in searchedVideos"
@@ -79,7 +129,7 @@
                       !hasThumbnailError(video.id, 'original')
                     "
                     :src="video.original_thumbnail"
-                    alt="原版封面"
+                    :alt="video.original_name || '原视频'"
                     class="video-thumbnail"
                     :class="{
                       loaded: !isThumbnailLoading(video.id, 'original'),
@@ -145,7 +195,7 @@
                       !hasThumbnailError(video.id, 'repost')
                     "
                     :src="video.repost_thumbnail"
-                    alt="转载封面"
+                    :alt="video.repost_name || '转载视频'"
                     class="video-thumbnail"
                     :class="{ loaded: !isThumbnailLoading(video.id, 'repost') }"
                     referrerpolicy="no-referrer"
@@ -263,13 +313,242 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { API_URLS, getApiUrl, API_CONFIG } from "@/config/api.js";
 import "@/assets/styles/BackToTop.css";
+import "@/assets/styles/Sort.css";
 
 const route = useRoute();
 const router = useRouter();
 const authors = ref([]);
 const searchedVideos = ref([]);
+const originalSearchedVideos = ref([]); // Store original search results
 const searchQuery = ref("");
 const showBackToTop = ref(false);
+
+// Sort settings - load from localStorage with search-specific key
+const getSavedSortSettings = () => {
+  try {
+    const saved = localStorage.getItem("searchView-sortSettings");
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.warn("Failed to parse saved sort settings:", error);
+  }
+  return {
+    sortType: "relevance", // Default sort by relevance
+    sortOrder: "asc", // Default ascending order
+  };
+};
+
+const savedSettings = getSavedSortSettings();
+const sortType = ref(savedSettings.sortType); // Sort type: date, translation
+const sortOrder = ref(savedSettings.sortOrder); // Sort order: asc, desc
+
+// Save sort settings to localStorage
+const saveSortSettings = () => {
+  try {
+    const settings = {
+      sortType: sortType.value,
+      sortOrder: sortOrder.value,
+    };
+    localStorage.setItem("searchView-sortSettings", JSON.stringify(settings));
+  } catch (error) {
+    console.warn("Failed to save sort settings:", error);
+  }
+};
+
+// Custom video title comparison function with Chinese-Japanese-English friendly sorting
+// and special numeric handling for titles with same length and containing numbers
+const compareVideoTitles = (titleA, titleB) => {
+  // If titles have same length and both contain numbers (1-9 or 一-九), check similarity for series detection
+  if (titleA.length === titleB.length && titleA.length > 0 && titleB.length > 0) {
+    const getNumber = (title) => {
+      // Extract Arabic numbers (1-9)
+      const arabicMatch = title.match(/[1-9]/);
+      if (arabicMatch) {
+        return parseInt(arabicMatch[0]);
+      }
+      
+      // Extract Chinese numbers (一-九)
+      const chineseNumbers = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+      const chineseMatch = title.match(/[一二三四五六七八九]/);
+      if (chineseMatch) {
+        return chineseNumbers[chineseMatch[0]];
+      }
+      
+      return null;
+    };
+    
+    // Calculate title similarity (excluding numbers)
+    const calculateSimilarity = (str1, str2) => {
+      // Remove numbers and normalize titles for similarity comparison
+      const normalize = (str) => normalizeTextForSearch(str).replace(/[1-9一二三四五六七八九]/g, '').trim();
+      const normalized1 = normalize(str1);
+      const normalized2 = normalize(str2);
+      
+      // Simple similarity check: if normalized titles are identical or very similar
+      if (normalized1 === normalized2) return 1.0;
+      
+      // Levenshtein distance for similarity calculation (works well for CJK and Latin scripts)
+      const getLevenshteinDistance = (a, b) => {
+        if (a.length === 0) return b.length;
+        if (b.length === 0) return a.length;
+        
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) {
+          matrix[i] = [i];
+        }
+        for (let j = 0; j <= a.length; j++) {
+          matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= b.length; i++) {
+          for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+              matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+              matrix[i][j] = Math.min(
+                matrix[i - 1][j - 1] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j] + 1
+              );
+            }
+          }
+        }
+        
+        return matrix[b.length][a.length];
+      };
+      
+      const distance = getLevenshteinDistance(normalized1, normalized2);
+      const maxLength = Math.max(normalized1.length, normalized2.length);
+      return maxLength === 0 ? 1.0 : 1.0 - (distance / maxLength);
+    };
+    
+    const numberA = getNumber(titleA);
+    const numberB = getNumber(titleB);
+    
+    // If both titles contain numbers and similarity is high enough (>= 0.8), sort by number
+    if (numberA !== null && numberB !== null) {
+      const similarity = calculateSimilarity(titleA, titleB);
+      if (similarity >= 0.8) {
+        return numberA - numberB;
+      }
+    }
+  }
+  
+  // Default Chinese-Japanese-English friendly comparison
+  // Use multiple locales for better cross-language sorting
+  return titleA.localeCompare(titleB, ['zh-CN', 'ja-JP', 'en-US'], { 
+    numeric: true, 
+    ignorePunctuation: true,
+    sensitivity: 'base',
+    usage: 'sort'
+  });
+};
+
+const setSortType = (type) => {
+  if (sortType.value === type) {
+    // If clicking the same sort type, toggle sort order
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    // If clicking different sort type, set new type and reset to ascending
+    sortType.value = type;
+    sortOrder.value = "asc";
+  }
+
+  // Save sort settings
+  saveSortSettings();
+
+  sortSearchResults();
+};
+
+const sortSearchResults = () => {
+  const sorted = [...originalSearchedVideos.value].sort((a, b) => {
+    if (sortType.value === "date") {
+      // Sort by date
+      const dateA = a.date ? new Date(a.date) : null;
+      const dateB = b.date ? new Date(b.date) : null;
+
+      // Handle null values: put at end regardless of sort order
+      if (!dateA && !dateB) {
+        // If both dates are null, sort by original video title (using Japanese-English friendly comparison)
+        const titleA = a.original_name || "";
+        const titleB = b.original_name || "";
+        return compareVideoTitles(titleA, titleB);
+      }
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+
+      const comparison = dateA - dateB;
+      if (comparison === 0) {
+        // If dates are same, sort by original video title (using Japanese-English friendly comparison)
+        const titleA = a.original_name || "";
+        const titleB = b.original_name || "";
+        return compareVideoTitles(titleA, titleB);
+      }
+      return sortOrder.value === "asc" ? comparison : -comparison;
+    } else if (sortType.value === "translation") {
+      // Sort by translation status (composite sort: translation status priority + chronological + title)
+      // Translation status priority: 1 = 2 = 4 → 3 → 5 → null
+      const getTranslationPriority = (status) => {
+        if (status === null || status === undefined || status === "") return 4; // null has lowest priority
+        if (status === 1 || status === 2 || status === 4) return 1; // 1, 2, 4 have highest priority
+        if (status === 3) return 2; // 3 has medium priority
+        if (status === 5) return 3; // 5 has lower priority
+        return 4; // other cases get lowest priority
+      };
+
+      const priorityA = getTranslationPriority(a.translation_status);
+      const priorityB = getTranslationPriority(b.translation_status);
+
+      // First sort by translation status priority
+      if (priorityA !== priorityB) {
+        const priorityComparison = priorityA - priorityB;
+        return sortOrder.value === "asc"
+          ? priorityComparison
+          : -priorityComparison;
+      }
+
+      // When translation status is same, sort chronologically (within same priority group)
+      const dateA = a.date ? new Date(a.date) : null;
+      const dateB = b.date ? new Date(b.date) : null;
+
+      // Handle null values: within same priority group, null dates go last
+      if (!dateA && !dateB) {
+        // If both dates are null, sort by original video title (using Japanese-English friendly comparison)
+        const titleA = a.original_name || "";
+        const titleB = b.original_name || "";
+        return compareVideoTitles(titleA, titleB);
+      }
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+
+      // Within same translation status group, sort chronologically first
+      const dateComparison = dateA - dateB;
+      if (dateComparison !== 0) {
+        return dateComparison; // Always sort chronologically (not affected by sortOrder)
+      }
+
+      // When both translation status and date are same, sort by title as third-level sorting
+      const titleA = a.original_name || "";
+      const titleB = b.original_name || "";
+      return compareVideoTitles(titleA, titleB);
+    } else if (sortType.value === "relevance") {
+      // Sort by backend relevance: use the original order from search API
+      // The backend already sorts by relevance_score, series_priority, date, and id
+      // So we preserve the original order when relevance sorting is selected
+      const indexA = originalSearchedVideos.value.findIndex(v => v.id === a.id);
+      const indexB = originalSearchedVideos.value.findIndex(v => v.id === b.id);
+      
+      // Sort by original API order (relevance-based)
+      const comparison = indexA - indexB;
+      return sortOrder.value === "asc" ? comparison : -comparison;
+    }
+
+    return 0;
+  });
+
+  searchedVideos.value = sorted;
+};
 
 // Thumbnail loading state management for video thumbnails
 // Maps video IDs with type (original/repost) to loading states
@@ -368,14 +647,16 @@ const getVideoSource = (url) => {
 // Get CSS class for translation status styling
 const getTranslationStatusClass = (status) => {
   switch (status) {
-    case 0:
-      return "status-none";
     case 1:
-      return "status-full";
+      return "status-full"; // Chinese embedded - complete translation
     case 2:
-      return "status-partial";
+      return "status-full"; // CC subtitles - complete translation
     case 3:
-      return "status-partial";
+      return "status-partial"; // Danmaku translation - partial translation
+    case 4:
+      return "status-full"; // No translation needed - considered complete
+    case 5:
+      return "status-none"; // No translation - no translation
     default:
       return "status-unknown";
   }
@@ -425,21 +706,119 @@ const getVideoAuthorAvatar = (video) => {
   return video.nico_avatar || video.yt_avatar;
 };
 
-// Filter authors based on search query with fuzzy matching
-// Filter authors based on search query with fuzzy matching
+// Helper function for Chinese-Japanese-English friendly text normalization
+const normalizeTextForSearch = (text) => {
+  if (!text) return '';
+  
+  // Convert to lowercase and normalize Unicode
+  let normalized = text.toLowerCase().normalize('NFD');
+  
+  // Remove common CJK and Western punctuation and symbols
+  normalized = normalized.replace(/[・･｜·]/g, ' '); // Replace middle dots with space
+  normalized = normalized.replace(/[「」『』【】〔〕〈〉《》（）()]/g, ''); // Remove brackets
+  normalized = normalized.replace(/[！？｡､。，、]/g, ''); // Remove CJK punctuation
+  normalized = normalized.replace(/[~～]/g, ''); // Remove tilde variations
+  normalized = normalized.replace(/['"'""`]/g, ''); // Remove quote marks
+  normalized = normalized.replace(/[＃#％%]/g, ''); // Remove symbols
+  normalized = normalized.replace(/[　\s]+/g, ' ').trim(); // Normalize spacing (including full-width spaces)
+  
+  return normalized;
+};
+
+// Helper function to check if text matches search query with Chinese-Japanese-English friendly comparison
+const isTextMatch = (text, query) => {
+  if (!text || !query) return false;
+  
+  const normalizedText = normalizeTextForSearch(text);
+  const normalizedQuery = normalizeTextForSearch(query);
+  
+  // Direct substring match (highest priority)
+  if (normalizedText.includes(normalizedQuery)) return true;
+  
+  // For short queries (1-2 characters), be more strict to avoid too many results
+  if (query.length <= 2) {
+    return normalizedText.includes(normalizedQuery);
+  }
+  
+  // Script-aware segmentation for better CJK matching
+  const getTextSegments = (text) => {
+    const segments = [];
+    
+    // Split by spaces first
+    segments.push(...text.split(/\s+/).filter(seg => seg.length > 0));
+    
+    // Split by script boundaries (Hiragana/Katakana/Kanji/Latin)
+    const scriptBoundaryPattern = /([ひ-ゟ]+|[ア-ヿ]+|[一-龯]+|[a-z0-9]+)/g;
+    const scriptSegments = text.match(scriptBoundaryPattern) || [];
+    segments.push(...scriptSegments);
+    
+    return [...new Set(segments)].filter(seg => seg.length > 0);
+  };
+  
+  // Word/segment-based matching for multi-part queries
+  const querySegments = getTextSegments(normalizedQuery);
+  const textSegments = getTextSegments(normalizedText);
+  
+  if (querySegments.length > 1) {
+    // Check if most query segments are found in the text
+    const foundSegments = querySegments.filter(querySegment => {
+      const isCJK = /[一-龯ひ-ゟア-ヿ]/.test(querySegment);
+      const minLength = isCJK ? 1 : 2;
+      
+      if (querySegment.length < minLength) return false;
+      
+      return textSegments.some(textSegment => 
+        textSegment.includes(querySegment) || querySegment.includes(textSegment)
+      );
+    });
+    
+    // Consider it a match if at least 60% of meaningful segments are found
+    const matchRatio = foundSegments.length / querySegments.length;
+    return matchRatio >= 0.6;
+  }
+  
+  // Partial matching for single segment queries
+  if (querySegments.length === 1) {
+    const querySegment = querySegments[0];
+    const isCJK = /[一-龯ひ-ゟア-ヿ]/.test(querySegment);
+    
+    if (isCJK && querySegment.length === 1) {
+      // For single CJK characters, require exact match in segments
+      return textSegments.some(seg => seg.includes(querySegment));
+    } else if (querySegment.length >= 2) {
+      // For longer segments, allow partial matching
+      return textSegments.some(seg => 
+        seg.includes(querySegment) || 
+        querySegment.includes(seg) ||
+        // Check if segments have significant overlap
+        (seg.length >= 2 && querySegment.length >= 2 && 
+         (seg.includes(querySegment.substring(0, Math.min(3, querySegment.length))) ||
+          querySegment.includes(seg.substring(0, Math.min(3, seg.length)))))
+      );
+    }
+  }
+  
+  return false;
+};
+
+// Filter authors based on search query with Chinese-Japanese-English friendly fuzzy matching
 const filteredAuthors = computed(() => {
   if (!searchQuery.value) return [];
 
-  const query = searchQuery.value.toLowerCase();
+  const query = searchQuery.value;
   return authors.value
-    .filter(
-      (author) => {
-        const displayName = getDisplayName(author);
-        const displayUrl = getDisplayUrl(author);
-        return displayName.toLowerCase().includes(query) ||
-               (displayUrl && displayUrl.toLowerCase().includes(query));
-      }
-    )
+    .filter((author) => {
+      const ytName = author.yt_name || '';
+      const nicoName = author.nico_name || '';
+      const ytUrl = author.yt_url || '';
+      const nicoUrl = author.nico_url || '';
+      
+      // Check name matches with Japanese-friendly comparison
+      return isTextMatch(ytName, query) || 
+             isTextMatch(nicoName, query) ||
+             isTextMatch(ytUrl, query) ||
+             isTextMatch(nicoUrl, query);
+    })
     .sort((a, b) => b.worksCount - a.worksCount); // Sort by video count descending
 });
 
@@ -465,21 +844,27 @@ const fetchAuthors = async () => {
 const searchVideos = async (query) => {
   if (!query) {
     searchedVideos.value = [];
+    originalSearchedVideos.value = [];
     return;
   }
 
   try {
     const res = await fetch(
-      `${API_URLS.SEARCH_VIDEOS}?q=${encodeURIComponent(query)}`,
+      `${API_URLS.SEARCH_VIDEOS}?q=${encodeURIComponent(query)}&limit=300`,
     );
     if (res.ok) {
-      searchedVideos.value = await res.json();
+      const results = await res.json();
+      originalSearchedVideos.value = results;
+      // Apply current sort settings to search results
+      sortSearchResults();
     } else {
       searchedVideos.value = [];
+      originalSearchedVideos.value = [];
     }
   } catch (error) {
     console.error("搜索视频失败:", error);
     searchedVideos.value = [];
+    originalSearchedVideos.value = [];
   }
 };
 
@@ -592,14 +977,37 @@ watch(
   margin-bottom: 32px;
 }
 
+/* Section header with title and sort controls */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 /* Section titles with underline */
 .section-title {
   color: #cba6f7; /* Catppuccin Mocha Mauve */
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin: 0;
   border-bottom: 2px solid #45475a;
   padding-bottom: 8px;
+}
+
+/* Override sort controls for inline usage in section header */
+.section-header .sort-controls {
+  padding: 0; /* Remove default padding from Sort.css */
+  background-color: transparent; /* Remove background for inline usage */
+  justify-content: flex-end; /* Keep right alignment in section header */
+}
+
+.section-header .sort-buttons {
+  background: transparent; /* Remove glassmorphism background for inline usage */
+  border: none; /* Remove border for cleaner inline appearance */
+  padding: 0; /* Remove container padding */
 }
 
 /* Responsive grid layout for author cards */
@@ -1111,6 +1519,13 @@ watch(
     font-size: 2rem;
   }
 
+  /* Section header responsive layout */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
   /* Adjusted author grid for medium screens */
   .authors-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1179,6 +1594,18 @@ watch(
 
 /* Mobile phone optimizations */
 @media (max-width: 480px) {
+  /* Allow natural wrapping on mobile - section header can stack vertically */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  /* Normal section title styling for mobile */
+  .section-title {
+    font-size: 1.2rem;
+  }
+
   /* Minimal mobile padding */
   .video-row {
     padding: 12px;
