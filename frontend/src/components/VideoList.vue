@@ -395,6 +395,22 @@ const openUrl = (url) => {
   }
 };
 
+// Helper functions to get display values based on priority
+const getDisplayName = (author) => {
+  if (!author) return "Unknown";
+  return author.yt_name || author.nico_name || "Unknown";
+};
+
+const getDisplayUrl = (author) => {
+  if (!author) return null;
+  return author.yt_url || author.nico_url;
+};
+
+const getDisplayAvatar = (author) => {
+  if (!author) return null;
+  return author.nico_avatar || author.yt_avatar;
+};
+
 // Back to top functionality
 const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -466,7 +482,8 @@ onMounted(async () => {
       const authors = await authorRes.json();
       author.value = authors.find((a) => a.id == authorId);
       // If author has avatar, try to preload it
-      if (author.value && author.value.avatar) {
+      const displayAvatar = getDisplayAvatar(author.value);
+      if (author.value && displayAvatar) {
         const img = new Image();
         img.onload = () => {
           avatarLoaded.value = true;
@@ -474,7 +491,7 @@ onMounted(async () => {
         img.onerror = () => {
           avatarLoaded.value = false;
         };
-        img.src = author.value.avatar;
+        img.src = displayAvatar;
       }
     }
 
@@ -508,16 +525,16 @@ onUnmounted(() => {
   <div class="video-list-container">
     <!-- Author information header -->
     <div class="author-header" v-if="author">
-      <div class="author-avatar" v-if="avatarLoaded && author.avatar">
+      <div class="author-avatar" v-if="avatarLoaded && getDisplayAvatar(author)">
         <img
-          :src="author.avatar"
-          :alt="author.name"
+          :src="getDisplayAvatar(author)"
+          :alt="getDisplayName(author)"
           @load="handleAvatarLoad"
           @error="handleAvatarError"
         />
       </div>
       <div class="author-info">
-        <h1 class="author-name">{{ author.name }}</h1>
+        <h1 class="author-name">{{ getDisplayName(author) }}</h1>
         <div class="video-count">📊 {{ originalVideos.length }} 个视频</div>
       </div>
     </div>

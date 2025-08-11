@@ -72,39 +72,64 @@ def get_or_create_author(conn, name, url=None, avatar=None):
     """Get or create author, return author ID"""
     cursor = conn.cursor()
     
-    # First try to find existing author by name
-    cursor.execute("SELECT id FROM authors WHERE name = ?", (name,))
+    # Since this is a NicoNico script, we'll work with NicoNico fields
+    # First try to find existing author by NicoNico name
+    cursor.execute("SELECT id FROM authors WHERE nico_name = ?", (name,))
     result = cursor.fetchone()
     
     if result:
         author_id = result[0]
-        print(f"Found existing author: {name} (ID: {author_id})")
+        print(f"Found existing author by NicoNico name: {name} (ID: {author_id})")
         
-        # If new URL or avatar provided, update author info
+        # If new URL or avatar provided, update NicoNico author information
         if url or avatar:
             update_fields = []
             params = []
             if url:
-                update_fields.append("url = ?")
+                update_fields.append("nico_url = ?")
                 params.append(url)
             if avatar:
-                update_fields.append("avatar = ?")
+                update_fields.append("nico_avatar = ?")
                 params.append(avatar)
             params.append(author_id)
             
             cursor.execute(f"UPDATE authors SET {', '.join(update_fields)} WHERE id = ?", params)
             conn.commit()
-            print(f"Updated author info: {name}")
+            print(f"Updated NicoNico author information: {name}")
         
         return author_id
     else:
-        # Create new author
-        cursor.execute("INSERT INTO authors (name, url, avatar) VALUES (?, ?, ?)", 
-                      (name, url, avatar))
-        conn.commit()
-        author_id = cursor.lastrowid
-        print(f"Created new author: {name} (ID: {author_id})")
-        return author_id
+        # Try to find by YouTube name as fallback
+        cursor.execute("SELECT id FROM authors WHERE yt_name = ?", (name,))
+        result = cursor.fetchone()
+        
+        if result:
+            author_id = result[0]
+            print(f"Found existing author by YouTube name, updating NicoNico fields: {name} (ID: {author_id})")
+            
+            # Update NicoNico fields for existing author
+            update_fields = ["nico_name = ?"]
+            params = [name]
+            if url:
+                update_fields.append("nico_url = ?")
+                params.append(url)
+            if avatar:
+                update_fields.append("nico_avatar = ?")
+                params.append(avatar)
+            params.append(author_id)
+            
+            cursor.execute(f"UPDATE authors SET {', '.join(update_fields)} WHERE id = ?", params)
+            conn.commit()
+            print(f"Updated author with NicoNico information: {name}")
+            return author_id
+        else:
+            # Create new author with NicoNico fields
+            cursor.execute("INSERT INTO authors (nico_name, nico_url, nico_avatar) VALUES (?, ?, ?)", 
+                          (name, url, avatar))
+            conn.commit()
+            author_id = cursor.lastrowid
+            print(f"Created new author with NicoNico information: {name} (ID: {author_id})")
+            return author_id
 
 def video_exists(conn, original_url):
     """Check if video already exists"""
