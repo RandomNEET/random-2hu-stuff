@@ -16,11 +16,20 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2025.08.19</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者25位，视频184个，熟肉130个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2025.08.11</div>
             <div class="update-content">
               <ul>
                 <li>功能：为搜索结果增加排序</li>
-                <li>内容：新收录作者12位，视频611个，熟肉463个，感谢组员的整理与校对</li>
+                <li>内容：新收录作者12位，视频611个，熟肉463个</li>
               </ul>
             </div>
           </div>
@@ -29,9 +38,7 @@
             <div class="update-date">2025.08.09</div>
             <div class="update-content">
               <ul>
-                <li>
-                  新收录作者12位，视频169个，熟肉156个，感谢组员的整理与校对
-                </li>
+                <li>新收录作者12位，视频169个，熟肉156个</li>
               </ul>
             </div>
           </div>
@@ -41,9 +48,7 @@
             <div class="update-content">
               <ul>
                 <li>功能：支持封面显示</li>
-                <li>
-                  内容：新收录24位作者，494个视频，287个熟肉，感谢组员的整理与校对
-                </li>
+                <li>内容：新收录24位作者，494个视频，287个熟肉</li>
               </ul>
             </div>
           </div>
@@ -53,7 +58,7 @@
             <div class="update-content">
               <ul>
                 <li>功能：视频列表支持按照翻译状态排序，为部分视频添加备注</li>
-                <li>内容：新增20位作者，363个视频，感谢群友的整理</li>
+                <li>内容：新增20位作者，363个视频</li>
               </ul>
             </div>
           </div>

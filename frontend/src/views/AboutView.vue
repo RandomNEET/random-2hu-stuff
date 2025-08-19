@@ -28,7 +28,7 @@
           <h2 class="section-title">共同维护</h2>
         </div>
         <p class="section-text">
-          如果你也有想要推荐的作品，强烈欢迎加入一起维护网站！
+          如果你也有想要推荐的作品，欢迎加入一起维护网站！
         </p>
         <p class="section-text" style="margin-top: 16px">
           PS：会复制粘贴就行了，没有技术要求。
@@ -125,7 +125,11 @@ onMounted(() => {
 /* Main about page container with gradient background */
 .about-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%); /* Catppuccin Mocha Base to Crust gradient */
+  background: linear-gradient(
+    135deg,
+    #1e1e2e 0%,
+    #181825 100%
+  ); /* Catppuccin Mocha Base to Crust gradient */
   color: #cdd6f4; /* Catppuccin Mocha Text */
   padding: 32px 0;
 }
@@ -205,7 +209,10 @@ onMounted(() => {
 /* Statistics grid layout */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive grid */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(200px, 1fr)
+  ); /* Responsive grid */
   gap: 24px;
 }
 
