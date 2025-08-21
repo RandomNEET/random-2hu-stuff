@@ -512,7 +512,8 @@ onMounted(async () => {
 
 // Listen for page changes, scroll to top
 watch(currentPage, () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo(0, 0);
 });
 
 onUnmounted(() => {
@@ -692,19 +693,19 @@ onUnmounted(() => {
     <!-- Pagination -->
     <div class="pagination-container" v-if="totalPages > 1">
       <div class="pagination-wrapper">
-        <!-- Previous page button -->
-        <v-btn
-          v-if="currentPage > 1"
-          icon
-          size="small"
-          class="nav-button"
-          @click="currentPage--"
-        >
-          <v-icon>mdi-chevron-left</v-icon>
-        </v-btn>
-
         <!-- Page number buttons -->
         <div class="page-numbers">
+          <!-- Previous page button -->
+          <v-btn
+            v-if="currentPage > 1"
+            icon
+            size="small"
+            class="nav-button"
+            @click="currentPage--"
+          >
+            <v-icon>mdi-chevron-left</v-icon>
+          </v-btn>
+
           <!-- Dynamic page display -->
           <template
             v-for="item in getPageItems()"
@@ -732,18 +733,19 @@ onUnmounted(() => {
               ...
             </v-btn>
           </template>
-        </div>
 
-        <!-- Next page button -->
-        <v-btn
-          v-if="currentPage < totalPages"
-          icon
-          size="small"
-          class="nav-button"
-          @click="currentPage++"
-        >
-          <v-icon>mdi-chevron-right</v-icon>
-        </v-btn>
+          <!-- Next page button -->
+          <v-btn
+            v-if="currentPage < totalPages"
+            icon
+            size="small"
+            class="nav-button"
+            @click="currentPage++"
+          >
+            <v-icon>mdi-chevron-right</v-icon>
+          </v-btn>
+
+        </div>
 
         <!-- Manual page input -->
         <div class="page-input-section">
