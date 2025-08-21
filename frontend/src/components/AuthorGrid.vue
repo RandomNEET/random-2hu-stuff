@@ -59,14 +59,18 @@
         <!-- Avatar as background -->
         <div
           class="avatar-background"
-          :style="{ backgroundImage: getDisplayAvatar(author) ? `url(${getDisplayAvatar(author)})` : 'none' }"
+          :style="{
+            backgroundImage: getDisplayAvatar(author)
+              ? `url(${getDisplayAvatar(author)})`
+              : 'none',
+          }"
         ></div>
 
         <!-- Acrylic glass overlay -->
         <div class="acrylic-overlay"></div>
 
         <!-- External link button in top-left corner -->
-        <div 
+        <div
           v-if="getDisplayUrl(author)"
           class="url-button-container"
           @mouseenter="hoveredAuthorId = author.id"
@@ -77,13 +81,17 @@
             size="small"
             class="url-button-top-left"
             @click.stop="handleUrlClick(author)"
-            :title="hasBothUrls(author) ? '访问作者频道' : `访问${author.yt_url ? 'YouTube' : 'NicoNico'}频道`"
+            :title="
+              hasBothUrls(author)
+                ? '访问作者频道'
+                : `访问${author.yt_url ? 'YouTube' : 'NicoNico'}频道`
+            "
           >
             <v-icon size="16">mdi-open-in-new</v-icon>
           </v-btn>
 
           <!-- Show platform-specific buttons when hovering and has both URLs -->
-          <div 
+          <div
             v-if="hasBothUrls(author) && hoveredAuthorId === author.id"
             class="platform-buttons"
           >
@@ -105,10 +113,10 @@
               @click.stop="openSpecificUrl(author.nico_url)"
               title="NicoNico频道"
             >
-              <img 
-                src="https://www.nicovideo.jp/favicon.ico" 
-                alt="NicoNico" 
-                style="width: 14px; height: 14px;"
+              <img
+                src="https://www.nicovideo.jp/favicon.ico"
+                alt="NicoNico"
+                style="width: 14px; height: 14px"
               />
             </v-btn>
           </div>
@@ -573,7 +581,8 @@ const handleScroll = () => {
 // Listen for page changes, scroll to top (desktop only)
 watch(currentPage, () => {
   if (!isMobile.value) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo(0, 0);
   }
 });
 
