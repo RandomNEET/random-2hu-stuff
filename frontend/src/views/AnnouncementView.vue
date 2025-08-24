@@ -16,6 +16,20 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2025.08.24</div>
+            <div class="update-content">
+              <ul>
+                <li>ODA兵士長：处理部分失效熟肉</li>
+                <li>
+                  おばにわん - OBANIWAN channel [touhou
+                  mmd]：替换部分已有生肉为熟肉，更新熟肉
+                </li>
+                <li>新增作者Hoxton Texas和マーベラス</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2025.08.19</div>
             <div class="update-content">
               <ul>
