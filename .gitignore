@@ -24,7 +24,6 @@ dist-ssr
 *.sln
 *.sw?
 
-shell.nix
 .direnv
 .envrc
 .venv
