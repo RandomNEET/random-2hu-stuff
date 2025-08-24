@@ -17,7 +17,7 @@
       <div v-if="searchedVideos.length > 0" class="results-section">
         <div class="section-header">
           <h2 class="section-title">相关视频</h2>
-          
+
           <!-- Sort controls -->
           <div class="sort-controls">
             <div class="sort-buttons">
@@ -31,7 +31,9 @@
                 <v-icon size="16">mdi-clock-outline</v-icon>
                 <span>按时间</span>
                 <v-icon size="14" v-if="sortType === 'date'">
-                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                  {{
+                    sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down"
+                  }}
                 </v-icon>
               </v-btn>
 
@@ -45,7 +47,9 @@
                 <v-icon size="16">mdi-translate</v-icon>
                 <span>按翻译</span>
                 <v-icon size="14" v-if="sortType === 'translation'">
-                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                  {{
+                    sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down"
+                  }}
                 </v-icon>
               </v-btn>
 
@@ -59,13 +63,15 @@
                 <v-icon size="16">mdi-star-outline</v-icon>
                 <span>按相关性</span>
                 <v-icon size="14" v-if="sortType === 'relevance'">
-                  {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+                  {{
+                    sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down"
+                  }}
                 </v-icon>
               </v-btn>
             </div>
           </div>
         </div>
-        
+
         <div class="videos-list">
           <div
             v-for="video in searchedVideos"
@@ -86,12 +92,16 @@
 
                 <div
                   class="author-info-small"
-                  @click="goToAuthor(video.author_id, getVideoAuthorName(video))"
+                  @click="
+                    goToAuthor(video.author_id, getVideoAuthorName(video))
+                  "
                 >
                   <v-avatar size="24" class="author-avatar-small">
                     <v-img :src="getVideoAuthorAvatar(video)" />
                   </v-avatar>
-                  <span class="author-name-small">{{ getVideoAuthorName(video) }}</span>
+                  <span class="author-name-small">{{
+                    getVideoAuthorName(video)
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -166,7 +176,7 @@
               </div>
 
               <!-- Repost video column with translation status -->
-                            <!-- Repost video column with translation status -->
+              <!-- Repost video column with translation status -->
               <div
                 class="video-column repost-column"
                 :class="{
@@ -268,7 +278,7 @@
       </div>
 
       <!-- No results found message with helpful suggestions -->
-            <!-- No results found message with helpful suggestions -->
+      <!-- No results found message with helpful suggestions -->
       <div
         v-if="
           searchQuery &&
@@ -360,39 +370,56 @@ const saveSortSettings = () => {
 // and special numeric handling for titles with same length and containing numbers
 const compareVideoTitles = (titleA, titleB) => {
   // If titles have same length and both contain numbers (1-9 or 一-九), check similarity for series detection
-  if (titleA.length === titleB.length && titleA.length > 0 && titleB.length > 0) {
+  if (
+    titleA.length === titleB.length &&
+    titleA.length > 0 &&
+    titleB.length > 0
+  ) {
     const getNumber = (title) => {
       // Extract Arabic numbers (1-9)
       const arabicMatch = title.match(/[1-9]/);
       if (arabicMatch) {
         return parseInt(arabicMatch[0]);
       }
-      
+
       // Extract Chinese numbers (一-九)
-      const chineseNumbers = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+      const chineseNumbers = {
+        一: 1,
+        二: 2,
+        三: 3,
+        四: 4,
+        五: 5,
+        六: 6,
+        七: 7,
+        八: 8,
+        九: 9,
+      };
       const chineseMatch = title.match(/[一二三四五六七八九]/);
       if (chineseMatch) {
         return chineseNumbers[chineseMatch[0]];
       }
-      
+
       return null;
     };
-    
+
     // Calculate title similarity (excluding numbers)
     const calculateSimilarity = (str1, str2) => {
       // Remove numbers and normalize titles for similarity comparison
-      const normalize = (str) => normalizeTextForSearch(str).replace(/[1-9一二三四五六七八九]/g, '').trim();
+      const normalize = (str) =>
+        normalizeTextForSearch(str)
+          .replace(/[1-9一二三四五六七八九]/g, "")
+          .trim();
       const normalized1 = normalize(str1);
       const normalized2 = normalize(str2);
-      
+
       // Simple similarity check: if normalized titles are identical or very similar
       if (normalized1 === normalized2) return 1.0;
-      
+
       // Levenshtein distance for similarity calculation (works well for CJK and Latin scripts)
       const getLevenshteinDistance = (a, b) => {
         if (a.length === 0) return b.length;
         if (b.length === 0) return a.length;
-        
+
         const matrix = [];
         for (let i = 0; i <= b.length; i++) {
           matrix[i] = [i];
@@ -400,7 +427,7 @@ const compareVideoTitles = (titleA, titleB) => {
         for (let j = 0; j <= a.length; j++) {
           matrix[0][j] = j;
         }
-        
+
         for (let i = 1; i <= b.length; i++) {
           for (let j = 1; j <= a.length; j++) {
             if (b.charAt(i - 1) === a.charAt(j - 1)) {
@@ -409,23 +436,23 @@ const compareVideoTitles = (titleA, titleB) => {
               matrix[i][j] = Math.min(
                 matrix[i - 1][j - 1] + 1,
                 matrix[i][j - 1] + 1,
-                matrix[i - 1][j] + 1
+                matrix[i - 1][j] + 1,
               );
             }
           }
         }
-        
+
         return matrix[b.length][a.length];
       };
-      
+
       const distance = getLevenshteinDistance(normalized1, normalized2);
       const maxLength = Math.max(normalized1.length, normalized2.length);
-      return maxLength === 0 ? 1.0 : 1.0 - (distance / maxLength);
+      return maxLength === 0 ? 1.0 : 1.0 - distance / maxLength;
     };
-    
+
     const numberA = getNumber(titleA);
     const numberB = getNumber(titleB);
-    
+
     // If both titles contain numbers and similarity is high enough (>= 0.8), sort by number
     if (numberA !== null && numberB !== null) {
       const similarity = calculateSimilarity(titleA, titleB);
@@ -434,14 +461,14 @@ const compareVideoTitles = (titleA, titleB) => {
       }
     }
   }
-  
+
   // Default Chinese-Japanese-English friendly comparison
   // Use multiple locales for better cross-language sorting
-  return titleA.localeCompare(titleB, ['zh-CN', 'ja-JP', 'en-US'], { 
-    numeric: true, 
+  return titleA.localeCompare(titleB, ["zh-CN", "ja-JP", "en-US"], {
+    numeric: true,
     ignorePunctuation: true,
-    sensitivity: 'base',
-    usage: 'sort'
+    sensitivity: "base",
+    usage: "sort",
   });
 };
 
@@ -536,9 +563,13 @@ const sortSearchResults = () => {
       // Sort by backend relevance: use the original order from search API
       // The backend already sorts by relevance_score, series_priority, date, and id
       // So we preserve the original order when relevance sorting is selected
-      const indexA = originalSearchedVideos.value.findIndex(v => v.id === a.id);
-      const indexB = originalSearchedVideos.value.findIndex(v => v.id === b.id);
-      
+      const indexA = originalSearchedVideos.value.findIndex(
+        (v) => v.id === a.id,
+      );
+      const indexB = originalSearchedVideos.value.findIndex(
+        (v) => v.id === b.id,
+      );
+
       // Sort by original API order (relevance-based)
       const comparison = indexA - indexB;
       return sortOrder.value === "asc" ? comparison : -comparison;
@@ -708,96 +739,104 @@ const getVideoAuthorAvatar = (video) => {
 
 // Helper function for Chinese-Japanese-English friendly text normalization
 const normalizeTextForSearch = (text) => {
-  if (!text) return '';
-  
+  if (!text) return "";
+
   // Convert to lowercase and normalize Unicode
-  let normalized = text.toLowerCase().normalize('NFD');
-  
+  let normalized = text.toLowerCase().normalize("NFD");
+
   // Remove common CJK and Western punctuation and symbols
-  normalized = normalized.replace(/[・･｜·]/g, ' '); // Replace middle dots with space
-  normalized = normalized.replace(/[「」『』【】〔〕〈〉《》（）()]/g, ''); // Remove brackets
-  normalized = normalized.replace(/[！？｡､。，、]/g, ''); // Remove CJK punctuation
-  normalized = normalized.replace(/[~～]/g, ''); // Remove tilde variations
-  normalized = normalized.replace(/['"'""`]/g, ''); // Remove quote marks
-  normalized = normalized.replace(/[＃#％%]/g, ''); // Remove symbols
-  normalized = normalized.replace(/[　\s]+/g, ' ').trim(); // Normalize spacing (including full-width spaces)
-  
+  normalized = normalized.replace(/[・･｜·]/g, " "); // Replace middle dots with space
+  normalized = normalized.replace(/[「」『』【】〔〕〈〉《》（）()]/g, ""); // Remove brackets
+  normalized = normalized.replace(/[！？｡､。，、]/g, ""); // Remove CJK punctuation
+  normalized = normalized.replace(/[~～]/g, ""); // Remove tilde variations
+  normalized = normalized.replace(/['"'""`]/g, ""); // Remove quote marks
+  normalized = normalized.replace(/[＃#％%]/g, ""); // Remove symbols
+  normalized = normalized.replace(/[　\s]+/g, " ").trim(); // Normalize spacing (including full-width spaces)
+
   return normalized;
 };
 
 // Helper function to check if text matches search query with Chinese-Japanese-English friendly comparison
 const isTextMatch = (text, query) => {
   if (!text || !query) return false;
-  
+
   const normalizedText = normalizeTextForSearch(text);
   const normalizedQuery = normalizeTextForSearch(query);
-  
+
   // Direct substring match (highest priority)
   if (normalizedText.includes(normalizedQuery)) return true;
-  
+
   // For short queries (1-2 characters), be more strict to avoid too many results
   if (query.length <= 2) {
     return normalizedText.includes(normalizedQuery);
   }
-  
+
   // Script-aware segmentation for better CJK matching
   const getTextSegments = (text) => {
     const segments = [];
-    
+
     // Split by spaces first
-    segments.push(...text.split(/\s+/).filter(seg => seg.length > 0));
-    
+    segments.push(...text.split(/\s+/).filter((seg) => seg.length > 0));
+
     // Split by script boundaries (Hiragana/Katakana/Kanji/Latin)
     const scriptBoundaryPattern = /([ひ-ゟ]+|[ア-ヿ]+|[一-龯]+|[a-z0-9]+)/g;
     const scriptSegments = text.match(scriptBoundaryPattern) || [];
     segments.push(...scriptSegments);
-    
-    return [...new Set(segments)].filter(seg => seg.length > 0);
+
+    return [...new Set(segments)].filter((seg) => seg.length > 0);
   };
-  
+
   // Word/segment-based matching for multi-part queries
   const querySegments = getTextSegments(normalizedQuery);
   const textSegments = getTextSegments(normalizedText);
-  
+
   if (querySegments.length > 1) {
     // Check if most query segments are found in the text
-    const foundSegments = querySegments.filter(querySegment => {
+    const foundSegments = querySegments.filter((querySegment) => {
       const isCJK = /[一-龯ひ-ゟア-ヿ]/.test(querySegment);
       const minLength = isCJK ? 1 : 2;
-      
+
       if (querySegment.length < minLength) return false;
-      
-      return textSegments.some(textSegment => 
-        textSegment.includes(querySegment) || querySegment.includes(textSegment)
+
+      return textSegments.some(
+        (textSegment) =>
+          textSegment.includes(querySegment) ||
+          querySegment.includes(textSegment),
       );
     });
-    
+
     // Consider it a match if at least 60% of meaningful segments are found
     const matchRatio = foundSegments.length / querySegments.length;
     return matchRatio >= 0.6;
   }
-  
+
   // Partial matching for single segment queries
   if (querySegments.length === 1) {
     const querySegment = querySegments[0];
     const isCJK = /[一-龯ひ-ゟア-ヿ]/.test(querySegment);
-    
+
     if (isCJK && querySegment.length === 1) {
       // For single CJK characters, require exact match in segments
-      return textSegments.some(seg => seg.includes(querySegment));
+      return textSegments.some((seg) => seg.includes(querySegment));
     } else if (querySegment.length >= 2) {
       // For longer segments, allow partial matching
-      return textSegments.some(seg => 
-        seg.includes(querySegment) || 
-        querySegment.includes(seg) ||
-        // Check if segments have significant overlap
-        (seg.length >= 2 && querySegment.length >= 2 && 
-         (seg.includes(querySegment.substring(0, Math.min(3, querySegment.length))) ||
-          querySegment.includes(seg.substring(0, Math.min(3, seg.length)))))
+      return textSegments.some(
+        (seg) =>
+          seg.includes(querySegment) ||
+          querySegment.includes(seg) ||
+          // Check if segments have significant overlap
+          (seg.length >= 2 &&
+            querySegment.length >= 2 &&
+            (seg.includes(
+              querySegment.substring(0, Math.min(3, querySegment.length)),
+            ) ||
+              querySegment.includes(
+                seg.substring(0, Math.min(3, seg.length)),
+              ))),
       );
     }
   }
-  
+
   return false;
 };
 
@@ -808,16 +847,18 @@ const filteredAuthors = computed(() => {
   const query = searchQuery.value;
   return authors.value
     .filter((author) => {
-      const ytName = author.yt_name || '';
-      const nicoName = author.nico_name || '';
-      const ytUrl = author.yt_url || '';
-      const nicoUrl = author.nico_url || '';
-      
+      const ytName = author.yt_name || "";
+      const nicoName = author.nico_name || "";
+      const ytUrl = author.yt_url || "";
+      const nicoUrl = author.nico_url || "";
+
       // Check name matches with Japanese-friendly comparison
-      return isTextMatch(ytName, query) || 
-             isTextMatch(nicoName, query) ||
-             isTextMatch(ytUrl, query) ||
-             isTextMatch(nicoUrl, query);
+      return (
+        isTextMatch(ytName, query) ||
+        isTextMatch(nicoName, query) ||
+        isTextMatch(ytUrl, query) ||
+        isTextMatch(nicoUrl, query)
+      );
     })
     .sort((a, b) => b.worksCount - a.worksCount); // Sort by video count descending
 });
