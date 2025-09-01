@@ -9,6 +9,7 @@ import "@/assets/styles/Pagination.css";
 const route = useRoute();
 const videos = ref([]);
 const originalVideos = ref([]); // Store original data
+const groupedVideos = ref([]); // Store grouped video data
 const author = ref(null);
 const showBackToTop = ref(false);
 const avatarLoaded = ref(false); // Avatar loading state
@@ -16,7 +17,7 @@ const avatarLoaded = ref(false); // Avatar loading state
 // Pagination related
 const currentPage = ref(1);
 const pageInput = ref("");
-const itemsPerPage = 20; // Display 20 videos per page
+const itemsPerPage = 20; // Display 20 video groups per page
 
 // Load saved sort settings from localStorage, use defaults if none exist
 const getSavedSortSettings = () => {
@@ -223,20 +224,95 @@ const sortVideos = () => {
   });
 
   videos.value = sorted;
+  groupedVideos.value = groupVideosByName(sorted);
 
   // Reset pagination, go back to first page after re-sorting
   currentPage.value = 1;
 };
 
+// Group videos by original_url or repost_url
+const groupVideosByName = (videoList) => {
+  const groups = [];
+  const processedVideos = new Set();
+
+  videoList.forEach((video) => {
+    if (processedVideos.has(video.id)) return;
+
+    const group = {
+      id: video.id,
+      date: video.date,
+      comment: video.comment,
+      type: 'single', // 'single', 'original_group', 'repost_group'
+      videos: [video],
+      displayOriginal: null,
+      displayRepost: null,
+      additionalOriginals: [],
+      additionalReposts: []
+    };
+
+    // Find videos with same original_url (for grouping reposts)
+    if (video.original_url && video.original_url.trim()) {
+      const sameOriginalVideos = videoList.filter(v => 
+        !processedVideos.has(v.id) && 
+        v.original_url === video.original_url && 
+        v.id !== video.id
+      );
+
+      if (sameOriginalVideos.length > 0) {
+        // Group by original_url
+        group.type = 'original_group';
+        group.displayOriginal = video;
+        group.additionalReposts = [video, ...sameOriginalVideos];
+        
+        // Mark all as processed
+        processedVideos.add(video.id);
+        sameOriginalVideos.forEach(v => processedVideos.add(v.id));
+        
+        groups.push(group);
+        return;
+      }
+    }
+
+    // Find videos with same repost_url (for grouping originals)
+    if (video.repost_url && video.repost_url.trim()) {
+      const sameRepostVideos = videoList.filter(v => 
+        !processedVideos.has(v.id) && 
+        v.repost_url === video.repost_url && 
+        v.id !== video.id
+      );
+
+      if (sameRepostVideos.length > 0) {
+        // Group by repost_url
+        group.type = 'repost_group';
+        group.displayRepost = video;
+        group.additionalOriginals = [video, ...sameRepostVideos];
+        
+        // Mark all as processed
+        processedVideos.add(video.id);
+        sameRepostVideos.forEach(v => processedVideos.add(v.id));
+        
+        groups.push(group);
+        return;
+      }
+    }
+
+    // Single video (no grouping)
+    processedVideos.add(video.id);
+    groups.push(group);
+  });
+
+  return groups;
+};
+
 // Pagination related computed properties
 const totalPages = computed(() =>
-  Math.ceil(originalVideos.value.length / itemsPerPage),
+  Math.ceil(groupedVideos.value.length / itemsPerPage),
 );
 
-const paginatedVideos = computed(() => {
+const paginatedVideoGroups = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
   const end = start + itemsPerPage;
-  return videos.value.slice(start, end);
+  return groupedVideos.value.slice(start, end);
 });
 
 // Pagination related functions
@@ -575,30 +651,31 @@ onUnmounted(() => {
 
     <!-- Video list -->
     <div class="videos-grid">
-      <div v-for="video in paginatedVideos" :key="video.id" class="video-row">
+      <div v-for="group in paginatedVideoGroups" :key="`group-${group.id}`" class="video-row">
         <div class="video-info-row">
-          <div class="video-date" v-if="video.date">
-            📅 {{ formatDate(video.date) }}
+          <div class="video-date" v-if="group.date">
+            📅 {{ formatDate(group.date) }}
           </div>
 
-          <div class="video-comment" v-if="video.comment">
-            {{ video.comment }}
+          <div class="video-comment" v-if="group.comment">
+            {{ group.comment }}
           </div>
         </div>
 
-        <div class="video-columns">
+        <!-- Single video display (no grouping) -->
+        <div v-if="group.type === 'single'" class="video-columns">
           <!-- Original video column -->
           <div
             class="video-column original-column"
             :class="{
-              'clickable-column': video.original_url,
-              'disabled-column': !video.original_url,
+              'clickable-column': group.videos[0].original_url,
+              'disabled-column': !group.videos[0].original_url,
             }"
-            @click="video.original_url && openUrl(video.original_url)"
+            @click="group.videos[0].original_url && openUrl(group.videos[0].original_url)"
           >
             <div class="original-header">
               <!-- Original video thumbnail -->
-              <div class="video-thumbnail" v-if="video.original_thumbnail">
+              <div class="video-thumbnail" v-if="group.videos[0].original_thumbnail">
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -609,26 +686,26 @@ onUnmounted(() => {
                   <span class="loading-text">封面加载中...</span>
                 </div>
                 <img
-                  :src="video.original_thumbnail"
-                  :alt="video.original_name || '原视频'"
-                  :referrerpolicy="needsSpecialAttributes(video.original_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(video.original_thumbnail) ? 'anonymous' : null"
+                  :src="group.videos[0].original_thumbnail"
+                  :alt="group.videos[0].original_name || '原视频'"
+                  :referrerpolicy="needsSpecialAttributes(group.videos[0].original_thumbnail) ? 'no-referrer' : null"
+                  :crossorigin="needsSpecialAttributes(group.videos[0].original_thumbnail) ? 'anonymous' : null"
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
               </div>
 
               <h3 class="video-title">
-                {{ video.original_name || "暂无原视频" }}
+                {{ group.videos[0].original_name || "暂无原视频" }}
               </h3>
 
               <!-- Video source -->
               <div
                 class="video-source"
-                v-if="video.original_url && getVideoSource(video.original_url)"
+                v-if="group.videos[0].original_url && getVideoSource(group.videos[0].original_url)"
               >
-                <span :class="getVideoSource(video.original_url).class">
-                  {{ getVideoSource(video.original_url).text }}
+                <span :class="getVideoSource(group.videos[0].original_url).class">
+                  {{ getVideoSource(group.videos[0].original_url).text }}
                 </span>
               </div>
             </div>
@@ -638,14 +715,14 @@ onUnmounted(() => {
           <div
             class="video-column repost-column"
             :class="{
-              'clickable-column': video.repost_url,
-              'disabled-column': !video.repost_url,
+              'clickable-column': group.videos[0].repost_url,
+              'disabled-column': !group.videos[0].repost_url,
             }"
-            @click="video.repost_url && openUrl(video.repost_url)"
+            @click="group.videos[0].repost_url && openUrl(group.videos[0].repost_url)"
           >
             <div class="repost-header">
               <!-- Repost video thumbnail -->
-              <div class="video-thumbnail" v-if="video.repost_thumbnail">
+              <div class="video-thumbnail" v-if="group.videos[0].repost_thumbnail">
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -656,32 +733,250 @@ onUnmounted(() => {
                   <span class="loading-text">封面加载中...</span>
                 </div>
                 <img
-                  :src="video.repost_thumbnail"
-                  :alt="video.repost_name || '转载视频'"
-                  :referrerpolicy="needsSpecialAttributes(video.repost_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(video.repost_thumbnail) ? 'anonymous' : null"
+                  :src="group.videos[0].repost_thumbnail"
+                  :alt="group.videos[0].repost_name || '转载视频'"
+                  :referrerpolicy="needsSpecialAttributes(group.videos[0].repost_thumbnail) ? 'no-referrer' : null"
+                  :crossorigin="needsSpecialAttributes(group.videos[0].repost_thumbnail) ? 'anonymous' : null"
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
               </div>
 
               <h3 class="video-title">
-                {{ video.repost_name || "暂无转载" }}
+                {{ group.videos[0].repost_name || "暂无转载" }}
               </h3>
 
               <!-- Translation status -->
               <div
                 class="translation-status"
                 v-if="
-                  video.translation_status !== null &&
-                  video.translation_status !== '' &&
-                  getTranslationStatusText(video.translation_status)
+                  group.videos[0].translation_status !== null &&
+                  group.videos[0].translation_status !== '' &&
+                  getTranslationStatusText(group.videos[0].translation_status)
                 "
               >
                 <span
-                  :class="getTranslationStatusClass(video.translation_status)"
+                  :class="getTranslationStatusClass(group.videos[0].translation_status)"
                 >
-                  {{ getTranslationStatusText(video.translation_status) }}
+                  {{ getTranslationStatusText(group.videos[0].translation_status) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Original group display (one original, multiple reposts) -->
+        <div v-else-if="group.type === 'original_group'" class="video-columns grouped-columns">
+          <!-- Single original column on the left -->
+          <div
+            class="video-column original-column centered-column"
+            :class="{
+              'clickable-column': group.displayOriginal.original_url,
+              'disabled-column': !group.displayOriginal.original_url,
+            }"
+            @click="group.displayOriginal.original_url && openUrl(group.displayOriginal.original_url)"
+          >
+            <div class="original-header">
+              <!-- Original video thumbnail -->
+              <div class="video-thumbnail" v-if="group.displayOriginal.original_thumbnail">
+                <div class="thumbnail-loading">
+                  <v-progress-circular
+                    size="32"
+                    width="3"
+                    color="primary"
+                    indeterminate
+                  ></v-progress-circular>
+                  <span class="loading-text">封面加载中...</span>
+                </div>
+                <img
+                  :src="group.displayOriginal.original_thumbnail"
+                  :alt="group.displayOriginal.original_name || '原视频'"
+                  :referrerpolicy="needsSpecialAttributes(group.displayOriginal.original_thumbnail) ? 'no-referrer' : null"
+                  :crossorigin="needsSpecialAttributes(group.displayOriginal.original_thumbnail) ? 'anonymous' : null"
+                  @load="handleThumbnailLoad"
+                  @error="handleThumbnailError"
+                />
+              </div>
+
+              <h3 class="video-title">
+                {{ group.displayOriginal.original_name || "暂无原视频" }}
+              </h3>
+
+              <!-- Video source -->
+              <div
+                class="video-source"
+                v-if="group.displayOriginal.original_url && getVideoSource(group.displayOriginal.original_url)"
+              >
+                <span :class="getVideoSource(group.displayOriginal.original_url).class">
+                  {{ getVideoSource(group.displayOriginal.original_url).text }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Multiple repost columns on the right -->
+          <div class="repost-area">
+            <div class="repost-list">
+              <div
+                v-for="video in group.additionalReposts"
+                :key="`repost-${video.id}`"
+                class="video-column repost-column compact-column"
+                :class="{
+                  'clickable-column': video.repost_url,
+                  'disabled-column': !video.repost_url,
+                }"
+                @click="video.repost_url && openUrl(video.repost_url)"
+              >
+                <div class="repost-header">
+                  <!-- Repost video thumbnail -->
+                  <div class="video-thumbnail compact-thumbnail" v-if="video.repost_thumbnail">
+                    <div class="thumbnail-loading">
+                      <v-progress-circular
+                        size="24"
+                        width="2"
+                        color="primary"
+                        indeterminate
+                      ></v-progress-circular>
+                      <span class="loading-text">加载中...</span>
+                    </div>
+                    <img
+                      :src="video.repost_thumbnail"
+                      :alt="video.repost_name || '转载视频'"
+                      :referrerpolicy="needsSpecialAttributes(video.repost_thumbnail) ? 'no-referrer' : null"
+                      :crossorigin="needsSpecialAttributes(video.repost_thumbnail) ? 'anonymous' : null"
+                      @load="handleThumbnailLoad"
+                      @error="handleThumbnailError"
+                    />
+                  </div>
+
+                  <h4 class="video-title compact-title">
+                    {{ video.repost_name || "暂无转载" }}
+                  </h4>
+
+                  <!-- Translation status -->
+                  <div
+                    class="translation-status"
+                    v-if="
+                      video.translation_status !== null &&
+                      video.translation_status !== '' &&
+                      getTranslationStatusText(video.translation_status)
+                    "
+                  >
+                    <span
+                      :class="getTranslationStatusClass(video.translation_status)"
+                    >
+                      {{ getTranslationStatusText(video.translation_status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Repost group display (one repost, multiple originals) -->
+        <div v-else-if="group.type === 'repost_group'" class="video-columns grouped-columns">
+          <!-- Multiple original columns on the left -->
+          <div class="original-area">
+            <div class="original-list">
+              <div
+                v-for="video in group.additionalOriginals"
+                :key="`original-${video.id}`"
+                class="video-column original-column compact-column"
+                :class="{
+                  'clickable-column': video.original_url,
+                  'disabled-column': !video.original_url,
+                }"
+                @click="video.original_url && openUrl(video.original_url)"
+              >
+                <div class="original-header">
+                  <!-- Original video thumbnail -->
+                  <div class="video-thumbnail compact-thumbnail" v-if="video.original_thumbnail">
+                    <div class="thumbnail-loading">
+                      <v-progress-circular
+                        size="24"
+                        width="2"
+                        color="primary"
+                        indeterminate
+                      ></v-progress-circular>
+                      <span class="loading-text">加载中...</span>
+                    </div>
+                    <img
+                      :src="video.original_thumbnail"
+                      :alt="video.original_name || '原视频'"
+                      :referrerpolicy="needsSpecialAttributes(video.original_thumbnail) ? 'no-referrer' : null"
+                      :crossorigin="needsSpecialAttributes(video.original_thumbnail) ? 'anonymous' : null"
+                      @load="handleThumbnailLoad"
+                      @error="handleThumbnailError"
+                    />
+                  </div>
+
+                  <h4 class="video-title compact-title">
+                    {{ video.original_name || "暂无原视频" }}
+                  </h4>
+
+                  <!-- Video source -->
+                  <div
+                    class="video-source"
+                    v-if="video.original_url && getVideoSource(video.original_url)"
+                  >
+                    <span :class="getVideoSource(video.original_url).class">
+                      {{ getVideoSource(video.original_url).text }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Single repost column on the right -->
+          <div
+            class="video-column repost-column centered-column"
+            :class="{
+              'clickable-column': group.displayRepost.repost_url,
+              'disabled-column': !group.displayRepost.repost_url,
+            }"
+            @click="group.displayRepost.repost_url && openUrl(group.displayRepost.repost_url)"
+          >
+            <div class="repost-header">
+              <!-- Repost video thumbnail -->
+              <div class="video-thumbnail" v-if="group.displayRepost.repost_thumbnail">
+                <div class="thumbnail-loading">
+                  <v-progress-circular
+                    size="32"
+                    width="3"
+                    color="primary"
+                    indeterminate
+                  ></v-progress-circular>
+                  <span class="loading-text">封面加载中...</span>
+                </div>
+                <img
+                  :src="group.displayRepost.repost_thumbnail"
+                  :alt="group.displayRepost.repost_name || '转载视频'"
+                  :referrerpolicy="needsSpecialAttributes(group.displayRepost.repost_thumbnail) ? 'no-referrer' : null"
+                  :crossorigin="needsSpecialAttributes(group.displayRepost.repost_thumbnail) ? 'anonymous' : null"
+                  @load="handleThumbnailLoad"
+                  @error="handleThumbnailError"
+                />
+              </div>
+
+              <h4 class="video-title">
+                {{ group.displayRepost.repost_name || "暂无转载" }}
+              </h4>
+
+              <!-- Translation status -->
+              <div
+                class="translation-status"
+                v-if="
+                  group.displayRepost.translation_status !== null &&
+                  group.displayRepost.translation_status !== '' &&
+                  getTranslationStatusText(group.displayRepost.translation_status)
+                "
+              >
+                <span
+                  :class="getTranslationStatusClass(group.displayRepost.translation_status)"
+                >
+                  {{ getTranslationStatusText(group.displayRepost.translation_status) }}
                 </span>
               </div>
             </div>
@@ -885,6 +1180,54 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+
+/* Grouped columns layout */
+.grouped-columns {
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+}
+
+.grouped-columns .original-area,
+.grouped-columns .repost-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Centered column for single items in grouped layout */
+.centered-column {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
+}
+
+.centered-column .original-header,
+.centered-column .repost-header {
+  width: 100%;
+}
+
+.original-list,
+.repost-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Compact column styles for grouped items */
+.compact-column {
+  padding: 10px;
+  margin-bottom: 0;
+}
+
+.compact-thumbnail {
+  height: 120px;
+  margin-bottom: 8px;
+}
+
+.compact-title {
+  font-size: 0.9rem;
+  line-height: 1.3;
 }
 
 .video-column {
@@ -1149,6 +1492,18 @@ onUnmounted(() => {
     gap: 12px; /* Reduce spacing for small screens */
   }
 
+  .grouped-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compact-thumbnail {
+    height: 80px;
+  }
+
+  .compact-title {
+    font-size: 0.8rem;
+  }
+
   .video-column {
     padding: 12px; /* Reduce padding */
   }
@@ -1206,6 +1561,24 @@ onUnmounted(() => {
   .video-columns {
     grid-template-columns: 1fr 1fr; /* Keep two columns even on ultra-small screens */
     gap: 8px; /* Further reduce spacing */
+  }
+
+  .grouped-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compact-column {
+    padding: 6px;
+  }
+
+  .compact-thumbnail {
+    height: 60px;
+    margin-bottom: 4px;
+  }
+
+  .compact-title {
+    font-size: 0.75rem;
+    line-height: 1.2;
   }
 
   .video-column {
