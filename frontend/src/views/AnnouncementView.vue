@@ -16,6 +16,15 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2025.09.01</div>
+            <div class="update-content">
+              <ul>
+                <li>视频列表支持一对多显示</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2025.08.31</div>
             <div class="update-content">
               <ul>

@@ -11,6 +11,7 @@
 - 站内作者因为不符合上述结构且观看起来足够方便，故不在收录范围内
 - 为保证网站数据的有效性，不收录已失效的转载视频
 - 原视频与转载视频为一一对应关系，收录优先级为 中文内嵌>CC字幕>弹幕翻译>暂无翻译
+- 当多个条目的原视频链接或转载链接相同时，网站会将相同的部分显示在一起，此时只有相同链接条目中的第一个备注（表）会被显示在网站中，因此请在这些条目中备注相同内容
 - 如果遇到一个原视频被拆分成n个转载视频，或者n个原视频被合并为同一个转载视频，请创建n个有着相同原视频链接或者转载视频标题和链接的条目，并在备注（表）中注明
 - 如果遇到n个转载视频在一个合集内，需要将每一话作为一个独立条目收录，如果一整个系列的在某个合集中有少量缺少，请在合集的第一话和对应缺失话进行备注（表）
 
@@ -22,8 +23,8 @@
 | ラプター      | sm22894363                                  | 【东方MMD中文内嵌】幻想乡暗锅大会【东方日常字幕组】    | https://www.bilibili.com/video/av11180816        | 1        |                                                                 |                |
 | くすり屋      | https://www.youtube.com/watch?v=vKi3gawvw1Q | 【东方MMD】帕秋莉的魔法药                              | https://www.bilibili.com/video/BV1tU4y1E7H4      | 2        | 熟肉为合集（P1）                                                |                |
 | くすり屋      | https://www.youtube.com/watch?v=0N2Th0TGwMc | 【东方MMD】帕秋莉的魔法药                              | https://www.bilibili.com/video/BV1tU4y1E7H4?&p=2 | 2        | 熟肉为合集（P2）                                                |                |
-| MMDer赤トンボ | https://www.youtube.com/watch?v=GhIaFZ2XvYY | 【剧场版东方MMD/魔恋字幕组】... Part2                  | https://www.bilibili.com/video/BV1PX4y1K7pz      | 1        | 原视频分为两部分转载，这是Part2                                 |                |
-| MMDer赤トンボ | https://www.youtube.com/watch?v=GhIaFZ2XvYY | 【剧场版东方MMD/魔恋字幕组】... Part1                  | https://www.bilibili.com/video/BV1Bh411Z7Te      | 1        | 原视频分为两部分转载，这是Part1                                 |                |
+| MMDer赤トンボ | https://www.youtube.com/watch?v=GhIaFZ2XvYY | 【剧场版东方MMD/魔恋字幕组】... Part2                  | https://www.bilibili.com/video/BV1PX4y1K7pz      | 1        | 原视频分为两部分转载                                            |                |
+| MMDer赤トンボ | https://www.youtube.com/watch?v=GhIaFZ2XvYY | 【剧场版东方MMD/魔恋字幕组】... Part1                  | https://www.bilibili.com/video/BV1Bh411Z7Te      | 1        | 原视频分为两部分转载                                            |                |
 | l d           | https://www.youtube.com/watch?v=XMBDJumVpVU | 【东方MMD电影】Another Line：妖妖梦篇【转载翻译·代投】 | https://www.bilibili.com/video/BV1Sc77z4Esn      | 1        | 妖妖梦篇,原作分为3话，熟肉合并成1集了                           |                |
 | 風月          | https://www.youtube.com/watch?v=b4SSPrM0SC0 | 【中文内嵌】【東方 MMD】追忆的博丽神社                 | https://www.bilibili.com/video/BV1QVWFeqEmy      | 1        | 该系列第19话【東方MMD中文内嵌】灵梦当了一天的门番 不在B站合集中 |
 | 風月          | https://www.youtube.com/watch?v=FP_mJqg7OwM | 【東方MMD中文内嵌】灵梦当了一天的门番                  | https://www.bilibili.com/video/BV1tW41157UW      | 1        | 该话不在B站合集中                                               |                |
