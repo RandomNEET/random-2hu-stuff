@@ -281,19 +281,43 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
         if result:
             author_id = result[0]
             if debug:
-                print(f"Found existing author by URL, updating name: {csv_author_name} (ID: {author_id})")
+                print(f"Found existing author by URL (ID: {author_id})")
             
-            # Update the appropriate name field based on platform
+            # Get current author names to check if update is needed
+            cursor.execute("SELECT yt_name, nico_name FROM authors WHERE id = ?", (author_id,))
+            current_names = cursor.fetchone()
+            current_yt_name, current_nico_name = current_names
+            
+            # Only update name if current name is empty or clearly inferior
+            updated = False
             if platform == 'youtube':
-                cursor.execute("UPDATE authors SET yt_name = ? WHERE id = ?", (csv_author_name, author_id))
+                if not current_yt_name or len(current_yt_name.strip()) == 0:
+                    cursor.execute("UPDATE authors SET yt_name = ? WHERE id = ?", (csv_author_name, author_id))
+                    updated = True
+                    if debug:
+                        print(f"Updated empty YouTube name to: {csv_author_name}")
+                elif debug:
+                    print(f"Keeping existing YouTube name: {current_yt_name} (not updating to: {csv_author_name})")
             elif platform == 'niconico':
-                cursor.execute("UPDATE authors SET nico_name = ? WHERE id = ?", (csv_author_name, author_id))
+                if not current_nico_name or len(current_nico_name.strip()) == 0:
+                    cursor.execute("UPDATE authors SET nico_name = ? WHERE id = ?", (csv_author_name, author_id))
+                    updated = True
+                    if debug:
+                        print(f"Updated empty NicoNico name to: {csv_author_name}")
+                elif debug:
+                    print(f"Keeping existing NicoNico name: {current_nico_name} (not updating to: {csv_author_name})")
             else:
-                # If platform unknown, update both (fallback)
-                cursor.execute("UPDATE authors SET yt_name = ?, nico_name = ? WHERE id = ?", 
-                             (csv_author_name, csv_author_name, author_id))
+                # If platform unknown, only update empty fields
+                if (not current_yt_name or len(current_yt_name.strip()) == 0) and \
+                   (not current_nico_name or len(current_nico_name.strip()) == 0):
+                    cursor.execute("UPDATE authors SET yt_name = ?, nico_name = ? WHERE id = ?", 
+                                 (csv_author_name, csv_author_name, author_id))
+                    updated = True
+                    if debug:
+                        print(f"Updated empty author names to: {csv_author_name}")
             
-            conn.commit()
+            if updated:
+                conn.commit()
             return author_id
     
     # Step 3: Create new author
