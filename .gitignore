@@ -25,6 +25,5 @@ dist-ssr
 *.sw?
 
 .direnv
-.envrc
 .venv
 .npm
