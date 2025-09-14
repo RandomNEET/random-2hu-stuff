@@ -16,6 +16,15 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2025.09.14</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者2位，视频11个，熟肉10个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2025.09.07</div>
             <div class="update-content">
               <ul>
