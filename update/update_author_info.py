@@ -108,16 +108,14 @@ def get_author_info_from_url(author_url, debug=False):
             
             # NicoNico user page
             elif 'nicovideo.jp' in author_url and '/user/' in author_url:
-                # Method 1: Get directly from user page info
+                # Get author name from first video
                 author_name = (info.get('uploader') or 
                               info.get('title'))
-                avatar = info.get('avatar') or info.get('uploader_avatar')
                 
-                # Method 2: Get info from first video (if method 1 fails)
-                if not avatar or not author_name:
+                if not author_name:
                     entries = info.get('entries', [])
                     if entries:
-                        # Get first video and get detailed info
+                        # Get first video to get author name
                         first_video_url = entries[0].get('url')
                         if first_video_url:
                             try:
@@ -126,16 +124,80 @@ def get_author_info_from_url(author_url, debug=False):
                                 
                                 with yt_dlp.YoutubeDL(video_options) as video_ydl:
                                     video_info = video_ydl.extract_info(first_video_url, download=False)
-                                    if not author_name:
-                                        author_name = video_info.get('uploader')
-                                    if not avatar:
-                                        api_data = video_info.get('_api_data', {})
-                                        owner_info = api_data.get('owner', {})
-                                        if owner_info:
-                                            avatar = owner_info.get('iconUrl')
+                                    author_name = video_info.get('uploader')
                             except Exception as e:
                                 if debug:
-                                    print(f"  Failed to get NicoNico video details: {e}")
+                                    print(f"  Failed to get author name from video: {e}")
+                
+                # Generate NicoNico avatar URL directly from user ID
+                avatar = None
+                try:
+                    import re
+                    import urllib.request
+                    match = re.search(r'/user/(\d+)', author_url)
+                    if match:
+                        user_id = match.group(1)
+                        # NicoNico avatar URL format: https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/{prefix}/{user_id}.jpg
+                        # Prefix length based on user ID length pattern observed:
+                        # 9+ digits: 5 chars, 8 digits: 4 chars, 7 digits: 3 chars, 6 digits: 2 chars
+                        prefixes_to_try = []
+                        user_id_len = len(user_id)
+                        
+                        if user_id_len >= 9:
+                            # 9+ digit IDs: try 5, 4, 3 characters
+                            prefixes_to_try = [user_id[:5], user_id[:4], user_id[:3]]
+                        elif user_id_len == 8:
+                            # 8 digit IDs: try 4, 3 characters
+                            prefixes_to_try = [user_id[:4], user_id[:3]]
+                        elif user_id_len == 7:
+                            # 7 digit IDs: try 3, 4 characters (3 is more common)
+                            prefixes_to_try = [user_id[:3], user_id[:4]]
+                        elif user_id_len == 6:
+                            # 6 digit IDs: try 2, 3 characters (2 is more common based on example)
+                            prefixes_to_try = [user_id[:2], user_id[:3]]
+                        elif user_id_len >= 3:
+                            # 3-5 digit IDs: try 3, 2 characters
+                            prefixes_to_try = [user_id[:3], user_id[:2]]
+                        elif user_id_len >= 2:
+                            # 2 digit IDs: try 2, full ID
+                            prefixes_to_try = [user_id[:2], user_id]
+                        else:
+                            # Very short IDs: use full ID
+                            prefixes_to_try = [user_id]
+                        
+                        avatar_found = False
+                        for prefix in prefixes_to_try:
+                            constructed_avatar = f"https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/{prefix}/{user_id}.jpg"
+                            
+                            # Check if the constructed URL is valid (not 404)
+                            try:
+                                if debug:
+                                    print(f"  Trying NicoNico avatar URL: {constructed_avatar}")
+                                req = urllib.request.Request(constructed_avatar, method='HEAD')
+                                with urllib.request.urlopen(req, timeout=5) as response:
+                                    if response.status == 200:
+                                        avatar = constructed_avatar
+                                        avatar_found = True
+                                        if debug:
+                                            print(f"  ✓ Found NicoNico avatar URL: {avatar}")
+                                        break
+                            except urllib.error.HTTPError as http_err:
+                                if debug:
+                                    print(f"    HTTP {http_err.code} for prefix {prefix}")
+                                continue
+                            except Exception as url_check_error:
+                                if debug:
+                                    print(f"    Error checking prefix {prefix}: {url_check_error}")
+                                continue
+                        
+                        # If no valid avatar found, use default blank avatar
+                        if not avatar_found:
+                            avatar = "https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg"
+                            if debug:
+                                print(f"  No custom avatar found, using default: {avatar}")
+                except Exception as construct_error:
+                    if debug:
+                        print(f"  Failed to construct avatar URL: {construct_error}")
             
             # Bilibili user page
             elif 'bilibili.com' in author_url and ('/space/' in author_url or '/u/' in author_url):
