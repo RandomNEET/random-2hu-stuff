@@ -51,7 +51,7 @@
         class="card-item"
         @click="
           $router.push({
-            path: `/author/${getDisplayName(author)}`,
+            path: `/author/${encodeURIComponent(getDisplayName(author))}`,
             query: { id: author.id },
           })
         "
