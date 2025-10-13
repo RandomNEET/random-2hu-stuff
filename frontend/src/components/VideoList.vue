@@ -474,17 +474,17 @@ const openUrl = (url) => {
 // Helper functions to get display values based on priority
 const getDisplayName = (author) => {
   if (!author) return "Unknown";
-  return author.yt_name || author.nico_name || "Unknown";
+  return author.yt_name || author.nico_name || author.twitter_name || "Unknown";
 };
 
 const getDisplayUrl = (author) => {
   if (!author) return null;
-  return author.yt_url || author.nico_url;
+  return author.yt_url || author.nico_url || author.twitter_url;
 };
 
 const getDisplayAvatar = (author) => {
   if (!author) return null;
-  return author.nico_avatar || author.yt_avatar;
+  return author.nico_avatar || author.yt_avatar || author.twitter_avatar;
 };
 
 // Back to top functionality
