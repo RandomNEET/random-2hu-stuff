@@ -72,12 +72,15 @@ app.get("/api/authors", (req, res) => {
       a.nico_name,
       a.nico_url,
       a.nico_avatar,
+      a.twitter_name,
+      a.twitter_url,
+      a.twitter_avatar,
       COUNT(v.id) as worksCount,
       MAX(v.date) as lastUpdate
     FROM authors a
     LEFT JOIN videos v ON a.id = v.author
-    GROUP BY a.id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar
-    ORDER BY COALESCE(a.yt_name, a.nico_name) ASC
+    GROUP BY a.id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar, a.twitter_name, a.twitter_url, a.twitter_avatar
+    ORDER BY COALESCE(a.yt_name, a.nico_name, a.twitter_name) ASC
   `;
   
   db.all(query, [], (err, rows) => {
@@ -220,7 +223,7 @@ app.get("/api/search/videos", (req, res) => {
   // Order by relevance: exact matches first, then by series order, then by date
   const searchQuery = `
     SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
-           a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar,
+           a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar, a.twitter_name, a.twitter_url, a.twitter_avatar,
            CASE 
              WHEN v.original_name LIKE ? OR v.repost_name LIKE ? THEN 1
              ELSE 2
