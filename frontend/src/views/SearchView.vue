@@ -696,7 +696,7 @@ const getTranslationStatusClass = (status) => {
 // Navigate to author detail page with proper routing
 const goToAuthor = (authorId, authorName) => {
   router.push({
-    path: `/author/${authorName}`,
+    path: `/author/${encodeURIComponent(authorName)}`,
     query: { id: authorId },
   });
 };
@@ -713,28 +713,28 @@ const openUrl = (url) => {
 // Helper functions for author data handling with priority rules
 const getDisplayName = (author) => {
   if (!author) return "Unknown";
-  return author.yt_name || author.nico_name || "Unknown";
+  return author.yt_name || author.nico_name || author.twitter_name || "Unknown";
 };
 
 const getDisplayUrl = (author) => {
   if (!author) return null;
-  return author.yt_url || author.nico_url;
+  return author.yt_url || author.nico_url || author.twitter_url;
 };
 
 const getDisplayAvatar = (author) => {
   if (!author) return null;
-  return author.nico_avatar || author.yt_avatar;
+  return author.nico_avatar || author.yt_avatar || author.twitter_avatar;
 };
 
 // Helper functions for video author data handling with priority rules
 const getVideoAuthorName = (video) => {
   if (!video) return "Unknown";
-  return video.yt_name || video.nico_name || "Unknown";
+  return video.yt_name || video.nico_name || video.twitter_name || "Unknown";
 };
 
 const getVideoAuthorAvatar = (video) => {
   if (!video) return null;
-  return video.nico_avatar || video.yt_avatar;
+  return video.nico_avatar || video.yt_avatar || video.twitter_avatar;
 };
 
 // Helper function for Chinese-Japanese-English friendly text normalization

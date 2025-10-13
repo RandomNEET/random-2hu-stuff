@@ -82,17 +82,25 @@
             class="url-button-top-left"
             @click.stop="handleUrlClick(author)"
             :title="
-              hasBothUrls(author)
+              hasMultipleUrls(author)
                 ? '访问作者频道'
-                : `访问${author.yt_url ? 'YouTube' : 'NicoNico'}频道`
+                : `访问${
+                    author.yt_url 
+                      ? 'YouTube' 
+                      : author.nico_url 
+                        ? 'NicoNico' 
+                        : author.twitter_url 
+                          ? 'Twitter'
+                          : '作者'
+                  }频道`
             "
           >
             <v-icon size="16">mdi-open-in-new</v-icon>
           </v-btn>
 
-          <!-- Show platform-specific buttons when hovering and has both URLs -->
+          <!-- Show platform-specific buttons when hovering and has multiple URLs -->
           <div
-            v-if="hasBothUrls(author) && hoveredAuthorId === author.id"
+            v-if="hasMultipleUrls(author) && hoveredAuthorId === author.id"
             class="platform-buttons"
           >
             <v-btn
@@ -118,6 +126,16 @@
                 alt="NicoNico"
                 style="width: 14px; height: 14px"
               />
+            </v-btn>
+            <v-btn
+              v-if="author.twitter_url"
+              icon
+              size="small"
+              class="platform-btn twitter-btn"
+              @click.stop="openSpecificUrl(author.twitter_url)"
+              title="Twitter频道"
+            >
+              <v-icon size="14">mdi-twitter</v-icon>
             </v-btn>
           </div>
         </div>
@@ -297,33 +315,35 @@ const setSortBy = (field) => {
 
 // Helper function to get display name based on priority
 const getDisplayName = (author) => {
-  return author.yt_name || author.nico_name || "Unknown";
+  return author.yt_name || author.nico_name || author.twitter_name || "Unknown";
 };
 
 // Helper function to get display URL based on priority
 const getDisplayUrl = (author) => {
-  return author.yt_url || author.nico_url;
+  return author.yt_url || author.nico_url || author.twitter_url;
 };
 
 // Helper function to get display avatar based on priority
 const getDisplayAvatar = (author) => {
-  return author.nico_avatar || author.yt_avatar;
+  return author.nico_avatar || author.yt_avatar || author.twitter_avatar;
 };
 
-// Check if author has both URLs
-const hasBothUrls = (author) => {
-  return author && author.yt_url && author.nico_url;
+// Check if author has multiple URLs
+const hasMultipleUrls = (author) => {
+  if (!author) return false;
+  const urlCount = [author.yt_url, author.nico_url, author.twitter_url].filter(Boolean).length;
+  return urlCount > 1;
 };
 
 // Handle URL button click - direct navigation if only one URL
 const handleUrlClick = (author) => {
-  if (!hasBothUrls(author)) {
+  if (!hasMultipleUrls(author)) {
     const url = getDisplayUrl(author);
     if (url) {
       openUrl(url);
     }
   }
-  // If has both URLs, do nothing on click - let hover handle it
+  // If has multiple URLs, do nothing on click - let hover handle it
 };
 
 // Open specific URL (YouTube or NicoNico)
@@ -808,6 +828,14 @@ onUnmounted(() => {
 
 .nico-btn:hover {
   color: #ff8533 !important;
+}
+
+.twitter-btn {
+  color: #1da1f2 !important;
+}
+
+.twitter-btn:hover {
+  color: #4db6f7 !important;
 }
 
 /* Info section styling - occupies entire card, centered display */
