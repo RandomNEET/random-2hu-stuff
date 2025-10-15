@@ -550,7 +550,7 @@ onMounted(async () => {
   // Add scroll event listener
   window.addEventListener("scroll", handleScroll);
 
-  const authorId = route.query.id;
+  const authorId = route.params.id;
   try {
     // Get author information
     const authorRes = await fetch(API_URLS.AUTHORS);

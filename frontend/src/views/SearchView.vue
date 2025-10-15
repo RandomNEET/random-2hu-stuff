@@ -261,12 +261,7 @@
             class="author-card"
             elevation="3"
             hover
-            @click="
-              $router.push({
-                path: `/author/${getDisplayName(author)}`,
-                query: { id: author.id },
-              })
-            "
+            @click="$router.push(`/author/${author.id}`)"
           >
             <v-img :src="getDisplayAvatar(author)" class="author-avatar" />
             <div class="author-info">
@@ -695,10 +690,7 @@ const getTranslationStatusClass = (status) => {
 
 // Navigate to author detail page with proper routing
 const goToAuthor = (authorId, authorName) => {
-  router.push({
-    path: `/author/${encodeURIComponent(authorName)}`,
-    query: { id: authorId },
-  });
+  router.push(`/author/${authorId}`);
 };
 
 // Open external URL in new tab with security measures
