@@ -49,12 +49,7 @@
         v-for="author in paginatedAuthors"
         :key="author.id"
         class="card-item"
-        @click="
-          $router.push({
-            path: `/author/${encodeURIComponent(getDisplayName(author))}`,
-            query: { id: author.id },
-          })
-        "
+        @click="$router.push(`/author/${author.id}`)"
       >
         <!-- Avatar as background -->
         <div
