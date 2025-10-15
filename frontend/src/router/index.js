@@ -9,7 +9,7 @@ const AnnouncementView = () => import("../views/AnnouncementView.vue");
 
 const routes = [
   { path: "/", component: AuthorGrid },
-  { path: "/author/:name", component: VideoList, props: true },
+  { path: "/author/:id", component: VideoList, props: true },
   { path: "/announcement", component: AnnouncementView },
   { path: "/about", component: AboutView },
   { path: "/search", component: SearchView },
