@@ -5,6 +5,44 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
+// ============================================================================
+// SEARCH CONFIGURATION - Modify these constants to adjust search behavior
+// ============================================================================
+
+// Relevance score threshold for filtering search results
+// Results with score >= this value will be filtered out
+// Lower threshold = stricter filtering (fewer results)
+// Higher threshold = looser filtering (more results)
+const RELEVANCE_SCORE_THRESHOLD = 40;
+
+// Title prefix patterns to remove when extracting core title
+// Add new common prefixes here to improve search accuracy
+// Format: Regular expressions or strings that appear at the start of titles
+const TITLE_PREFIX_PATTERNS = [
+  /^[＃#]\s*\d+[\.、\s]*/g,                          // Number prefixes: ＃1, #1, etc.
+  /^[\[【]([^】\]]+)[\]】]\s*/g,                      // Bracketed tags: 【东方MMD】, 【东方MMD/中文内嵌】, etc.
+];
+
+// Title suffix patterns to remove when extracting core title
+// Add new common suffixes here to improve search accuracy
+// Format: Regular expressions that appear at the end of titles
+const TITLE_SUFFIX_PATTERNS = [
+  /[\(（][前後上中下编篇集合]+[\)）]\s*$/g,           // Simple episode markers: (前), (后), (上), (下), etc.
+  /[\(（](前編|後編|前篇|后篇|中編|中篇|完結編|解決編|散策編|合集|Easy版|マイルド|メタ回)[\)）]\s*$/g,  // Complex episode markers
+  /[\[【][前後上中下编篇集合]+[\]】]\s*$/g,           // Bracketed episode markers: [前編], [后篇], etc.
+  /[\[【](前編|後編|前篇|后篇|中編|中篇)[\]】]\s*$/g,  // Complex bracketed markers
+  /[\[【]([^】\]]+)[\]】]\s*$/g,                      // Trailing tag suffixes: 【ＭＭＤ紙芝居】, etc.
+];
+
+// Core query extraction threshold
+// If extracted core is less than this ratio of original query length, use core query
+// This prevents extracting core from queries that are already core content
+const CORE_QUERY_LENGTH_RATIO = 0.8;
+
+// ============================================================================
+// END OF SEARCH CONFIGURATION
+// ============================================================================
+
 // Optimize SQLite configuration for better performance
 const db = new sqlite3.Database("./random-2hu-stuff.db", (err) => {
   if (err) {
@@ -120,6 +158,33 @@ app.get("/api/author/:id/videos", (req, res) => {
   );
 });
 
+// Helper function to extract core title by removing common prefixes and suffixes
+function extractCoreTitle(text) {
+  if (!text) return '';
+  
+  let core = text;
+  
+  // Apply all prefix patterns from configuration
+  TITLE_PREFIX_PATTERNS.forEach(pattern => {
+    // Reset regex lastIndex for global patterns
+    if (pattern.global) pattern.lastIndex = 0;
+    core = core.replace(pattern, '');
+  });
+  
+  // Remove additional leading brackets if they exist (for cases with multiple prefixes)
+  // This is applied twice to handle nested or sequential brackets
+  core = core.replace(/^[\[【]([^】\]]+)[\]】]\s*/g, '');
+  
+  // Apply all suffix patterns from configuration
+  TITLE_SUFFIX_PATTERNS.forEach(pattern => {
+    // Reset regex lastIndex for global patterns
+    if (pattern.global) pattern.lastIndex = 0;
+    core = core.replace(pattern, '');
+  });
+  
+  return core.trim();
+}
+
 // Helper function for Chinese-Japanese-English friendly search normalization
 function normalizeForSearch(text) {
   if (!text) return '';
@@ -204,8 +269,17 @@ app.get("/api/search/videos", (req, res) => {
     return res.json(cached);
   }
   
+  // Extract core content from the search query to avoid matching only on common prefixes
+  // For example, "【东方MMD/中文内嵌】灵梦的日常" -> "灵梦的日常"
+  const coreQuery = extractCoreTitle(query);
+  
+  // If core query is significantly different from original (meaning we removed prefixes),
+  // use the core query for pattern matching to avoid false positives
+  // Otherwise use the original query
+  const effectiveQuery = coreQuery.length > 0 && coreQuery.length < query.length * CORE_QUERY_LENGTH_RATIO ? coreQuery : query;
+  
   // Create search patterns for better Japanese matching
-  const searchPatterns = createSearchPatterns(query);
+  const searchPatterns = createSearchPatterns(effectiveQuery);
   
   // Build dynamic WHERE clause for multiple search patterns
   const whereConditions = [];
@@ -219,36 +293,102 @@ app.get("/api/search/videos", (req, res) => {
   const whereClause = whereConditions.join(' OR ');
   
   // Search in both original and repost video names with author information
-  // Use COLLATE NOCASE for case-insensitive search that works better with Unicode
-  // Order by relevance: exact matches first, then by series order, then by date
+  // We'll fetch all matching results and sort by relevance in application layer
   const searchQuery = `
     SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, v.date, v.repost_name, v.repost_url, v.repost_thumbnail, v.translation_status, v.comment,
-           a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar, a.twitter_name, a.twitter_url, a.twitter_avatar,
-           CASE 
-             WHEN v.original_name LIKE ? OR v.repost_name LIKE ? THEN 1
-             ELSE 2
-           END as relevance_score,
-           CASE
-             WHEN v.original_name LIKE ? OR v.repost_name LIKE ? THEN 1
-             ELSE 2
-           END as series_priority
+           a.id as author_id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar, a.twitter_name, a.twitter_url, a.twitter_avatar
     FROM videos v
     JOIN authors a ON v.author = a.id
-    WHERE ${whereClause}
-    ORDER BY relevance_score ASC, series_priority ASC, v.date ASC, v.id ASC
-    LIMIT ?`;
-  
-  // Add exact match patterns for relevance scoring
-  queryParams.unshift(`%${query}%`, `%${query}%`);
-  // Add series detection patterns (for titles like "その1", "その2", etc.)
-  const seriesPattern = `%${query}%その%`;
-  queryParams.unshift(seriesPattern, seriesPattern);
-  queryParams.push(limit);
+    WHERE ${whereClause}`;
   
   db.all(searchQuery, queryParams, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    setCache(cacheKey, rows);
-    res.json(rows);
+    
+    // Calculate relevance score for each result using core title extraction
+    // Use the effective query (with prefixes removed if applicable) for scoring
+    const normalizedQuery = normalizeForSearch(effectiveQuery).toLowerCase();
+    
+    const scoredResults = rows.map(row => {
+      // Extract core titles from both original and repost names
+      const coreOriginal = extractCoreTitle(row.original_name || '');
+      const coreRepost = extractCoreTitle(row.repost_name || '');
+      const normalizedCoreOriginal = normalizeForSearch(coreOriginal).toLowerCase();
+      const normalizedCoreRepost = normalizeForSearch(coreRepost).toLowerCase();
+      
+      // Calculate relevance scores (lower is better)
+      let relevanceScore = 100; // Default low relevance
+      
+      // Priority 1: Exact match in core title (highest relevance)
+      if (normalizedCoreRepost.includes(normalizedQuery)) {
+        relevanceScore = 1;
+      } else if (normalizedCoreOriginal.includes(normalizedQuery)) {
+        relevanceScore = 2;
+      }
+      // Priority 2: Exact match in full title (including prefixes)
+      else if (normalizeForSearch(row.repost_name || '').toLowerCase().includes(normalizedQuery)) {
+        relevanceScore = 10;
+      } else if (normalizeForSearch(row.original_name || '').toLowerCase().includes(normalizedQuery)) {
+        relevanceScore = 11;
+      }
+      // Priority 3: Partial match in core title
+      else {
+        // Check how many query words match in the core title
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+        let matchCount = 0;
+        
+        queryWords.forEach(word => {
+          if (normalizedCoreRepost.includes(word)) matchCount++;
+          else if (normalizedCoreOriginal.includes(word)) matchCount++;
+        });
+        
+        if (matchCount > 0) {
+          // More matches = lower score (better relevance)
+          relevanceScore = 20 + (10 - Math.min(matchCount, 10));
+        } else {
+          // Fallback: partial match in full title
+          relevanceScore = 50;
+        }
+      }
+      
+      return {
+        ...row,
+        relevanceScore,
+        coreTitle: coreRepost || coreOriginal // Include core title for debugging if needed
+      };
+    });
+    
+    // Filter out low relevance results to reduce data transfer and improve performance
+    // Use the threshold defined in configuration
+    // This filters out results that only match in prefixes/suffixes, not in core titles
+    const relevantResults = scoredResults.filter(r => r.relevanceScore < RELEVANCE_SCORE_THRESHOLD);
+    
+    // Sort by relevance score (ascending), then by date and id
+    relevantResults.sort((a, b) => {
+      if (a.relevanceScore !== b.relevanceScore) {
+        return a.relevanceScore - b.relevanceScore;
+      }
+      // For same relevance, sort by date (older first to show series in order)
+      // Handle null dates
+      if (a.date && b.date) {
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
+        }
+      } else if (a.date) {
+        return -1; // a has date, b doesn't - a comes first
+      } else if (b.date) {
+        return 1; // b has date, a doesn't - b comes first
+      }
+      return a.id - b.id;
+    });
+    
+    // Limit results
+    const limitedResults = relevantResults.slice(0, limit);
+    
+    // Remove the temporary relevanceScore and coreTitle fields before sending
+    const cleanResults = limitedResults.map(({ relevanceScore, coreTitle, ...rest }) => rest);
+    
+    setCache(cacheKey, cleanResults);
+    res.json(cleanResults);
   });
 });
 
