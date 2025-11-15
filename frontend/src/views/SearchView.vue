@@ -272,10 +272,22 @@
         </div>
       </div>
 
-      <!-- No results found message with helpful suggestions -->
+      <!-- Loading state during search -->
+      <div v-if="isSearching && searchQuery" class="loading-state">
+        <v-progress-circular
+          size="64"
+          width="4"
+          color="#89b4fa"
+          indeterminate
+        ></v-progress-circular>
+        <h3>搜索中...</h3>
+        <p>正在查找相关内容</p>
+      </div>
+
       <!-- No results found message with helpful suggestions -->
       <div
         v-if="
+          !isSearching &&
           searchQuery &&
           filteredAuthors.length === 0 &&
           searchedVideos.length === 0
@@ -288,14 +300,6 @@
         <v-btn color="primary" @click="$router.push('/')" class="back-home-btn">
           返回首页
         </v-btn>
-      </div>
-
-      <!-- Search tips and suggestions for users -->
-      <div v-if="!searchQuery" class="search-tips">
-        <h3 class="tips-title">搜索提示</h3>
-        <ul class="tips-list">
-          <li>支持模糊搜索，输入部分名称即可</li>
-        </ul>
       </div>
     </div>
 
@@ -327,6 +331,7 @@ const searchedVideos = ref([]);
 const originalSearchedVideos = ref([]); // Store original search results
 const searchQuery = ref("");
 const showBackToTop = ref(false);
+const isSearching = ref(false); // Track search loading state
 
 // Sort settings - load from localStorage with search-specific key
 const getSavedSortSettings = () => {
@@ -878,8 +883,11 @@ const searchVideos = async (query) => {
   if (!query) {
     searchedVideos.value = [];
     originalSearchedVideos.value = [];
+    isSearching.value = false;
     return;
   }
+
+  isSearching.value = true; // Set loading state
 
   try {
     const res = await fetch(
@@ -898,6 +906,8 @@ const searchVideos = async (query) => {
     console.error("搜索视频失败:", error);
     searchedVideos.value = [];
     originalSearchedVideos.value = [];
+  } finally {
+    isSearching.value = false; // Clear loading state
   }
 };
 
@@ -1480,6 +1490,26 @@ watch(
   font-size: 0.9rem;
 }
 
+/* Loading state styling */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #a6adc8;
+  /* Catppuccin Mocha Subtext0 */
+}
+
+.loading-state h3 {
+  color: #89b4fa;
+  /* Catppuccin Mocha Blue */
+  margin: 16px 0 8px 0;
+}
+
+.loading-state p {
+  margin-bottom: 24px;
+  color: #cdd6f4;
+  /* Catppuccin Mocha Text */
+}
+
 .no-results {
   text-align: center;
   padding: 60px 20px;
@@ -1502,36 +1532,6 @@ watch(
   /* Catppuccin Mocha Blue to Sapphire */
   color: #1e1e2e !important;
   font-weight: 600;
-}
-
-.search-tips {
-  text-align: center;
-  padding: 40px 20px;
-}
-
-.tips-title {
-  color: #cba6f7;
-  /* Catppuccin Mocha Mauve */
-  margin-bottom: 20px;
-}
-
-.tips-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.tips-list li {
-  color: #cdd6f4;
-  /* Catppuccin Mocha Text */
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(69, 71, 90, 0.3);
-}
-
-.tips-list li:last-child {
-  border-bottom: none;
 }
 
 /* Responsive design breakpoints for optimal mobile experience */
