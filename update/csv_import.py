@@ -13,10 +13,12 @@ Optional arguments:
 --debug: Enable debug mode
 --dry-run: Check only, do not actually import
 --skip-metadata: Skip metadata retrieval from links, use titles from CSV
+--cookies: Netscape formatted cookie file to read cookies from
 --cookies-from-browser: Extract cookies from specified browser to handle restricted videos
-                       Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale
+                       Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale, qutebrowser
                        Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
-                       Examples: firefox, chrome, edge+gnomekeyring, safari:Default::Facebook Container
+                       Examples: firefox, chrome, edge+gnomekeyring, safari:Default::Facebook Container, qutebrowser
+                       Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6
 --interactive: Interactive mode - manually choose handling method when encountering duplicate links (default mode)
 --auto-merge: Auto-merge mode - intelligently handle duplicate links, skip interaction
 
@@ -99,7 +101,7 @@ def clean_bilibili_url(url):
         print(f"Failed to clean Bilibili link {url}: {e}")
         return url
 
-def get_video_metadata(url, debug=False, browser_cookies=None):
+def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None):
     """Get video metadata from URL"""
     if not url or url.strip() == '' or url == '未转载':
         return None, None, None
@@ -111,8 +113,12 @@ def get_video_metadata(url, debug=False, browser_cookies=None):
             'extract_flat': False,
         }
         
+        # If cookies file is specified, use it
+        if cookies_file:
+            options['cookiefile'] = cookies_file
+        
         # If cookies are enabled, extract cookies from specified browser
-        if browser_cookies:
+        elif browser_cookies:
             # Parse browser cookies parameter
             # Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
             if '+' in browser_cookies and ':' in browser_cookies:
@@ -717,7 +723,7 @@ def write_error_to_csv(error_file, line_num, line_content, error_msg):
         
         writer.writerow([line_num, line_content, error_msg])
 
-def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=False, browser_cookies=None, interactive_mode=False):
+def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=False, browser_cookies=None, cookies_file=None, interactive_mode=False):
     """Process CSV file"""
     stats = {
         'total_rows': 0,
@@ -793,7 +799,7 @@ def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=Fals
                         try:
                             if debug:
                                 print(f"First time encountering author '{csv_author}', getting metadata: {original_url}")
-                            _, _, author_info = get_video_metadata(original_url, debug, browser_cookies)
+                            _, _, author_info = get_video_metadata(original_url, debug, browser_cookies, cookies_file)
                         except Exception as e:
                             error_msg = str(e)
                             print(f"Line {line_num} failed to get metadata: {error_msg}")
@@ -853,7 +859,7 @@ def process_csv(input_file, conn, debug=False, dry_run=False, skip_metadata=Fals
                         print(f"  Original video link is empty, using repost title: {title}")
                 else:
                     try:
-                        title, date_str, _ = get_video_metadata(original_url, debug, browser_cookies)
+                        title, date_str, _ = get_video_metadata(original_url, debug, browser_cookies, cookies_file)
                     except Exception as e:
                         error_msg = str(e)
                         print(f"Line {line_num} failed to get video metadata: {error_msg}")
@@ -928,7 +934,8 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Enable debug mode for detailed information')
     parser.add_argument('--dry-run', action='store_true', help='Check only, do not actually import')
     parser.add_argument('--skip-metadata', action='store_true', help='Skip metadata retrieval from links, use titles from CSV')
-    parser.add_argument('--cookies-from-browser', type=str, help='Extract cookies from specified browser to handle restricted videos. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]')
+    parser.add_argument('--cookies', type=str, help='Netscape formatted file to read cookies from and dump cookie jar in. For qutebrowser, use: ~/.local/share/qutebrowser/cookies')
+    parser.add_argument('--cookies-from-browser', type=str, help='Extract cookies from specified browser to handle restricted videos. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]. Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6. Note: qutebrowser not supported, use --cookies instead')
     parser.add_argument('--interactive', action='store_true', help='Enable interactive mode: manually choose handling method when encountering duplicate links (default mode)')
     parser.add_argument('--auto-merge', action='store_true', help='Enable auto-merge mode: intelligently handle duplicate links, skip interaction')
     
@@ -956,6 +963,8 @@ def main():
             print("*** DRY RUN mode - Database will not be actually modified ***")
         if args.skip_metadata:
             print("*** Skip metadata mode - Use titles from CSV, do not get release dates ***")
+        if args.cookies:
+            print(f"*** Using cookies from file: {args.cookies} ***")
         if args.cookies_from_browser:
             print(f"*** Using {args.cookies_from_browser} browser cookies to handle restricted videos ***")
         
@@ -967,7 +976,7 @@ def main():
             print("*** 🤖 Auto-merge mode: Intelligently handle duplicate links ***")
         
         # Process CSV
-        stats = process_csv(args.csv_file, conn, args.debug, args.dry_run, args.skip_metadata, args.cookies_from_browser, interactive_mode)
+        stats = process_csv(args.csv_file, conn, args.debug, args.dry_run, args.skip_metadata, args.cookies_from_browser, args.cookies, interactive_mode)
         
         # Print statistics
         print(f"\n=== 📊 Processing Complete ===")

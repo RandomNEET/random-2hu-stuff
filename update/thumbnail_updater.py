@@ -15,9 +15,11 @@ Optional arguments:
 --update-original: Update original video thumbnails
 --update-repost: Update repost video thumbnails
 --force: Force update existing thumbnails
+--cookies: Netscape formatted cookie file to read cookies from
 --cookies-from-browser: Extract cookies from specified browser to handle restricted videos
-                       Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale
+                       Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale, qutebrowser
                        Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
+                       Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6
 """
 
 import argparse
@@ -36,7 +38,7 @@ def create_connection(db_path):
         print(f"Database connection error: {e}")
         return None
 
-def get_video_thumbnail(url, debug=False, browser_cookies=None):
+def get_video_thumbnail(url, debug=False, browser_cookies=None, cookies_file=None):
     """Get video thumbnail from URL"""
     if not url or url.strip() == '' or url == '未转载':
         return None
@@ -49,8 +51,12 @@ def get_video_thumbnail(url, debug=False, browser_cookies=None):
             'no_playlist': True,  # Only get single video, don't process playlist
         }
         
+        # If cookies file is specified, use it
+        if cookies_file:
+            options['cookiefile'] = cookies_file
+        
         # If cookies enabled, extract cookies from specified browser
-        if browser_cookies:
+        elif browser_cookies:
             # Parse browser cookies parameter
             # Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
             if '+' in browser_cookies and ':' in browser_cookies:
@@ -124,7 +130,7 @@ def get_video_thumbnail(url, debug=False, browser_cookies=None):
             print(f"Failed to get thumbnail {url}: {e}")
         raise e
 
-def update_thumbnails(conn, debug=False, dry_run=False, limit=None, update_original=True, update_repost=True, force=False, browser_cookies=None):
+def update_thumbnails(conn, debug=False, dry_run=False, limit=None, update_original=True, update_repost=True, force=False, browser_cookies=None, cookies_file=None):
     """Update video thumbnails"""
     cursor = conn.cursor()
     
@@ -179,7 +185,7 @@ def update_thumbnails(conn, debug=False, dry_run=False, limit=None, update_origi
             if should_update_original:
                 try:
                     print(f"  Getting original video thumbnail: {original_url}")
-                    new_thumbnail = get_video_thumbnail(original_url, debug, browser_cookies)
+                    new_thumbnail = get_video_thumbnail(original_url, debug, browser_cookies, cookies_file)
                     
                     if new_thumbnail:
                         if not dry_run:
@@ -204,7 +210,7 @@ def update_thumbnails(conn, debug=False, dry_run=False, limit=None, update_origi
             if should_update_repost:
                 try:
                     print(f"  Getting repost video thumbnail: {repost_url}")
-                    new_thumbnail = get_video_thumbnail(repost_url, debug, browser_cookies)
+                    new_thumbnail = get_video_thumbnail(repost_url, debug, browser_cookies, cookies_file)
                     
                     if new_thumbnail:
                         if not dry_run:
@@ -387,7 +393,11 @@ def main():
     parser.add_argument('--cookies-from-browser', type=str, 
                        help='Extract cookies from specified browser to handle restricted videos. '
                             'Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. '
-                            'Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]')
+                            'Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]. '
+                            'For keyring list on your system: python3 -c "import keyring.util.platform_; print(keyring.util.platform_.data_root())". '
+                            'Note: qutebrowser is not directly supported, use --cookies with qutebrowser cookie file instead.')
+    parser.add_argument('--cookies', type=str, 
+                       help='Netscape formatted file to read cookies from and dump cookie jar in')
     parser.add_argument('--fix-http-links', action='store_true',
                        help='Fix existing http thumbnail links in database, change them to https')
     
@@ -414,6 +424,8 @@ def main():
             print("*** Force mode - Will update existing thumbnails ***")
         if args.cookies_from_browser:
             print(f"*** Using {args.cookies_from_browser} browser cookies ***")
+        if args.cookies:
+            print(f"*** Using cookies from file: {args.cookies} ***")
         if args.limit:
             print(f"*** Limiting to {args.limit} records ***")
         
@@ -442,7 +454,8 @@ def main():
             update_original=args.update_original,
             update_repost=args.update_repost,
             force=args.force,
-            browser_cookies=args.cookies_from_browser
+            browser_cookies=args.cookies_from_browser,
+            cookies_file=args.cookies
         )
         
         # Print statistics
