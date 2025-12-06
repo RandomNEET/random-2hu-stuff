@@ -24,6 +24,7 @@
             pkgs.nodejs
             pkgs.sqlite
             pkgs.sqlitebrowser
+            pkgs.deno
           ];
         };
       }
