@@ -12,6 +12,7 @@ REMOTE_TARGET="/var/www/"
 FRONTEND_DIR="$LOCAL_PROJECT_ROOT/frontend"
 BACKEND_DIR="$LOCAL_PROJECT_ROOT/backend"
 SSH_KEY="$HOME/.vault/ssh/LA-zgo_key"
+SSH_PORT=22222
 
 # Color output configuration
 RED='\033[0;31m'
@@ -56,7 +57,7 @@ check_dependencies() {
 test_ssh_connection() {
 	log_info "Testing SSH connection..."
 
-	if ssh -i "$SSH_KEY" -o ConnectTimeout=10 -o BatchMode=yes "$REMOTE_SERVER" "echo 'SSH connection successful'" 2>/dev/null; then
+	if ssh -i "$SSH_KEY" -p "$SSH_PORT" -o ConnectTimeout=10 -o BatchMode=yes "$REMOTE_SERVER" "echo 'SSH connection successful'" 2>/dev/null; then
 		log_success "SSH connection test passed"
 	else
 		log_error "SSH connection failed, please check:"
@@ -163,7 +164,7 @@ upload_database_only() {
 
 	# Upload database file directly using rsync
 	rsync -avzh --progress \
-		-e "ssh -i $SSH_KEY" \
+		-e "ssh -i $SSH_KEY -p $SSH_PORT" \
 		"$BACKEND_DIR/random-2hu-stuff.db" \
 		"$REMOTE_SERVER:$REMOTE_TARGET/random-2hu-stuff/backend/"
 
@@ -178,7 +179,7 @@ upload_files() {
 
 	# Upload files using rsync
 	if rsync -avz --delete --progress \
-		-e "ssh -i $SSH_KEY" \
+		-e "ssh -i $SSH_KEY -p $SSH_PORT" \
 		"$temp_dir/random-2hu-stuff/" \
 		"$REMOTE_SERVER:$REMOTE_TARGET/random-2hu-stuff/"; then
 		log_success "File upload completed successfully"
@@ -193,7 +194,7 @@ upload_files() {
 install_remote_dependencies() {
 	log_info "Installing backend dependencies on remote server..."
 
-	if ssh -i "$SSH_KEY" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && npm ci --production"; then
+	if ssh -i "$SSH_KEY" -p "$SSH_PORT" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && npm ci --production"; then
 		log_success "Backend dependencies installed successfully"
 		return 0
 	else
@@ -206,7 +207,7 @@ install_remote_dependencies() {
 restart_pm2_on_remote() {
 	log_info "Restarting PM2 process on remote server..."
 
-	if ssh -i "$SSH_KEY" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js --env production"; then
+	if ssh -i "$SSH_KEY" -p "$SSH_PORT" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js --env production"; then
 		log_success "PM2 process restarted successfully"
 		return 0
 	else
@@ -220,14 +221,14 @@ restart_remote_services() {
 	log_info "Restarting services on remote server..."
 
 	# Restart PM2 service
-	if ssh -i "$SSH_KEY" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js"; then
+	if ssh -i "$SSH_KEY" -p "$SSH_PORT" "$REMOTE_SERVER" "cd $REMOTE_TARGET/random-2hu-stuff/backend && pm2 restart ecosystem.config.js"; then
 		log_success "PM2 service restarted successfully"
 	else
 		log_warning "Failed to restart PM2 service"
 	fi
 
 	# Restart nginx service
-	if ssh -i "$SSH_KEY" "$REMOTE_SERVER" "sudo systemctl reload nginx"; then
+	if ssh -i "$SSH_KEY" -p "$SSH_PORT" "$REMOTE_SERVER" "sudo systemctl reload nginx"; then
 		log_success "nginx service reloaded successfully"
 	else
 		log_warning "Failed to reload nginx service"
