@@ -1,0 +1,36 @@
+/* Back to top button styles */
+.back-to-top-btn {
+  background: linear-gradient(135deg, #cba6f7, #f5c2e7) !important; /* Catppuccin Mocha Mauve to Pink gradient */
+  color: #1e1e2e !important; /* Dark text for contrast against gradient background */
+  box-shadow: 0 4px 16px rgba(203, 166, 247, 0.3) !important; /* Soft shadow with theme color */
+  transition: all 0.3s ease !important; /* Smooth transitions for all properties */
+  z-index: 1000 !important; /* High z-index to stay above other content */
+  width: 56px !important; /* Standard size for desktop */
+  height: 56px !important;
+  border-radius: 12px !important; /* Rounded corners for modern look */
+}
+
+/* Hover effects for interactive feedback */
+.back-to-top-btn:hover {
+  transform: translateY(-2px) !important; /* Lift effect on hover */
+  box-shadow: 0 8px 25px rgba(203, 166, 247, 0.4) !important; /* Enhanced shadow on hover */
+}
+
+/* Icon styling within the button */
+.back-to-top-btn .v-icon {
+  font-size: 24px !important; /* Icon size for desktop */
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .back-to-top-btn {
+    bottom: 16px !important; /* Closer to edge on mobile */
+    right: 16px !important;
+    width: 48px !important; /* Smaller size for mobile */
+    height: 48px !important;
+  }
+  
+  .back-to-top-btn .v-icon {
+    font-size: 20px !important; /* Smaller icon for mobile */
+  }
+}
