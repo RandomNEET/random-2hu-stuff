@@ -2,9 +2,9 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { API_URLS, getApiUrl, API_CONFIG } from "@/config/api.js";
-import "@/assets/styles/Sort.css";
-import "@/assets/styles/BackToTop.css";
-import "@/assets/styles/Pagination.css";
+import "@/styles/Sort.css";
+import "@/styles/BackToTop.css";
+import "@/styles/Pagination.css";
 
 const route = useRoute();
 const videos = ref([]);
@@ -61,39 +61,54 @@ const saveSortSettings = () => {
 // and special numeric handling for titles with same length and containing numbers
 const compareVideoTitles = (titleA, titleB) => {
   // If titles have same length and both contain numbers (1-9 or 一-九), check similarity for series detection
-  if (titleA.length === titleB.length && titleA.length > 0 && titleB.length > 0) {
+  if (
+    titleA.length === titleB.length &&
+    titleA.length > 0 &&
+    titleB.length > 0
+  ) {
     const getNumber = (title) => {
       // Extract Arabic numbers (1-9)
       const arabicMatch = title.match(/[1-9]/);
       if (arabicMatch) {
         return parseInt(arabicMatch[0]);
       }
-      
+
       // Extract Chinese numbers (一-九)
-      const chineseNumbers = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+      const chineseNumbers = {
+        一: 1,
+        二: 2,
+        三: 3,
+        四: 4,
+        五: 5,
+        六: 6,
+        七: 7,
+        八: 8,
+        九: 9,
+      };
       const chineseMatch = title.match(/[一二三四五六七八九]/);
       if (chineseMatch) {
         return chineseNumbers[chineseMatch[0]];
       }
-      
+
       return null;
     };
-    
+
     // Calculate title similarity (excluding numbers)
     const calculateSimilarity = (str1, str2) => {
       // Remove numbers and normalize titles for similarity comparison
-      const normalize = (str) => str.replace(/[1-9一二三四五六七八九]/g, '').trim();
+      const normalize = (str) =>
+        str.replace(/[1-9一二三四五六七八九]/g, "").trim();
       const normalized1 = normalize(str1);
       const normalized2 = normalize(str2);
-      
+
       // Simple similarity check: if normalized titles are identical or very similar
       if (normalized1 === normalized2) return 1.0;
-      
+
       // Levenshtein distance for similarity calculation
       const getLevenshteinDistance = (a, b) => {
         if (a.length === 0) return b.length;
         if (b.length === 0) return a.length;
-        
+
         const matrix = [];
         for (let i = 0; i <= b.length; i++) {
           matrix[i] = [i];
@@ -101,7 +116,7 @@ const compareVideoTitles = (titleA, titleB) => {
         for (let j = 0; j <= a.length; j++) {
           matrix[0][j] = j;
         }
-        
+
         for (let i = 1; i <= b.length; i++) {
           for (let j = 1; j <= a.length; j++) {
             if (b.charAt(i - 1) === a.charAt(j - 1)) {
@@ -110,23 +125,23 @@ const compareVideoTitles = (titleA, titleB) => {
               matrix[i][j] = Math.min(
                 matrix[i - 1][j - 1] + 1,
                 matrix[i][j - 1] + 1,
-                matrix[i - 1][j] + 1
+                matrix[i - 1][j] + 1,
               );
             }
           }
         }
-        
+
         return matrix[b.length][a.length];
       };
-      
+
       const distance = getLevenshteinDistance(normalized1, normalized2);
       const maxLength = Math.max(normalized1.length, normalized2.length);
-      return maxLength === 0 ? 1.0 : 1.0 - (distance / maxLength);
+      return maxLength === 0 ? 1.0 : 1.0 - distance / maxLength;
     };
-    
+
     const numberA = getNumber(titleA);
     const numberB = getNumber(titleB);
-    
+
     // If both titles contain numbers and similarity is high enough (>= 0.8), sort by number
     if (numberA !== null && numberB !== null) {
       const similarity = calculateSimilarity(titleA, titleB);
@@ -135,12 +150,12 @@ const compareVideoTitles = (titleA, titleB) => {
       }
     }
   }
-  
+
   // Default Japanese-English friendly comparison
-  return titleA.localeCompare(titleB, ['ja-JP', 'en-US'], { 
-    numeric: true, 
+  return titleA.localeCompare(titleB, ["ja-JP", "en-US"], {
+    numeric: true,
     ignorePunctuation: true,
-    sensitivity: 'base'
+    sensitivity: "base",
   });
 };
 
@@ -242,32 +257,33 @@ const groupVideosByName = (videoList) => {
       id: video.id,
       date: video.date,
       comment: video.comment,
-      type: 'single', // 'single', 'original_group', 'repost_group'
+      type: "single", // 'single', 'original_group', 'repost_group'
       videos: [video],
       displayOriginal: null,
       displayRepost: null,
       additionalOriginals: [],
-      additionalReposts: []
+      additionalReposts: [],
     };
 
     // Find videos with same original_url (for grouping reposts)
     if (video.original_url && video.original_url.trim()) {
-      const sameOriginalVideos = videoList.filter(v => 
-        !processedVideos.has(v.id) && 
-        v.original_url === video.original_url && 
-        v.id !== video.id
+      const sameOriginalVideos = videoList.filter(
+        (v) =>
+          !processedVideos.has(v.id) &&
+          v.original_url === video.original_url &&
+          v.id !== video.id,
       );
 
       if (sameOriginalVideos.length > 0) {
         // Group by original_url
-        group.type = 'original_group';
+        group.type = "original_group";
         group.displayOriginal = video;
         group.additionalReposts = [video, ...sameOriginalVideos];
-        
+
         // Mark all as processed
         processedVideos.add(video.id);
-        sameOriginalVideos.forEach(v => processedVideos.add(v.id));
-        
+        sameOriginalVideos.forEach((v) => processedVideos.add(v.id));
+
         groups.push(group);
         return;
       }
@@ -275,22 +291,23 @@ const groupVideosByName = (videoList) => {
 
     // Find videos with same repost_url (for grouping originals)
     if (video.repost_url && video.repost_url.trim()) {
-      const sameRepostVideos = videoList.filter(v => 
-        !processedVideos.has(v.id) && 
-        v.repost_url === video.repost_url && 
-        v.id !== video.id
+      const sameRepostVideos = videoList.filter(
+        (v) =>
+          !processedVideos.has(v.id) &&
+          v.repost_url === video.repost_url &&
+          v.id !== video.id,
       );
 
       if (sameRepostVideos.length > 0) {
         // Group by repost_url
-        group.type = 'repost_group';
+        group.type = "repost_group";
         group.displayRepost = video;
         group.additionalOriginals = [video, ...sameRepostVideos];
-        
+
         // Mark all as processed
         processedVideos.add(video.id);
-        sameRepostVideos.forEach(v => processedVideos.add(v.id));
-        
+        sameRepostVideos.forEach((v) => processedVideos.add(v.id));
+
         groups.push(group);
         return;
       }
@@ -457,10 +474,13 @@ const openUrl = (url) => {
   if (url) {
     // Ensure URL has protocol prefix
     const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-    
+
     // Check if we're on mobile
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+
     if (isMobile) {
       // On mobile, use location.href for direct app redirection
       window.location.href = fullUrl;
@@ -485,6 +505,33 @@ const getDisplayUrl = (author) => {
 const getDisplayAvatar = (author) => {
   if (!author) return null;
   return author.nico_avatar || author.yt_avatar || author.twitter_avatar;
+};
+
+// Process comment text to make URLs clickable
+const processCommentLinks = (comment) => {
+  if (!comment) return '';
+  
+  // Escape HTML first to prevent XSS
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+  
+  // Escape the comment first
+  let processedComment = escapeHtml(comment);
+  
+  // Regular expression to match URLs (http, https, and domain-only)
+  const urlRegex = /(https?:\/\/[^\s]+|(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?))(?=\s|$|[,.!?;)])/g;
+  
+  // Replace URLs with clickable links
+  processedComment = processedComment.replace(urlRegex, (url) => {
+    // Ensure URL has protocol
+    const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="comment-link">${url}</a>`;
+  });
+  
+  return processedComment;
 };
 
 // Back to top functionality
@@ -535,14 +582,14 @@ const handleThumbnailError = (event) => {
 // Determine if image needs special loading attributes
 const needsSpecialAttributes = (imageUrl) => {
   if (!imageUrl) return false;
-  
+
   const lowerUrl = imageUrl.toLowerCase();
-  
+
   // Bilibili image links
-  if (lowerUrl.includes('hdslb.com')) {
+  if (lowerUrl.includes("hdslb.com")) {
     return true;
   }
-  
+
   return false;
 };
 
@@ -602,7 +649,10 @@ onUnmounted(() => {
   <div class="video-list-container">
     <!-- Author information header -->
     <div class="author-header" v-if="author">
-      <div class="author-avatar" v-if="avatarLoaded && getDisplayAvatar(author)">
+      <div
+        class="author-avatar"
+        v-if="avatarLoaded && getDisplayAvatar(author)"
+      >
         <img
           :src="getDisplayAvatar(author)"
           :alt="getDisplayName(author)"
@@ -612,6 +662,7 @@ onUnmounted(() => {
       </div>
       <div class="author-info">
         <h1 class="author-name">{{ getDisplayName(author) }}</h1>
+        <div v-if="author.comment" class="author-comment" v-html="processCommentLinks(author.comment)"></div>
         <div class="video-count">📊 {{ originalVideos.length }} 个视频</div>
       </div>
     </div>
@@ -651,7 +702,11 @@ onUnmounted(() => {
 
     <!-- Video list -->
     <div class="videos-grid">
-      <div v-for="group in paginatedVideoGroups" :key="`group-${group.id}`" class="video-row">
+      <div
+        v-for="group in paginatedVideoGroups"
+        :key="`group-${group.id}`"
+        class="video-row"
+      >
         <div class="video-info-row">
           <div class="video-date" v-if="group.date">
             📅 {{ formatDate(group.date) }}
@@ -671,11 +726,17 @@ onUnmounted(() => {
               'clickable-column': group.videos[0].original_url,
               'disabled-column': !group.videos[0].original_url,
             }"
-            @click="group.videos[0].original_url && openUrl(group.videos[0].original_url)"
+            @click="
+              group.videos[0].original_url &&
+              openUrl(group.videos[0].original_url)
+            "
           >
             <div class="original-header">
               <!-- Original video thumbnail -->
-              <div class="video-thumbnail" v-if="group.videos[0].original_thumbnail">
+              <div
+                class="video-thumbnail"
+                v-if="group.videos[0].original_thumbnail"
+              >
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -688,8 +749,16 @@ onUnmounted(() => {
                 <img
                   :src="group.videos[0].original_thumbnail"
                   :alt="group.videos[0].original_name || '原视频'"
-                  :referrerpolicy="needsSpecialAttributes(group.videos[0].original_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(group.videos[0].original_thumbnail) ? 'anonymous' : null"
+                  :referrerpolicy="
+                    needsSpecialAttributes(group.videos[0].original_thumbnail)
+                      ? 'no-referrer'
+                      : null
+                  "
+                  :crossorigin="
+                    needsSpecialAttributes(group.videos[0].original_thumbnail)
+                      ? 'anonymous'
+                      : null
+                  "
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
@@ -702,9 +771,14 @@ onUnmounted(() => {
               <!-- Video source -->
               <div
                 class="video-source"
-                v-if="group.videos[0].original_url && getVideoSource(group.videos[0].original_url)"
+                v-if="
+                  group.videos[0].original_url &&
+                  getVideoSource(group.videos[0].original_url)
+                "
               >
-                <span :class="getVideoSource(group.videos[0].original_url).class">
+                <span
+                  :class="getVideoSource(group.videos[0].original_url).class"
+                >
                   {{ getVideoSource(group.videos[0].original_url).text }}
                 </span>
               </div>
@@ -718,11 +792,16 @@ onUnmounted(() => {
               'clickable-column': group.videos[0].repost_url,
               'disabled-column': !group.videos[0].repost_url,
             }"
-            @click="group.videos[0].repost_url && openUrl(group.videos[0].repost_url)"
+            @click="
+              group.videos[0].repost_url && openUrl(group.videos[0].repost_url)
+            "
           >
             <div class="repost-header">
               <!-- Repost video thumbnail -->
-              <div class="video-thumbnail" v-if="group.videos[0].repost_thumbnail">
+              <div
+                class="video-thumbnail"
+                v-if="group.videos[0].repost_thumbnail"
+              >
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -735,8 +814,16 @@ onUnmounted(() => {
                 <img
                   :src="group.videos[0].repost_thumbnail"
                   :alt="group.videos[0].repost_name || '转载视频'"
-                  :referrerpolicy="needsSpecialAttributes(group.videos[0].repost_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(group.videos[0].repost_thumbnail) ? 'anonymous' : null"
+                  :referrerpolicy="
+                    needsSpecialAttributes(group.videos[0].repost_thumbnail)
+                      ? 'no-referrer'
+                      : null
+                  "
+                  :crossorigin="
+                    needsSpecialAttributes(group.videos[0].repost_thumbnail)
+                      ? 'anonymous'
+                      : null
+                  "
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
@@ -756,9 +843,15 @@ onUnmounted(() => {
                 "
               >
                 <span
-                  :class="getTranslationStatusClass(group.videos[0].translation_status)"
+                  :class="
+                    getTranslationStatusClass(
+                      group.videos[0].translation_status,
+                    )
+                  "
                 >
-                  {{ getTranslationStatusText(group.videos[0].translation_status) }}
+                  {{
+                    getTranslationStatusText(group.videos[0].translation_status)
+                  }}
                 </span>
               </div>
             </div>
@@ -766,7 +859,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Original group display (one original, multiple reposts) -->
-        <div v-else-if="group.type === 'original_group'" class="video-columns grouped-columns">
+        <div
+          v-else-if="group.type === 'original_group'"
+          class="video-columns grouped-columns"
+        >
           <!-- Single original column on the left -->
           <div
             class="video-column original-column centered-column"
@@ -774,11 +870,17 @@ onUnmounted(() => {
               'clickable-column': group.displayOriginal.original_url,
               'disabled-column': !group.displayOriginal.original_url,
             }"
-            @click="group.displayOriginal.original_url && openUrl(group.displayOriginal.original_url)"
+            @click="
+              group.displayOriginal.original_url &&
+              openUrl(group.displayOriginal.original_url)
+            "
           >
             <div class="original-header">
               <!-- Original video thumbnail -->
-              <div class="video-thumbnail" v-if="group.displayOriginal.original_thumbnail">
+              <div
+                class="video-thumbnail"
+                v-if="group.displayOriginal.original_thumbnail"
+              >
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -791,8 +893,20 @@ onUnmounted(() => {
                 <img
                   :src="group.displayOriginal.original_thumbnail"
                   :alt="group.displayOriginal.original_name || '原视频'"
-                  :referrerpolicy="needsSpecialAttributes(group.displayOriginal.original_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(group.displayOriginal.original_thumbnail) ? 'anonymous' : null"
+                  :referrerpolicy="
+                    needsSpecialAttributes(
+                      group.displayOriginal.original_thumbnail,
+                    )
+                      ? 'no-referrer'
+                      : null
+                  "
+                  :crossorigin="
+                    needsSpecialAttributes(
+                      group.displayOriginal.original_thumbnail,
+                    )
+                      ? 'anonymous'
+                      : null
+                  "
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
@@ -805,9 +919,16 @@ onUnmounted(() => {
               <!-- Video source -->
               <div
                 class="video-source"
-                v-if="group.displayOriginal.original_url && getVideoSource(group.displayOriginal.original_url)"
+                v-if="
+                  group.displayOriginal.original_url &&
+                  getVideoSource(group.displayOriginal.original_url)
+                "
               >
-                <span :class="getVideoSource(group.displayOriginal.original_url).class">
+                <span
+                  :class="
+                    getVideoSource(group.displayOriginal.original_url).class
+                  "
+                >
                   {{ getVideoSource(group.displayOriginal.original_url).text }}
                 </span>
               </div>
@@ -829,7 +950,10 @@ onUnmounted(() => {
               >
                 <div class="repost-header">
                   <!-- Repost video thumbnail -->
-                  <div class="video-thumbnail compact-thumbnail" v-if="video.repost_thumbnail">
+                  <div
+                    class="video-thumbnail compact-thumbnail"
+                    v-if="video.repost_thumbnail"
+                  >
                     <div class="thumbnail-loading">
                       <v-progress-circular
                         size="24"
@@ -842,8 +966,16 @@ onUnmounted(() => {
                     <img
                       :src="video.repost_thumbnail"
                       :alt="video.repost_name || '转载视频'"
-                      :referrerpolicy="needsSpecialAttributes(video.repost_thumbnail) ? 'no-referrer' : null"
-                      :crossorigin="needsSpecialAttributes(video.repost_thumbnail) ? 'anonymous' : null"
+                      :referrerpolicy="
+                        needsSpecialAttributes(video.repost_thumbnail)
+                          ? 'no-referrer'
+                          : null
+                      "
+                      :crossorigin="
+                        needsSpecialAttributes(video.repost_thumbnail)
+                          ? 'anonymous'
+                          : null
+                      "
                       @load="handleThumbnailLoad"
                       @error="handleThumbnailError"
                     />
@@ -863,7 +995,9 @@ onUnmounted(() => {
                     "
                   >
                     <span
-                      :class="getTranslationStatusClass(video.translation_status)"
+                      :class="
+                        getTranslationStatusClass(video.translation_status)
+                      "
                     >
                       {{ getTranslationStatusText(video.translation_status) }}
                     </span>
@@ -875,7 +1009,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Repost group display (one repost, multiple originals) -->
-        <div v-else-if="group.type === 'repost_group'" class="video-columns grouped-columns">
+        <div
+          v-else-if="group.type === 'repost_group'"
+          class="video-columns grouped-columns"
+        >
           <!-- Multiple original columns on the left -->
           <div class="original-area">
             <div class="original-list">
@@ -891,7 +1028,10 @@ onUnmounted(() => {
               >
                 <div class="original-header">
                   <!-- Original video thumbnail -->
-                  <div class="video-thumbnail compact-thumbnail" v-if="video.original_thumbnail">
+                  <div
+                    class="video-thumbnail compact-thumbnail"
+                    v-if="video.original_thumbnail"
+                  >
                     <div class="thumbnail-loading">
                       <v-progress-circular
                         size="24"
@@ -904,8 +1044,16 @@ onUnmounted(() => {
                     <img
                       :src="video.original_thumbnail"
                       :alt="video.original_name || '原视频'"
-                      :referrerpolicy="needsSpecialAttributes(video.original_thumbnail) ? 'no-referrer' : null"
-                      :crossorigin="needsSpecialAttributes(video.original_thumbnail) ? 'anonymous' : null"
+                      :referrerpolicy="
+                        needsSpecialAttributes(video.original_thumbnail)
+                          ? 'no-referrer'
+                          : null
+                      "
+                      :crossorigin="
+                        needsSpecialAttributes(video.original_thumbnail)
+                          ? 'anonymous'
+                          : null
+                      "
                       @load="handleThumbnailLoad"
                       @error="handleThumbnailError"
                     />
@@ -918,7 +1066,9 @@ onUnmounted(() => {
                   <!-- Video source -->
                   <div
                     class="video-source"
-                    v-if="video.original_url && getVideoSource(video.original_url)"
+                    v-if="
+                      video.original_url && getVideoSource(video.original_url)
+                    "
                   >
                     <span :class="getVideoSource(video.original_url).class">
                       {{ getVideoSource(video.original_url).text }}
@@ -936,11 +1086,17 @@ onUnmounted(() => {
               'clickable-column': group.displayRepost.repost_url,
               'disabled-column': !group.displayRepost.repost_url,
             }"
-            @click="group.displayRepost.repost_url && openUrl(group.displayRepost.repost_url)"
+            @click="
+              group.displayRepost.repost_url &&
+              openUrl(group.displayRepost.repost_url)
+            "
           >
             <div class="repost-header">
               <!-- Repost video thumbnail -->
-              <div class="video-thumbnail" v-if="group.displayRepost.repost_thumbnail">
+              <div
+                class="video-thumbnail"
+                v-if="group.displayRepost.repost_thumbnail"
+              >
                 <div class="thumbnail-loading">
                   <v-progress-circular
                     size="32"
@@ -953,8 +1109,16 @@ onUnmounted(() => {
                 <img
                   :src="group.displayRepost.repost_thumbnail"
                   :alt="group.displayRepost.repost_name || '转载视频'"
-                  :referrerpolicy="needsSpecialAttributes(group.displayRepost.repost_thumbnail) ? 'no-referrer' : null"
-                  :crossorigin="needsSpecialAttributes(group.displayRepost.repost_thumbnail) ? 'anonymous' : null"
+                  :referrerpolicy="
+                    needsSpecialAttributes(group.displayRepost.repost_thumbnail)
+                      ? 'no-referrer'
+                      : null
+                  "
+                  :crossorigin="
+                    needsSpecialAttributes(group.displayRepost.repost_thumbnail)
+                      ? 'anonymous'
+                      : null
+                  "
                   @load="handleThumbnailLoad"
                   @error="handleThumbnailError"
                 />
@@ -970,13 +1134,23 @@ onUnmounted(() => {
                 v-if="
                   group.displayRepost.translation_status !== null &&
                   group.displayRepost.translation_status !== '' &&
-                  getTranslationStatusText(group.displayRepost.translation_status)
+                  getTranslationStatusText(
+                    group.displayRepost.translation_status,
+                  )
                 "
               >
                 <span
-                  :class="getTranslationStatusClass(group.displayRepost.translation_status)"
+                  :class="
+                    getTranslationStatusClass(
+                      group.displayRepost.translation_status,
+                    )
+                  "
                 >
-                  {{ getTranslationStatusText(group.displayRepost.translation_status) }}
+                  {{
+                    getTranslationStatusText(
+                      group.displayRepost.translation_status,
+                    )
+                  }}
                 </span>
               </div>
             </div>
@@ -1039,7 +1213,6 @@ onUnmounted(() => {
           >
             <v-icon>mdi-chevron-right</v-icon>
           </v-btn>
-
         </div>
 
         <!-- Manual page input -->
@@ -1130,6 +1303,26 @@ onUnmounted(() => {
   border-radius: 8px;
   display: inline-block;
   border: 1px solid rgba(203, 166, 247, 0.3);
+  margin-bottom: 8px;
+}
+
+.author-comment {
+  font-size: 1rem;
+  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  padding: 4px 0;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.author-comment .comment-link {
+  color: #89b4fa; /* Catppuccin Mocha Blue */
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.author-comment .comment-link:hover {
+  color: #74c7ec; /* Catppuccin Mocha Sapphire */
+  text-decoration: underline;
 }
 
 /* Video list */
@@ -1548,6 +1741,16 @@ onUnmounted(() => {
   .video-count {
     font-size: 1rem;
     padding: 4px 8px;
+  }
+
+  .author-comment {
+    font-size: 0.9rem;
+    padding: 2px 0;
+    margin-bottom: 10px;
+  }
+
+  .author-comment .comment-link {
+    color: #89b4fa; /* Keep same link color on mobile */
   }
 
   .videos-grid {

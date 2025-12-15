@@ -17,22 +17,20 @@
           本网站主要收录组员寻思好看并大力推荐的东方相关二创视频，同时整理对应的出处。
         </p>
         <p class="section-text" style="margin-top: 16px">
-          PS：因为作者头像和视频封面来自原频道，裸连时大部分图片可能无法正常加载，推荐使用代理访问以获得最佳体验。
+          PS：因为作者头像和视频封面来自原频道，裸连时大部分图片可能无法正常加载，推荐使用代理访问以获得最佳体验
         </p>
       </div>
 
-      <!-- Collaborative maintenance section -->
+      <!-- Contact section -->
       <div class="about-section">
         <div class="section-header">
           <v-icon class="section-icon">mdi-account-group</v-icon>
-          <h2 class="section-title">共同维护</h2>
+          <h2 class="section-title">参与收录整理</h2>
         </div>
         <p class="section-text">
-          如果你也有想要推荐的作品，欢迎加入一起维护网站！
+          如果你也有想要推荐的作品，欢迎加入一起整理收录！
         </p>
-        <p class="section-text" style="margin-top: 16px">
-          PS：会复制粘贴就行了，没有技术要求。
-        </p>
+        <p class="section-text" style="margin-top: 16px">PS：会复制粘贴就行</p>
         <div class="group-link" style="margin-top: 20px; text-align: center">
           <v-btn
             variant="outlined"

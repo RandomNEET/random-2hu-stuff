@@ -19,7 +19,8 @@
             <div class="update-date">2025.12.15</div>
             <div class="update-content">
               <ul>
-                <li>新收录作者20位，视频129个，熟肉123个</li>
+                <li>功能：优化搜索，为部分作者添加备注</li>
+                <li>内容：新收录作者20位，视频129个，熟肉123个</li>
               </ul>
             </div>
           </div>

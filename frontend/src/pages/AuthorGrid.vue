@@ -80,11 +80,11 @@
               hasMultipleUrls(author)
                 ? '访问作者频道'
                 : `访问${
-                    author.yt_url 
-                      ? 'YouTube' 
-                      : author.nico_url 
-                        ? 'NicoNico' 
-                        : author.twitter_url 
+                    author.yt_url
+                      ? 'YouTube'
+                      : author.nico_url
+                        ? 'NicoNico'
+                        : author.twitter_url
                           ? 'Twitter'
                           : '作者'
                   }频道`
@@ -240,9 +240,9 @@
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { API_URLS } from "@/config/api.js";
-import "@/assets/styles/Sort.css";
-import "@/assets/styles/BackToTop.css";
-import "@/assets/styles/Pagination.css";
+import "@/styles/Sort.css";
+import "@/styles/BackToTop.css";
+import "@/styles/Pagination.css";
 
 const authors = ref([]);
 const originalAuthors = ref([]); // Store original data
@@ -326,7 +326,9 @@ const getDisplayAvatar = (author) => {
 // Check if author has multiple URLs
 const hasMultipleUrls = (author) => {
   if (!author) return false;
-  const urlCount = [author.yt_url, author.nico_url, author.twitter_url].filter(Boolean).length;
+  const urlCount = [author.yt_url, author.nico_url, author.twitter_url].filter(
+    Boolean,
+  ).length;
   return urlCount > 1;
 };
 

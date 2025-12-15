@@ -8,13 +8,18 @@
           搜索关键词：<span class="query-text">"{{ searchQuery }}"</span>
         </p>
         <p class="search-stats">
-          找到 {{ filteredAuthors.length }} 个作者，{{ searchedVideos.length }}
-          个视频
+          <span v-if="searchType === 'authors'"
+            >找到 {{ filteredAuthors.length }} 个作者</span
+          >
+          <span v-else>找到 {{ searchedVideos.length }} 个视频</span>
         </p>
       </div>
 
       <!-- Video search results section with detailed video information -->
-      <div v-if="searchedVideos.length > 0" class="results-section">
+      <div
+        v-if="searchType === 'videos' && searchedVideos.length > 0"
+        class="results-section"
+      >
         <div class="section-header">
           <h2 class="section-title">相关视频</h2>
 
@@ -252,7 +257,10 @@
       </div>
 
       <!-- Author search results with grid layout -->
-      <div v-if="filteredAuthors.length > 0" class="results-section">
+      <div
+        v-if="searchType === 'authors' && filteredAuthors.length > 0"
+        class="results-section"
+      >
         <h2 class="section-title">相关作者</h2>
         <div class="authors-grid">
           <v-card
@@ -321,8 +329,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { API_URLS, getApiUrl, API_CONFIG } from "@/config/api.js";
-import "@/assets/styles/BackToTop.css";
-import "@/assets/styles/Sort.css";
+import "@/styles/BackToTop.css";
+import "@/styles/Sort.css";
 
 const route = useRoute();
 const router = useRouter();
@@ -332,6 +340,9 @@ const originalSearchedVideos = ref([]); // Store original search results
 const searchQuery = ref("");
 const showBackToTop = ref(false);
 const isSearching = ref(false); // Track search loading state
+
+// Get current search type from route query
+const searchType = computed(() => route.query.type || "videos");
 
 // Sort settings - load from localStorage with search-specific key
 const getSavedSortSettings = () => {
@@ -839,7 +850,7 @@ const isTextMatch = (text, query) => {
 
 // Filter authors based on search query with Chinese-Japanese-English friendly fuzzy matching
 const filteredAuthors = computed(() => {
-  if (!searchQuery.value) return [];
+  if (!searchQuery.value || searchType.value !== "authors") return [];
 
   const query = searchQuery.value;
   return authors.value
@@ -890,17 +901,50 @@ const searchVideos = async (query) => {
   isSearching.value = true; // Set loading state
 
   try {
-    const res = await fetch(
-      `${API_URLS.SEARCH_VIDEOS}?q=${encodeURIComponent(query)}&limit=300`,
-    );
+    // Build search URL with all parameters from route query
+    const searchParams = new URLSearchParams({
+      q: query,
+      limit: route.query.limit || "100",
+      ...(route.query.type && { type: route.query.type }),
+      ...(route.query.author && { author: route.query.author }),
+      ...(route.query.translationStatus &&
+        route.query.translationStatus !== "all" && {
+          translationStatus: route.query.translationStatus,
+        }),
+      ...(route.query.dateFrom && { dateFrom: route.query.dateFrom }),
+      ...(route.query.dateTo && { dateTo: route.query.dateTo }),
+    });
+
+    const searchType = route.query.type || "videos";
+    const apiUrl =
+      searchType === "authors"
+        ? API_URLS.SEARCH_AUTHORS
+        : API_URLS.SEARCH_VIDEOS;
+
+    console.log("Search URL:", `${apiUrl}?${searchParams.toString()}`); // 调试信息
+
+    const res = await fetch(`${apiUrl}?${searchParams.toString()}`);
     if (res.ok) {
       const results = await res.json();
-      originalSearchedVideos.value = results;
-      // Apply current sort settings to search results
-      sortSearchResults();
+
+      if (searchType === "videos") {
+        // Clear author data when doing video search
+        authors.value = [];
+        originalSearchedVideos.value = results;
+        // Apply current sort settings to search results
+        sortSearchResults();
+      } else {
+        // Clear video data when doing author search
+        searchedVideos.value = [];
+        originalSearchedVideos.value = [];
+        authors.value = results;
+      }
     } else {
       searchedVideos.value = [];
       originalSearchedVideos.value = [];
+      if (searchType === "authors") {
+        authors.value = [];
+      }
     }
   } catch (error) {
     console.error("搜索视频失败:", error);
@@ -931,7 +975,12 @@ const handleScroll = () => {
 
 // Component lifecycle: setup and cleanup
 onMounted(() => {
-  fetchAuthors(); // Load authors data on component mount
+  // Only load authors if we're doing author search
+  const searchType = route.query.type || "videos";
+  if (searchType === "authors") {
+    fetchAuthors(); // Load authors data only for author search
+  }
+
   const initialQuery = route.query.q || "";
   searchQuery.value = initialQuery;
   if (initialQuery) {
@@ -949,11 +998,29 @@ onUnmounted(() => {
 
 // Watch for route query changes to update search
 watch(
-  () => route.query.q,
+  () => route.query,
   (newQuery) => {
-    const query = newQuery || "";
+    const query = newQuery.q || "";
     searchQuery.value = query;
     performSearch(query);
+  },
+  { deep: true },
+);
+
+// Watch for search type changes to clear irrelevant data
+watch(
+  () => route.query.type,
+  (newType) => {
+    const searchType = newType || "videos";
+    if (searchType === "videos") {
+      authors.value = []; // Clear author data when switching to video search
+    } else {
+      searchedVideos.value = []; // Clear video data when switching to author search
+      originalSearchedVideos.value = [];
+      if (authors.value.length === 0) {
+        fetchAuthors(); // Load authors if not already loaded
+      }
+    }
   },
 );
 </script>

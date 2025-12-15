@@ -1,11 +1,9 @@
 <script setup>
-import AuthorGrid from "./components/AuthorGrid.vue";
-import VideoList from "./components/VideoList.vue";
-import AppHeader from "./components/AppHeader.vue";
+import Header from "./components/Header.vue";
 </script>
 <template>
   <v-app>
-    <AppHeader />
+    <Header />
     <v-main>
       <router-view />
     </v-main>
