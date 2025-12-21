@@ -14,7 +14,7 @@
           <h2 class="section-title">简介</h2>
         </div>
         <p class="section-text">
-          本网站主要收录组员寻思好看并大力推荐的东方相关二创视频，同时整理对应的出处。
+          本网站主要收录群友推荐的东方相关二创视频，同时整理对应的出处。
         </p>
         <p class="section-text" style="margin-top: 16px">
           PS：因为作者头像和视频封面来自原频道，裸连时大部分图片可能无法正常加载，推荐使用代理访问以获得最佳体验
