@@ -10,9 +10,9 @@
 set -e # Exit on any error
 
 # Configuration
-DB_FILE="random-2hu-stuff.db"
+DB_FILE="../backend/random-2hu-stuff.db"
 BACKUP_FILE="${DB_FILE}.bak"
-SQL_SCRIPT="fix_video_ids.sql"
+SQL_SCRIPT="fix-video-ids.sql"
 LOG_FILE="fix_video_ids_$(date +%Y%m%d_%H%M%S).log"
 
 # Colors for output
@@ -159,4 +159,3 @@ if [ "$BACKUP_COUNT" -gt 5 ]; then
 fi
 
 print_message $GREEN "All operations completed successfully!"
-
