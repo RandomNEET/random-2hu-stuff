@@ -35,7 +35,7 @@ def import_csv_to_sqlite(db_path, csv_path):
                     continue
 
                 author_val = row[0].strip()
-                comment_val = row[1].strip()  # 获取并去除两端空格
+                comment_val = row[2].strip()  # 获取并去除两端空格
 
                 # --- 关键逻辑：如果 CSV 的 comment 为空，直接跳过 ---
                 if not comment_val:
