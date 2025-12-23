@@ -15,6 +15,7 @@
         pythonEnv = pkgs.python313.withPackages (ps: [
           ps.requests
           ps.yt-dlp
+          ps.openpyxl
         ]);
       in
       {
