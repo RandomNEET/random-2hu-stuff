@@ -11,10 +11,28 @@
       <div class="announcement-section">
         <div class="section-header">
           <v-icon class="section-icon">mdi-update</v-icon>
-          <h2 class="section-title">最新更新</h2>
+          <h2 class="section-title">最近更新</h2>
         </div>
 
         <div class="update-timeline">
+          <div class="update-item">
+            <div class="update-date">2025.12.28</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者7位，视频431个，熟肉109个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
+            <div class="update-date">2025.12.21</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者14位，视频372个，熟肉164个</li>
+              </ul>
+            </div>
+          </div>
+
           <div class="update-item">
             <div class="update-date">2025.12.15</div>
             <div class="update-content">

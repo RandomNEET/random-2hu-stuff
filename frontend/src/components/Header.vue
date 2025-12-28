@@ -718,10 +718,11 @@ onBeforeUnmount(() => {
 }
 
 .mobile-search-btn {
-  display: none; /* Hidden by default for mobile search button */
+  display: none !important; /* Ensure hidden on desktop; override Vuetify */
   color: #cdd6f4 !important;
   transition: all 0.2s ease;
   border: 1px solid #585b70 !important; /* Add border for normal state */
+  border-radius: 50% !important; /* Keep shape perfectly circular when shown */
 }
 
 .mobile-search-btn:hover {
@@ -953,6 +954,10 @@ onBeforeUnmount(() => {
   
   .mobile-search-btn {
     display: flex !important; /* Show mobile search button */
+    width: 40px !important; /* Ensure square dimensions */
+    height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 50% !important; /* Guarantee circle across tablet widths */
   }
 }
 
