@@ -1,6 +1,7 @@
 *.db
 *.db-shm
 *.db-wal
+*.csv
 
 logs
 *.log
