@@ -344,7 +344,7 @@
           <v-btn
             variant="flat"
             color="primary"
-            class="mobile-search-btn"
+            class="mobile-search-action-btn"
             @click="handleMobileSearch"
           >
             搜索
@@ -928,7 +928,7 @@ onBeforeUnmount(() => {
 }
 
 .mobile-reset-btn,
-.mobile-search-btn {
+.mobile-search-action-btn {
   flex: 1;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 500;
@@ -936,6 +936,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px !important;
 }
 
 /* Responsive design */
