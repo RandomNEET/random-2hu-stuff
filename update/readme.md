@@ -5,7 +5,7 @@
 
 # 在线表格链接
 
-- [待添加视频](https://docs.qq.com/sheet/DVWxiRFNDZVh5VG9G)
+- [待添加视频](https://docs.qq.com/sheet/DVW5KdEZmSmxZSXVq)
 - [作者备注](https://docs.qq.com/sheet/DVW5icEdaU0xqaHd1)
 - [待修改内容](https://docs.qq.com/sheet/DVWpibWF3Q0VWRHVs)
 
