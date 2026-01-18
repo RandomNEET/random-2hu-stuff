@@ -16,6 +16,15 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.01.18</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者7位，视频232个，熟肉74个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.01.11</div>
             <div class="update-content">
               <ul>
