@@ -239,10 +239,14 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { API_URLS } from "@/config/api.js";
 import "@/styles/Sort.css";
 import "@/styles/BackToTop.css";
 import "@/styles/Pagination.css";
+
+const route = useRoute();
+const router = useRouter();
 
 const authors = ref([]);
 const originalAuthors = ref([]); // Store original data
@@ -253,8 +257,20 @@ const showBackToTop = ref(false);
 const cardsPerRow = ref(4); // Number of cards per row
 const hoveredAuthorId = ref(null); // Track which author card is being hovered
 
-// Load saved sort settings from localStorage, use defaults if none exist
+// Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
+  // First try to get from URL query parameters
+  const urlSortBy = route.query.sortBy;
+  const urlSortOrder = route.query.sortOrder;
+  
+  if (urlSortBy && ['name', 'worksCount', 'lastUpdate'].includes(urlSortBy)) {
+    return {
+      sortBy: urlSortBy,
+      sortOrder: urlSortOrder === 'desc' ? 'desc' : 'asc',
+    };
+  }
+  
+  // Then try localStorage
   try {
     const saved = localStorage.getItem("authorGrid-sortSettings");
     if (saved) {
@@ -274,7 +290,7 @@ const savedSettings = getSavedSortSettings();
 const sortBy = ref(savedSettings.sortBy); // Sort field: name, worksCount, lastUpdate
 const sortOrder = ref(savedSettings.sortOrder); // Sort order: asc, desc
 
-// Save sort settings to localStorage
+// Save sort settings to localStorage and URL
 const saveSortSettings = () => {
   try {
     const settings = {
@@ -282,9 +298,34 @@ const saveSortSettings = () => {
       sortOrder: sortOrder.value,
     };
     localStorage.setItem("authorGrid-sortSettings", JSON.stringify(settings));
+    
+    // Update URL query parameters
+    updateUrlParams();
   } catch (error) {
     console.warn("Failed to save sort settings:", error);
   }
+};
+
+// Update URL query parameters
+const updateUrlParams = () => {
+  const query = {};
+  
+  // Only add page to URL if not on first page
+  if (currentPage.value > 1) {
+    query.page = currentPage.value.toString();
+  }
+  
+  // Only add sort params if not default (name, asc)
+  if (sortBy.value !== 'name' || sortOrder.value !== 'asc') {
+    query.sortBy = sortBy.value;
+    query.sortOrder = sortOrder.value;
+  }
+  
+  // Use router.replace to avoid adding to history
+  router.replace({ 
+    path: route.path,
+    query: query 
+  }).catch(() => {});
 };
 
 // Detect if current viewport is mobile
@@ -306,6 +347,7 @@ const setSortBy = (field) => {
 
   sortAuthors();
   currentPage.value = 1; // Reset to first page
+  updateUrlParams();
 };
 
 // Helper function to get display name based on priority
@@ -472,6 +514,7 @@ const goToPage = () => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
     pageInput.value = "";
+    // URL will be updated by watch(currentPage)
   }
 };
 
@@ -479,6 +522,7 @@ const goToPage = () => {
 const jumpToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
+    // URL will be updated by watch(currentPage)
   }
 };
 
@@ -595,11 +639,37 @@ const handleScroll = () => {
   showBackToTop.value = window.scrollY > 300;
 };
 
-// Listen for page changes, scroll to top (desktop only)
-watch(currentPage, () => {
-  if (!isMobile.value) {
-    // window.scrollTo({ top: 0, behavior: "smooth" });
-    window.scrollTo(0, 0);
+// Listen for URL query changes and sync to local state
+watch(() => route.query, (newQuery, oldQuery) => {
+  // Avoid infinite loop: only update if URL actually changed from external source
+  const urlPage = parseInt(newQuery.page) || 1;
+  const urlSortBy = newQuery.sortBy || 'name';
+  const urlSortOrder = newQuery.sortOrder || 'asc';
+  
+  // Check if URL is different from current state (external change)
+  const pageChanged = urlPage !== currentPage.value;
+  const sortChanged = urlSortBy !== sortBy.value || urlSortOrder !== sortOrder.value;
+  
+  if (pageChanged) {
+    currentPage.value = urlPage;
+  }
+  
+  if (sortChanged) {
+    sortBy.value = urlSortBy;
+    sortOrder.value = urlSortOrder;
+    sortAuthors();
+  }
+});
+
+// Listen for page changes, scroll to top (desktop only) and update URL
+watch(currentPage, (newPage, oldPage) => {
+  if (newPage !== oldPage) {
+    if (!isMobile.value) {
+      // window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo(0, 0);
+    }
+    // Update URL
+    updateUrlParams();
   }
 });
 
@@ -619,6 +689,12 @@ onMounted(async () => {
 
   // Initial calculation of cards per row (all screen sizes)
   calculateCardsPerRow();
+  
+  // Initialize currentPage from URL query parameter
+  const urlPage = parseInt(route.query.page);
+  if (urlPage && urlPage >= 1) {
+    currentPage.value = urlPage;
+  }
 
   const res = await fetch(API_URLS.AUTHORS);
   const data = await res.json();
@@ -626,6 +702,9 @@ onMounted(async () => {
 
   // Initial sorting
   sortAuthors();
+  
+  // Update URL to reflect current state
+  updateUrlParams();
 });
 
 onUnmounted(() => {
