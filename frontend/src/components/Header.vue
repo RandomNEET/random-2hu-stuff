@@ -1,13 +1,12 @@
 <template>
-  <v-app-bar
-    app
-    elevation="4"
-    class="app-header"
-    height="70"
-  >
+  <v-app-bar app elevation="4" class="app-header" height="70">
     <v-container class="d-flex align-center">
       <!-- Site title -->
-      <div class="site-title" @click="$router.push('/')" style="cursor: pointer">
+      <div
+        class="site-title"
+        @click="$router.push('/')"
+        style="cursor: pointer"
+      >
         <h1 class="title-text">random 2hu stuff</h1>
       </div>
 
@@ -29,7 +28,7 @@
             @input="handleSearchInput"
             @keyup.enter="performSearch"
           />
-          
+
           <!-- Search Panel Dropdown -->
           <div v-if="showSearchPanel" class="search-panel" @click.stop>
             <!-- Search Type Selection -->
@@ -171,48 +170,36 @@
         >
           <v-icon>mdi-magnify</v-icon>
         </v-btn>
-        
-        <v-btn
-          icon
-          class="nav-button"
-          @click="$router.push('/')"
-        >
+
+        <v-btn icon class="nav-button" @click="$router.push('/')">
           <v-icon>mdi-home</v-icon>
         </v-btn>
-        
-        <v-btn
-          icon
-          class="nav-button"
-          @click="$router.push('/announcement')"
-        >
+
+        <v-btn icon class="nav-button" @click="$router.push('/announce')">
           <v-icon>mdi-bullhorn</v-icon>
         </v-btn>
-        
-        <v-btn
-          icon
-          class="nav-button"
-          @click="$router.push('/about')"
-        >
+
+        <v-btn icon class="nav-button" @click="$router.push('/about')">
           <v-icon>mdi-information</v-icon>
         </v-btn>
       </div>
     </v-container>
 
     <!-- Mobile search popup overlay -->
-    <div v-if="showMobileSearch" class="mobile-search-overlay" @click="showMobileSearch = false">
+    <div
+      v-if="showMobileSearch"
+      class="mobile-search-overlay"
+      @click="showMobileSearch = false"
+    >
       <div class="mobile-search-popup" @click.stop>
         <!-- Close button -->
-        <v-btn
-          icon
-          class="mobile-close-btn"
-          @click="showMobileSearch = false"
-        >
+        <v-btn icon class="mobile-close-btn" @click="showMobileSearch = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
-        
+
         <!-- Mobile search title -->
         <h3 class="mobile-search-title">搜索</h3>
-        
+
         <!-- Search input -->
         <v-text-field
           v-model="searchForm.query"
@@ -225,7 +212,7 @@
           @keyup.enter="handleMobileSearch"
           autofocus
         />
-        
+
         <!-- Search type selection -->
         <div class="mobile-search-types">
           <v-btn
@@ -247,11 +234,11 @@
             作者
           </v-btn>
         </div>
-        
+
         <!-- Filters (only show for video search) -->
         <div v-if="searchForm.type === 'videos'" class="mobile-filters">
           <h4 class="mobile-filter-title">筛选条件</h4>
-          
+
           <!-- Author filter -->
           <div class="mobile-filter-item">
             <label class="mobile-filter-label">作者</label>
@@ -331,7 +318,7 @@
             <span class="mobile-limit-value">{{ searchForm.limit }}</span>
           </div>
         </div>
-        
+
         <!-- Action buttons -->
         <div class="mobile-actions">
           <v-btn
@@ -356,27 +343,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
-import { API_URLS } from '@/config/api.js';
+import { ref, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import { API_URLS } from "@/config/api.js";
 
 const router = useRouter();
-const searchQuery = ref('');
+const searchQuery = ref("");
 const showMobileSearch = ref(false);
 const showSearchPanel = ref(false);
 const searchContainer = ref(null);
 
 // Search form data
 const searchForm = ref({
-  query: '',
-  type: 'videos', // 'videos' or 'authors'
+  query: "",
+  type: "videos", // 'videos' or 'authors'
   limit: 100,
   filters: {
-    authorInput: '',
-    translationStatus: 'all',
-    dateFrom: '',
-    dateTo: ''
-  }
+    authorInput: "",
+    translationStatus: "all",
+    dateFrom: "",
+    dateTo: "",
+  },
 });
 
 // Author options for filter (loaded from API)
@@ -384,12 +371,12 @@ const authorOptions = ref([]);
 
 // Translation status options
 const translationOptions = [
-  { title: '全部', value: 'all' },
-  { title: '中文内嵌', value: '1' },
-  { title: 'CC字幕', value: '2' },
-  { title: '弹幕翻译', value: '3' },
-  { title: '无需翻译', value: '4' },
-  { title: '暂无翻译', value: '5' }
+  { title: "全部", value: "all" },
+  { title: "中文内嵌", value: "1" },
+  { title: "CC字幕", value: "2" },
+  { title: "弹幕翻译", value: "3" },
+  { title: "无需翻译", value: "4" },
+  { title: "暂无翻译", value: "5" },
 ];
 
 // Load authors for filter dropdown
@@ -397,42 +384,55 @@ const loadAuthors = async () => {
   try {
     const response = await fetch(API_URLS.AUTHORS);
     const authors = await response.json();
-    authorOptions.value = authors.map(author => ({
+    authorOptions.value = authors.map((author) => ({
       id: author.id,
-      name: author.yt_name || author.nico_name || author.twitter_name || 'Unknown'
+      name:
+        author.yt_name || author.nico_name || author.twitter_name || "Unknown",
     }));
   } catch (error) {
-    console.error('Failed to load authors:', error);
+    console.error("Failed to load authors:", error);
   }
 };
 
 // Watch for search type changes to adjust limit
-watch(() => searchForm.value.type, (newType) => {
-  if (newType === 'authors' && searchForm.value.limit > 200) {
-    searchForm.value.limit = 200;
-  }
-});
+watch(
+  () => searchForm.value.type,
+  (newType) => {
+    if (newType === "authors" && searchForm.value.limit > 200) {
+      searchForm.value.limit = 200;
+    }
+  },
+);
 
 // Watch for route changes to handle panel state
-watch(() => router.currentRoute.value, () => {
-  // Close search panel when route changes (e.g., after search)
-  if (showSearchPanel.value) {
-    // Use nextTick to ensure the navigation completes first
-    nextTick(() => {
-      showSearchPanel.value = false;
-    });
-  }
-});
+watch(
+  () => router.currentRoute.value,
+  () => {
+    // Close search panel when route changes (e.g., after search)
+    if (showSearchPanel.value) {
+      // Use nextTick to ensure the navigation completes first
+      nextTick(() => {
+        showSearchPanel.value = false;
+      });
+    }
+  },
+);
 
 // Close search panel when clicking outside
 const handleClickOutside = (event) => {
   if (searchContainer.value && !searchContainer.value.contains(event.target)) {
     // Check if clicked element is part of a dropdown menu or overlay
-    const isDropdownClick = event.target.closest('.v-overlay, .v-menu, .v-select__content, .v-combobox__content, .v-list, .v-list-item, .v-overlay__content, [role="listbox"], [role="option"]');
+    const isDropdownClick = event.target.closest(
+      '.v-overlay, .v-menu, .v-select__content, .v-combobox__content, .v-list, .v-list-item, .v-overlay__content, [role="listbox"], [role="option"]',
+    );
     // Also check if the target has any Japanese/Chinese characters (additional safety)
-    const hasAsianText = event.target.textContent && /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(event.target.textContent);
-    const isComboboxItem = event.target.closest('.v-combobox') !== null;
-    
+    const hasAsianText =
+      event.target.textContent &&
+      /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(
+        event.target.textContent,
+      );
+    const isComboboxItem = event.target.closest(".v-combobox") !== null;
+
     if (!isDropdownClick && !(hasAsianText && isComboboxItem)) {
       showSearchPanel.value = false;
     }
@@ -441,13 +441,13 @@ const handleClickOutside = (event) => {
 
 // Reset search form to defaults
 const resetForm = () => {
-  searchForm.value.type = 'videos';
+  searchForm.value.type = "videos";
   searchForm.value.limit = 100;
   searchForm.value.filters = {
-    authorInput: '',
-    translationStatus: 'all',
-    dateFrom: '',
-    dateTo: ''
+    authorInput: "",
+    translationStatus: "all",
+    dateFrom: "",
+    dateTo: "",
   };
 };
 
@@ -455,12 +455,12 @@ const resetForm = () => {
 const findAuthorIdByName = (authorName) => {
   if (!authorName) return null;
   // 精确匹配作者名称
-  const author = authorOptions.value.find(a => a.name === authorName);
+  const author = authorOptions.value.find((a) => a.name === authorName);
   if (author) {
     return author.id;
   }
   // 如果没有精确匹配，尝试模糊匹配
-  const fuzzyAuthor = authorOptions.value.find(a => {
+  const fuzzyAuthor = authorOptions.value.find((a) => {
     const name = a.name.toLowerCase();
     const input = authorName.toLowerCase();
     return name.includes(input) || input.includes(name);
@@ -471,27 +471,32 @@ const findAuthorIdByName = (authorName) => {
 // Perform search with filters
 const performSearch = () => {
   if (!searchForm.value.query.trim()) return;
-  
+
   const query = {
     q: searchForm.value.query.trim(),
     type: searchForm.value.type,
-    limit: searchForm.value.limit
+    limit: searchForm.value.limit,
   };
 
   // Add video-specific filters
-  if (searchForm.value.type === 'videos') {
+  if (searchForm.value.type === "videos") {
     // Handle author input - convert author name to ID
     if (searchForm.value.filters.authorInput) {
       const authorId = findAuthorIdByName(searchForm.value.filters.authorInput);
       if (authorId) {
         query.author = authorId;
-        console.log('Found author ID:', authorId, 'for name:', searchForm.value.filters.authorInput);
+        console.log(
+          "Found author ID:",
+          authorId,
+          "for name:",
+          searchForm.value.filters.authorInput,
+        );
       } else {
-        console.warn('Author not found:', searchForm.value.filters.authorInput);
+        console.warn("Author not found:", searchForm.value.filters.authorInput);
         // 如果找不到作者ID，不添加作者筛选条件
       }
     }
-    if (searchForm.value.filters.translationStatus !== 'all') {
+    if (searchForm.value.filters.translationStatus !== "all") {
       query.translationStatus = searchForm.value.filters.translationStatus;
     }
     if (searchForm.value.filters.dateFrom) {
@@ -502,12 +507,12 @@ const performSearch = () => {
     }
   }
 
-  console.log('Final search query:', query); // 调试信息
+  console.log("Final search query:", query); // 调试信息
 
   // Navigate to search page with query parameters
   router.push({
-    path: '/search',
-    query
+    path: "/search",
+    query,
   });
 
   // Close panel
@@ -516,15 +521,15 @@ const performSearch = () => {
 
 const handleMobileSearch = () => {
   if (!searchForm.value.query.trim()) return;
-  
+
   const query = {
     q: searchForm.value.query.trim(),
     type: searchForm.value.type,
-    limit: searchForm.value.limit
+    limit: searchForm.value.limit,
   };
 
   // Add video-specific filters
-  if (searchForm.value.type === 'videos') {
+  if (searchForm.value.type === "videos") {
     // Handle author input - convert author name to ID
     if (searchForm.value.filters.authorInput) {
       const authorId = findAuthorIdByName(searchForm.value.filters.authorInput);
@@ -532,7 +537,7 @@ const handleMobileSearch = () => {
         query.author = authorId;
       }
     }
-    if (searchForm.value.filters.translationStatus !== 'all') {
+    if (searchForm.value.filters.translationStatus !== "all") {
       query.translationStatus = searchForm.value.filters.translationStatus;
     }
     if (searchForm.value.filters.dateFrom) {
@@ -545,8 +550,8 @@ const handleMobileSearch = () => {
 
   // Navigate to search page
   router.push({
-    path: '/search',
-    query
+    path: "/search",
+    query,
   });
 
   // Close mobile search
@@ -555,15 +560,15 @@ const handleMobileSearch = () => {
 
 const resetMobileSearch = () => {
   searchForm.value = {
-    query: '',
-    type: 'videos',
+    query: "",
+    type: "videos",
     limit: 100,
     filters: {
-      authorInput: '',
-      translationStatus: 'all',
-      dateFrom: '',
-      dateTo: ''
-    }
+      authorInput: "",
+      translationStatus: "all",
+      dateFrom: "",
+      dateTo: "",
+    },
   };
 };
 
@@ -584,16 +589,20 @@ const handleSearchInput = () => {
 
 // Handle author selection for desktop
 const handleAuthorSelection = (value) => {
-  console.log('Desktop author selection changed:', value);
+  console.log("Desktop author selection changed:", value);
   searchForm.value.filters.authorInput = value;
   // If value is selected from dropdown (not manually typed), it should take immediate effect
-  if (value && typeof value === 'string' && authorOptions.value.some(author => author.name === value)) {
+  if (
+    value &&
+    typeof value === "string" &&
+    authorOptions.value.some((author) => author.name === value)
+  ) {
     // Value was selected from dropdown, close menu and make it active immediately
     nextTick(() => {
       // Force close any open menus
-      const combobox = searchContainer.value?.querySelector('.v-combobox');
+      const combobox = searchContainer.value?.querySelector(".v-combobox");
       if (combobox) {
-        const input = combobox.querySelector('input');
+        const input = combobox.querySelector("input");
         if (input) {
           input.blur();
         }
@@ -605,23 +614,27 @@ const handleAuthorSelection = (value) => {
 // Handle desktop author blur event
 const handleAuthorBlur = (event) => {
   const value = event.target.value;
-  console.log('Desktop author blur event:', value);
+  console.log("Desktop author blur event:", value);
   searchForm.value.filters.authorInput = value;
 };
 
 // Handle author selection for mobile
 const handleMobileAuthorSelection = (value) => {
-  console.log('Mobile author selection changed:', value);
+  console.log("Mobile author selection changed:", value);
   searchForm.value.filters.authorInput = value;
   // If value is selected from dropdown, close menu immediately
-  if (value && typeof value === 'string' && authorOptions.value.some(author => author.name === value)) {
+  if (
+    value &&
+    typeof value === "string" &&
+    authorOptions.value.some((author) => author.name === value)
+  ) {
     nextTick(() => {
       // Force close any open menus
-      const mobilePopup = document.querySelector('.mobile-search-popup');
+      const mobilePopup = document.querySelector(".mobile-search-popup");
       if (mobilePopup) {
-        const combobox = mobilePopup.querySelector('.v-combobox');
+        const combobox = mobilePopup.querySelector(".v-combobox");
         if (combobox) {
-          const input = combobox.querySelector('input');
+          const input = combobox.querySelector("input");
           if (input) {
             input.blur();
           }
@@ -634,7 +647,7 @@ const handleMobileAuthorSelection = (value) => {
 // Handle mobile author blur event
 const handleMobileAuthorBlur = (event) => {
   const value = event.target.value;
-  console.log('Mobile author blur event:', value);
+  console.log("Mobile author blur event:", value);
   searchForm.value.filters.authorInput = value;
 };
 
@@ -643,20 +656,20 @@ watch(showSearchPanel, (newValue) => {
   if (newValue) {
     nextTick(() => {
       // Calculate panel position based on search input
-      const searchInput = searchContainer.value?.querySelector('.v-field');
+      const searchInput = searchContainer.value?.querySelector(".v-field");
       if (searchInput) {
         const rect = searchInput.getBoundingClientRect();
-        const panel = searchContainer.value?.querySelector('.search-panel');
+        const panel = searchContainer.value?.querySelector(".search-panel");
         if (panel) {
           panel.style.top = `${rect.bottom + 8}px`;
           panel.style.left = `${rect.left}px`;
           panel.style.width = `${Math.max(400, rect.width)}px`;
         }
       }
-      document.addEventListener('click', handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
     });
   } else {
-    document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener("click", handleClickOutside);
   }
 });
 
@@ -667,22 +680,28 @@ onMounted(() => {
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 /* Header with Catppuccin Mocha theme */
 .app-header {
-  background: linear-gradient(135deg, #1e1e2e 0%, #313244 100%) !important; /* Catppuccin Mocha gradient */
+  background: linear-gradient(
+    135deg,
+    #1e1e2e 0%,
+    #313244 100%
+  ) !important; /* Catppuccin Mocha gradient */
   border-bottom: 2px solid #45475a; /* Catppuccin Mocha Surface1 */
-  font-family: 'JetBrains Mono', 'JetBrainsMono Nerd Font', monospace !important;
+  font-family:
+    "JetBrains Mono", "JetBrainsMono Nerd Font", monospace !important;
 }
 
 .app-header * {
-  font-family: 'JetBrains Mono', 'JetBrainsMono Nerd Font', monospace !important;
+  font-family:
+    "JetBrains Mono", "JetBrainsMono Nerd Font", monospace !important;
 }
 
 .site-title {
@@ -778,7 +797,12 @@ onBeforeUnmount(() => {
 }
 
 .nav-button:hover {
-  background-color: rgba(137, 180, 250, 0.1) !important; /* Catppuccin Mocha Blue with opacity */
+  background-color: rgba(
+    137,
+    180,
+    250,
+    0.1
+  ) !important; /* Catppuccin Mocha Blue with opacity */
   color: #89b4fa !important; /* Catppuccin Mocha Blue */
   border-color: #89b4fa !important; /* Change border color on hover */
 }
@@ -832,7 +856,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   margin-bottom: 20px;
   text-align: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .mobile-search-input {
@@ -847,7 +871,7 @@ onBeforeUnmount(() => {
 
 .mobile-type-btn {
   flex: 1;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-weight: 500;
 }
 
@@ -860,7 +884,7 @@ onBeforeUnmount(() => {
   font-size: 1.1rem;
   font-weight: 500;
   margin-bottom: 16px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .mobile-filter-item {
@@ -873,7 +897,7 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
   font-weight: 500;
   margin-bottom: 8px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .mobile-filter-input {
@@ -894,7 +918,7 @@ onBeforeUnmount(() => {
   color: #a6adc8;
   font-size: 0.9rem;
   font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .mobile-limit-container {
@@ -911,7 +935,7 @@ onBeforeUnmount(() => {
   color: #89b4fa;
   font-size: 0.9rem;
   font-weight: 600;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   min-width: 40px;
   text-align: center;
   background: rgba(137, 180, 250, 0.1);
@@ -930,7 +954,7 @@ onBeforeUnmount(() => {
 .mobile-reset-btn,
 .mobile-search-action-btn {
   flex: 1;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-weight: 500;
   height: 40px;
   display: flex;
@@ -944,15 +968,15 @@ onBeforeUnmount(() => {
   .title-text {
     font-size: 1.2rem;
   }
-  
+
   .search-container {
     display: none; /* Hide desktop search bar */
   }
-  
+
   .desktop-search {
     display: none !important; /* Hide desktop search */
   }
-  
+
   .mobile-search-btn {
     display: flex !important; /* Show mobile search button */
     width: 40px !important; /* Ensure square dimensions */
@@ -966,27 +990,27 @@ onBeforeUnmount(() => {
   .app-header :deep(.v-container) {
     padding: 0 12px !important; /* Appropriate padding for mobile */
   }
-  
+
   .title-text {
     font-size: 1rem;
   }
-  
+
   .nav-menu {
     gap: 4px; /* Reduce button spacing */
   }
-  
+
   .nav-button {
     width: 40px !important; /* Set fixed width */
     height: 40px !important; /* Set fixed height to maintain circular shape */
     min-width: 40px !important; /* Minimum width */
   }
-  
+
   .mobile-search-btn {
     width: 40px !important; /* Set fixed width */
     height: 40px !important; /* Set fixed height to maintain circular shape */
     min-width: 40px !important;
   }
-  
+
   .mobile-search-popup {
     width: 95%;
     padding: 16px;
@@ -1013,8 +1037,6 @@ onBeforeUnmount(() => {
   width: 400px;
   max-width: calc(100vw - 40px);
 }
-
-
 
 .filters-section {
   background: #313244;
@@ -1094,8 +1116,6 @@ onBeforeUnmount(() => {
   margin-bottom: 16px;
 }
 
-
-
 .search-actions {
   display: flex;
   justify-content: flex-end;
@@ -1118,17 +1138,17 @@ onBeforeUnmount(() => {
     border-radius: 8px;
     padding: 12px;
   }
-  
+
   .filters-section,
   .limit-section {
     padding: 10px;
   }
-  
+
   .date-range-container {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .date-separator {
     text-align: center;
     padding: 4px 0;
@@ -1330,8 +1350,6 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-
-
 .search-actions {
   background: transparent !important;
   padding: 16px 24px !important;
@@ -1375,21 +1393,21 @@ onBeforeUnmount(() => {
   .search-dialog :deep(.v-overlay__content) {
     margin: 12px;
   }
-  
+
   .search-content {
     padding: 16px !important;
   }
-  
+
   .filters-section,
   .limit-section {
     padding: 16px;
   }
-  
+
   .date-range-container {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .date-separator {
     text-align: center;
     padding: 8px 0;
