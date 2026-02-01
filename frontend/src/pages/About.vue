@@ -21,6 +21,39 @@
         </p>
       </div>
 
+      <!-- APP section -->
+      <div class="about-section">
+        <div class="section-header">
+          <v-icon class="section-icon">mdi-android</v-icon>
+          <h2 class="section-title">APP</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+          <p class="section-text" style="font-weight: 500; margin: 0">
+            APK下载地址：
+          </p>
+          <v-btn
+            variant="outlined"
+            color="primary"
+            prepend-icon="mdi-github"
+            href="https://github.com/RandomNEET/random-2hu-stuff/releases/tag/apk-1.1.0"
+            target="_blank"
+            size="large"
+          >
+            GitHub
+          </v-btn>
+          <v-btn
+            variant="outlined"
+            color="primary"
+            prepend-icon="mdi-cloud-download"
+            href="https://pan.quark.cn/s/38b9ff61dde3"
+            target="_blank"
+            size="large"
+          >
+            夸克网盘 提取码：H2gm
+          </v-btn>
+        </div>
+      </div>
+
       <!-- Contact section -->
       <div class="about-section">
         <div class="section-header">
