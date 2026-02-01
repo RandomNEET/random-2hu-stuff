@@ -5,7 +5,7 @@ Update Log Generator Script
 This script generates update log entries for the announcement page by:
 1. Reading current database statistics (authors, videos, translated videos)
 2. Comparing with the last recorded statistics in content.log
-3. Generating update entry for AnnouncementView.vue if there are changes
+3. Generating update entry for AnnounceView.vue if there are changes
 4. Updating content.log with new statistics
 
 Usage:
@@ -150,7 +150,7 @@ def generate_update_entry(author_diff, video_diff, translated_diff):
 
 
 def update_announcement(vue_file_path, update_entry):
-    """Update the Announcement.vue file with the new entry"""
+    """Update the AnnounceView.vue file with the new entry"""
     try:
         with open(vue_file_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -171,11 +171,11 @@ def update_announcement(vue_file_path, update_entry):
             print(f"Successfully updated {vue_file_path}")
             return True
         else:
-            print("Could not find insertion point in Announcement.vue")
+            print("Could not find insertion point in AnnounceView.vue")
             return False
 
     except Exception as e:
-        print(f"Error updating Announcement.vue: {e}")
+        print(f"Error updating AnnounceView.vue: {e}")
         return False
 
 
@@ -198,7 +198,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(script_dir, args.db_path)
     content_log_path = os.path.join(script_dir, "content.log")
-    vue_file_path = os.path.join(script_dir, "../frontend/src/pages/Announcement.vue")
+    vue_file_path = os.path.join(script_dir, "../frontend/src/views/AnnounceView.vue")
 
     # Check if database exists
     if not os.path.exists(db_path):
@@ -261,13 +261,13 @@ def main():
             print("DRY RUN: No files would be modified.")
             return
 
-        # Update AnnouncementView.vue
+        # Update AnnounceView.vue
         if update_announcement(vue_file_path, update_entry):
             # Update content.log only if vue update was successful
             update_content_log(content_log_path, current_stats)
             print("Update log generation completed successfully!")
         else:
-            print("Failed to update AnnouncementView.vue")
+            print("Failed to update AnnounceView.vue")
             sys.exit(1)
 
     finally:
