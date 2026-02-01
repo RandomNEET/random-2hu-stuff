@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { API_URLS, getApiUrl, API_CONFIG } from "@/config/api.js";
 import "@/styles/Sort.css";
 import "@/styles/BackToTop.css";
 import "@/styles/Pagination.css";
 
 const route = useRoute();
+const router = useRouter();
 const videos = ref([]);
 const originalVideos = ref([]); // Store original data
 const groupedVideos = ref([]); // Store grouped video data
@@ -19,14 +20,26 @@ const currentPage = ref(1);
 const pageInput = ref("");
 const itemsPerPage = 20; // Display 20 video groups per page
 
-// Load saved sort settings from localStorage, use defaults if none exist
+// Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
+  // First try to get from URL query parameters
+  const urlSortBy = route.query.sortBy;
+  const urlSortOrder = route.query.sortOrder;
+  
+  if (urlSortBy && (urlSortBy === 'date' || urlSortBy === 'translation')) {
+    return {
+      sortBy: urlSortBy,
+      sortOrder: urlSortOrder === 'desc' ? 'desc' : 'asc',
+    };
+  }
+  
+  // Then try localStorage
   try {
     const saved = localStorage.getItem("videoList-sortSettings");
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-        sortType: parsed.sortType || "translation",
+        sortBy: parsed.sortBy || "translation",
         sortOrder: parsed.sortOrder || "asc",
       };
     }
@@ -34,26 +47,51 @@ const getSavedSortSettings = () => {
     console.warn("Failed to parse saved sort settings:", error);
   }
   return {
-    sortType: "translation", // Default sort by translation status
+    sortBy: "translation", // Default sort by translation status
     sortOrder: "asc", // Default ascending order
   };
 };
 
 const savedSettings = getSavedSortSettings();
-const sortType = ref(savedSettings.sortType); // Sort type: date, translation
+const sortBy = ref(savedSettings.sortBy); // Sort type: date, translation
 const sortOrder = ref(savedSettings.sortOrder); // Sort order: asc, desc
 
-// Save sort settings to localStorage
+// Save sort settings to localStorage and URL
 const saveSortSettings = () => {
   try {
     const settings = {
-      sortType: sortType.value,
+      sortBy: sortBy.value,
       sortOrder: sortOrder.value,
     };
     localStorage.setItem("videoList-sortSettings", JSON.stringify(settings));
+    
+    // Update URL query parameters
+    updateUrlParams();
   } catch (error) {
     console.warn("Failed to save sort settings:", error);
   }
+};
+
+// Update URL query parameters
+const updateUrlParams = () => {
+  const query = {};
+  
+  // Only add page to URL if not on first page
+  if (currentPage.value > 1) {
+    query.page = currentPage.value.toString();
+  }
+  
+  // Only add sort params if not default (translation, asc)
+  if (sortBy.value !== 'translation' || sortOrder.value !== 'asc') {
+    query.sortBy = sortBy.value;
+    query.sortOrder = sortOrder.value;
+  }
+  
+  // Use router.replace to avoid adding to history
+  router.replace({ 
+    path: route.path,
+    query: query 
+  }).catch(() => {});
 };
 
 // Sort related functions
@@ -159,25 +197,25 @@ const compareVideoTitles = (titleA, titleB) => {
   });
 };
 
-const setSortType = (type) => {
-  if (sortType.value === type) {
+const setSortBy = (type) => {
+  if (sortBy.value === type) {
     // If clicking the same sort type, toggle sort order
     sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
   } else {
     // If clicking different sort type, set new type and reset to ascending
-    sortType.value = type;
+    sortBy.value = type;
     sortOrder.value = "asc";
   }
 
   // Save sort settings
   saveSortSettings();
 
-  sortVideos();
+  sortVideos(true); // Reset page when user changes sort
 };
 
-const sortVideos = () => {
+const sortVideos = (resetPage = true) => {
   const sorted = [...originalVideos.value].sort((a, b) => {
-    if (sortType.value === "date") {
+    if (sortBy.value === "date") {
       // Sort by date
       const dateA = a.date ? new Date(a.date) : null;
       const dateB = b.date ? new Date(b.date) : null;
@@ -200,7 +238,7 @@ const sortVideos = () => {
         return compareVideoTitles(titleA, titleB);
       }
       return sortOrder.value === "asc" ? comparison : -comparison;
-    } else if (sortType.value === "translation") {
+    } else if (sortBy.value === "translation") {
       // Sort by translation status (composite sort: translation status priority + chronological)
       // Translation status priority: 1 = 2 = 4 → 3 → 5 → null
       const getTranslationPriority = (status) => {
@@ -241,8 +279,11 @@ const sortVideos = () => {
   videos.value = sorted;
   groupedVideos.value = groupVideosByName(sorted);
 
-  // Reset pagination, go back to first page after re-sorting
-  currentPage.value = 1;
+  // Reset pagination only when requested (e.g., when user changes sort)
+  if (resetPage) {
+    currentPage.value = 1;
+  }
+  updateUrlParams();
 };
 
 // Group videos by original_url or repost_url
@@ -338,12 +379,14 @@ const goToPage = () => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
     pageInput.value = "";
+    // URL will be updated by watch(currentPage)
   }
 };
 
 const jumpToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
+    // URL will be updated by watch(currentPage)
   }
 };
 
@@ -597,6 +640,12 @@ onMounted(async () => {
   // Add scroll event listener
   window.addEventListener("scroll", handleScroll);
 
+  // Initialize currentPage from URL query parameter
+  const urlPage = parseInt(route.query.page);
+  if (urlPage && urlPage >= 1) {
+    currentPage.value = urlPage;
+  }
+
   const authorId = route.params.id;
   try {
     // Get author information
@@ -624,8 +673,8 @@ onMounted(async () => {
     const videoData = await res.json();
     originalVideos.value = videoData;
 
-    // Initial sorting
-    sortVideos();
+    // Initial sorting (don't reset page, keep the page from URL)
+    sortVideos(false);
   } catch (e) {
     videos.value = [];
     originalVideos.value = [];
@@ -633,10 +682,36 @@ onMounted(async () => {
   }
 });
 
-// Listen for page changes, scroll to top
-watch(currentPage, () => {
-  // window.scrollTo({ top: 0, behavior: "smooth" });
-  window.scrollTo(0, 0);
+// Listen for URL query changes and sync to local state
+watch(() => route.query, (newQuery, oldQuery) => {
+  // Avoid infinite loop: only update if URL actually changed from external source
+  const urlPage = parseInt(newQuery.page) || 1;
+  const urlSortBy = newQuery.sortBy || 'translation';
+  const urlSortOrder = newQuery.sortOrder || 'asc';
+  
+  // Check if URL is different from current state (external change)
+  const pageChanged = urlPage !== currentPage.value;
+  const sortChanged = urlSortBy !== sortBy.value || urlSortOrder !== sortOrder.value;
+  
+  if (pageChanged) {
+    currentPage.value = urlPage;
+  }
+  
+  if (sortChanged) {
+    sortBy.value = urlSortBy;
+    sortOrder.value = urlSortOrder;
+    sortVideos(false); // Re-sort but don't reset page
+  }
+});
+
+// Listen for page changes, scroll to top and update URL
+watch(currentPage, (newPage, oldPage) => {
+  if (newPage !== oldPage) {
+    // Scroll to top
+    window.scrollTo(0, 0);
+    // Update URL
+    updateUrlParams();
+  }
 });
 
 onUnmounted(() => {
@@ -672,28 +747,28 @@ onUnmounted(() => {
       <div class="sort-buttons">
         <v-btn
           class="sort-btn"
-          :class="{ active: sortType === 'date' }"
-          @click="setSortType('date')"
+          :class="{ active: sortBy === 'date' }"
+          @click="setSortBy('date')"
           size="small"
           rounded="lg"
         >
           <v-icon size="16">mdi-clock-outline</v-icon>
           <span>按时间</span>
-          <v-icon size="14" v-if="sortType === 'date'">
+          <v-icon size="14" v-if="sortBy === 'date'">
             {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
           </v-icon>
         </v-btn>
 
         <v-btn
           class="sort-btn"
-          :class="{ active: sortType === 'translation' }"
-          @click="setSortType('translation')"
+          :class="{ active: sortBy === 'translation' }"
+          @click="setSortBy('translation')"
           size="small"
           rounded="lg"
         >
           <v-icon size="16">mdi-translate</v-icon>
           <span>按翻译</span>
-          <v-icon size="14" v-if="sortType === 'translation'">
+          <v-icon size="14" v-if="sortBy === 'translation'">
             {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
           </v-icon>
         </v-btn>
