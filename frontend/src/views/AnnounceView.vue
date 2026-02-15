@@ -16,6 +16,20 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.02.15</div>
+            <div class="update-content">
+              <h3>
+                到今天网站已经运营半年了<br />
+                感谢各位译者的翻译和搬运工的付出，也感谢群友们的整理和大家的支持<br />
+                祝大家新年快乐🎉
+              </h3>
+              <ul>
+                <li>新收录作者13位，视频182个，熟肉114个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.02.08</div>
             <div class="update-content">
               <ul>
