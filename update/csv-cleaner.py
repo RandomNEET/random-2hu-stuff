@@ -18,6 +18,7 @@ def clean_youtube_url(url):
     # Regular expressions to extract video ID
     patterns = [
         r'(?:youtube\.com/watch\?v=)([a-zA-Z0-9_-]{11})',
+        r'(?:youtube\.com/shorts/)([a-zA-Z0-9_-]{11})',
         r'(?:youtube\.com/embed/)([a-zA-Z0-9_-]{11})',
         r'(?:youtu\.be/)([a-zA-Z0-9_-]{11})',
         r'(?:youtube\.com/v/)([a-zA-Z0-9_-]{11})'
@@ -30,6 +31,12 @@ def clean_youtube_url(url):
             return f"https://www.youtube.com/watch?v={video_id}"
     
     return url
+
+def clean_twitter_url(url):
+    """Replace twitter.com links with x.com"""
+    if not url:
+        return url
+    return re.sub(r'https?://(?:www\.)?twitter\.com/', 'https://x.com/', url)
 
 def clean_niconico_url(url_or_id):
     """Standardize niconico links or IDs to https://www.nicovideo.jp/watch/smXXXXX format"""
@@ -112,6 +119,10 @@ def clean_url(url):
     # YouTube
     if 'youtube.com' in url or 'youtu.be' in url:
         return clean_youtube_url(url)
+    
+    # Twitter → X
+    if 'twitter.com' in url:
+        return clean_twitter_url(url)
     
     # NicoNico
     if 'nicovideo.jp' in url or re.match(r'^[a-z]{2}[0-9]+$', url):
@@ -220,6 +231,8 @@ def main():
     print("- Bilibili: https://www.bilibili.com/video/avXXXXX or https://www.bilibili.com/video/BVXXXXX")
     print("- Bilibili short links (b23.tv) will be resolved to full URLs")
     print("- Bilibili episode numbers (p parameter) will be preserved")
+    print("- Twitter: https://x.com/... (twitter.com → x.com)")
+    print("- YouTube Shorts: normalized to https://www.youtube.com/watch?v=VIDEO_ID")
     print()
     
     success = process_csv(input_file, output_file)
