@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'random-2hu-api',
+    name: 'r2s-api',
     script: 'server.cjs',
     instances: 1,
     autorestart: true,
@@ -14,9 +14,9 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 3000
     },
-    error_file: '/var/log/pm2/random-2hu-api.error.log',
-    out_file: '/var/log/pm2/random-2hu-api.out.log',
-    log_file: '/var/log/pm2/random-2hu-api.log',
+    error_file: '/var/log/pm2/r2s-api.error.log',
+    out_file: '/var/log/pm2/r2s-api.out.log',
+    log_file: '/var/log/pm2/r2s-api.log',
     time: true,
     
     // 监控配置
