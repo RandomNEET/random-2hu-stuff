@@ -22,6 +22,9 @@
 
     <!-- Back to top button -->
     <BackToTop />
+
+    <!-- Sakana widget -->
+    <Sakana character="chisato" />
   </div>
 </template>
 
@@ -33,6 +36,7 @@ import HomeSortControls from "@/components/HomeSortControls.vue";
 import HomeAuthorGrid from "@/components/HomeAuthorGrid.vue";
 import HomePaginationControls from "@/components/HomePaginationControls.vue";
 import BackToTop from "@/components/BackToTop.vue";
+import Sakana from "@/components/Sakana.vue";
 
 const route = useRoute();
 const router = useRouter();
