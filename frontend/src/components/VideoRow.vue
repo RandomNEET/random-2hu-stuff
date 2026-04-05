@@ -1,12 +1,25 @@
 <template>
   <div class="video-row">
     <div class="video-info-row">
-      <div class="video-date" v-if="group.date">
-        📅 {{ formatDate(group.date) }}
+      <div class="left-info">
+        <div class="video-date" v-if="group.date">
+          📅 {{ formatDate(group.date) }}
+        </div>
+
+        <div class="video-comment" v-if="group.comment">
+          {{ group.comment }}
+        </div>
       </div>
 
-      <div class="video-comment" v-if="group.comment">
-        {{ group.comment }}
+      <div
+        v-if="showAuthor && primaryVideo"
+        class="author-info-small"
+        @click="handleAuthorClick"
+      >
+        <v-avatar size="24" class="author-avatar-small">
+          <v-img :src="authorAvatar" />
+        </v-avatar>
+        <span class="author-name-small">{{ authorName }}</span>
       </div>
     </div>
 
@@ -104,14 +117,44 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import VideoCard from './VideoCard.vue';
 
 const props = defineProps({
   group: {
     type: Object,
     required: true
+  },
+  showAuthor: {
+    type: Boolean,
+    default: false
   }
 });
+
+const emit = defineEmits(['author-click']);
+
+const primaryVideo = computed(() => {
+  if (props.group.type === 'original_group') return props.group.displayOriginal;
+  if (props.group.type === 'repost_group') return props.group.displayRepost;
+  return props.group.videos[0];
+});
+
+const authorName = computed(() => {
+  const v = primaryVideo.value;
+  if (!v) return '';
+  return v.yt_name || v.nico_name || v.twitter_name || 'Unknown';
+});
+
+const authorAvatar = computed(() => {
+  const v = primaryVideo.value;
+  if (!v) return '';
+  return v.nico_avatar || v.yt_avatar || v.twitter_avatar || '';
+});
+
+const handleAuthorClick = () => {
+  const v = primaryVideo.value;
+  if (v) emit('author-click', v.author_id, authorName.value);
+};
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -174,6 +217,40 @@ const openUrl = (url) => {
   margin-bottom: 16px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+}
+
+.left-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.author-info-small {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.author-info-small:hover {
+  background: rgba(137, 180, 250, 0.2);
+  transform: scale(1.05);
+}
+
+.author-name-small {
+  color: #89b4fa;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.author-avatar-small {
+  border: 1px solid #585b70;
 }
 
 .video-comment {
