@@ -16,6 +16,15 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.04.05</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录视频31个，熟肉37个</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.03.29</div>
             <div class="update-content">
               <h3>迁移到新服务器</h3>
