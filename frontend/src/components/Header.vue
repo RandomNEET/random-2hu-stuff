@@ -352,6 +352,7 @@ const searchQuery = ref("");
 const showMobileSearch = ref(false);
 const showSearchPanel = ref(false);
 const searchContainer = ref(null);
+const shouldClearOnFocus = ref(false);
 
 // Search form data
 const searchForm = ref({
@@ -393,6 +394,14 @@ const loadAuthors = async () => {
     console.error("Failed to load authors:", error);
   }
 };
+
+// Clear query when mobile search overlay opens after a previous search
+watch(showMobileSearch, (isOpen) => {
+  if (isOpen && shouldClearOnFocus.value) {
+    searchForm.value.query = "";
+    shouldClearOnFocus.value = false;
+  }
+});
 
 // Watch for search type changes to adjust limit
 watch(
@@ -517,6 +526,7 @@ const performSearch = () => {
 
   // Close panel
   showSearchPanel.value = false;
+  shouldClearOnFocus.value = true;
 };
 
 const handleMobileSearch = () => {
@@ -556,6 +566,7 @@ const handleMobileSearch = () => {
 
   // Close mobile search
   showMobileSearch.value = false;
+  shouldClearOnFocus.value = true;
 };
 
 const resetMobileSearch = () => {
@@ -574,11 +585,19 @@ const resetMobileSearch = () => {
 
 // Handle search input focus event
 const handleSearchFocus = () => {
+  if (shouldClearOnFocus.value) {
+    searchForm.value.query = "";
+    shouldClearOnFocus.value = false;
+  }
   showSearchPanel.value = true;
 };
 
 // Handle search input click event
 const handleSearchClick = () => {
+  if (shouldClearOnFocus.value) {
+    searchForm.value.query = "";
+    shouldClearOnFocus.value = false;
+  }
   showSearchPanel.value = true;
 };
 
