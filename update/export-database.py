@@ -63,6 +63,5 @@ def export_full_combined_to_csv(db_path, output_csv):
 
 
 if __name__ == "__main__":
-    # 可以通过参数传入输出文件名，默认为 combined_data.csv
-    out_file = sys.argv[1] if len(sys.argv) > 1 else "full-data.csv"
+    out_file = sys.argv[1] if len(sys.argv) > 1 else "../backend/full-data.csv"
     export_full_combined_to_csv("../backend/random-2hu-stuff.db", out_file)

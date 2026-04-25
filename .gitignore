@@ -28,6 +28,12 @@ dist-ssr
 
 .direnv
 .venv
+
 .npm
 
 cookies.txt
+
+# Dolt database directory
+dolt/
+
+!backend/full-data.csv

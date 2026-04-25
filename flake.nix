@@ -26,6 +26,7 @@
             pkgs.sqlite
             pkgs.sqlitebrowser
             pkgs.deno
+            pkgs.dolt
           ];
         };
       }

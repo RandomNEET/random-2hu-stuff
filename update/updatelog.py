@@ -20,6 +20,7 @@ import argparse
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 from datetime import datetime
 
@@ -107,7 +108,24 @@ def update_content_log(content_log_path, stats):
         print(f"Error updating content.log: {e}")
 
 
-def generate_update_entry(author_diff, video_diff, translated_diff):
+def get_dolt_commit(dolt_dir):
+    """Get the latest dolt commit hash from the dolt directory"""
+    try:
+        result = subprocess.run(
+            ["dolt", "log", "--oneline", "-1"],
+            cwd=dolt_dir,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            # Output format: "<hash> <message>"
+            return result.stdout.strip().split()[0]
+    except Exception as e:
+        print(f"Warning: could not get dolt commit hash: {e}")
+    return None
+
+
+def generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit=None):
     """Generate the update entry HTML"""
     today = datetime.now().strftime("%Y.%m.%d")
 
@@ -134,12 +152,19 @@ def generate_update_entry(author_diff, video_diff, translated_diff):
     if not content_items:
         return None
 
+    dolt_url = (
+        f"https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/{dolt_commit}"
+        if dolt_commit
+        else "https://www.dolthub.com/repositories/randomneet/random-2hu-stuff"
+    )
+
     # Generate the HTML structure
     html = f"""          <div class="update-item">
             <div class="update-date">{today}</div>
             <div class="update-content">
               <ul>
                 <li>{content_items[0]}</li>
+                <li>数据库详细更新内容: <a href="{dolt_url}" target="_blank" rel="noopener noreferrer">查看详情</a></li>
               </ul>
             </div>
           </div>
@@ -199,6 +224,7 @@ def main():
     db_path = os.path.join(script_dir, args.db_path)
     content_log_path = os.path.join(script_dir, "content.log")
     vue_file_path = os.path.join(script_dir, "../frontend/src/views/AnnounceView.vue")
+    dolt_dir = os.path.join(script_dir, "../dolt")
 
     # Check if database exists
     if not os.path.exists(db_path):
@@ -248,8 +274,15 @@ def main():
             print("No positive changes detected. No update entry needed.")
             return
 
+        # Get latest dolt commit for the changelog link
+        dolt_commit = get_dolt_commit(dolt_dir)
+        if dolt_commit:
+            print(f"Latest dolt commit: {dolt_commit}")
+        else:
+            print("Warning: could not get dolt commit hash, using base repo URL")
+
         # Generate update entry
-        update_entry = generate_update_entry(author_diff, video_diff, translated_diff)
+        update_entry = generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit)
         if not update_entry:
             print("No update entry generated.")
             return
