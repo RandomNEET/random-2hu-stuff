@@ -1,2 +1,0 @@
-requests
-yt_dlp

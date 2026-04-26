@@ -26,6 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 
+.env
+
 .direnv
 .venv
 
@@ -33,7 +35,6 @@ dist-ssr
 
 cookies.txt
 
-# Dolt database directory
 dolt/
 
 !backend/full-data.csv

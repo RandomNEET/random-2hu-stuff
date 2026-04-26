@@ -28,6 +28,9 @@
             pkgs.deno
             pkgs.dolt
           ];
+          shellHook = ''
+            export PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+          '';
         };
       }
     );
