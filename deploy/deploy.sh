@@ -5,15 +5,23 @@
 
 set -e # Exit immediately on any error
 
-# Configuration variables
-PROJECT_ROOT="/root/random-2hu-stuff"
+# Load project root .env if present
+_ENV_FILE="${PROJECT_ROOT:-/root/random-2hu-stuff}/.env"
+if [[ -f "$_ENV_FILE" ]]; then
+  # shellcheck disable=SC1091
+  set -a; source "$_ENV_FILE"; set +a
+fi
+
+# Configuration variables (with defaults)
+PROJECT_ROOT="${PROJECT_ROOT:-/root/random-2hu-stuff}"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 DEPLOY_DIR="$PROJECT_ROOT/deploy"
-DEPLOY_TARGET="/var/www/random-2hu-stuff"
+DEPLOY_TARGET="${DEPLOY_TARGET:-/var/www/random-2hu-stuff}"
 NGINX_CONFIG="/etc/nginx/sites-available/random-2hu-stuff"
 NGINX_ENABLED="/etc/nginx/sites-enabled/random-2hu-stuff"
-PM2_APP_NAME="random-2hu-stuff-backend"
+PM2_APP_NAME="${PM2_APP_NAME:-random-2hu-stuff-backend}"
+FRONTEND_URL="${FRONTEND_URL:-https://random-2hu-stuff.randomneet.me}"
 
 # Color output configuration
 RED='\033[0;31m'
@@ -297,8 +305,8 @@ main() {
   show_status
 
   log_success "Deployment completed!"
-  log_info "Frontend URL: https://random-2hu-stuff.randomneet.me"
-  log_info "Backend API: https://random-2hu-stuff.randomneet.me/api"
+  log_info "Frontend URL: $FRONTEND_URL"
+  log_info "Backend API: $FRONTEND_URL/api"
 }
 
 # Handle command line arguments

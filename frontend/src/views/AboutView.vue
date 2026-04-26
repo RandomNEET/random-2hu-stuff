@@ -14,10 +14,10 @@
           <h2 class="section-title">简介</h2>
         </div>
         <p class="section-text">
-          本网站主要收录群友推荐的东方相关二创视频，同时整理对应的出处。
+          本网站主要收录群友推荐的东方相关二创视频，同时整理对应的出处
         </p>
         <p class="section-text" style="margin-top: 16px">
-          PS：因为作者头像和视频封面来自原频道，裸连时大部分图片可能无法正常加载，推荐使用代理访问以获得最佳体验
+          因为作者头像和视频封面来自原频道，裸连时大部分图片可能无法正常加载，推荐使用代理访问以获得最佳体验
         </p>
       </div>
 
@@ -27,7 +27,9 @@
           <v-icon class="section-icon">mdi-android</v-icon>
           <h2 class="section-title">APP</h2>
         </div>
-        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+        <div
+          style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap"
+        >
           <p class="section-text" style="font-weight: 500; margin: 0">
             APK下载地址：
           </p>
@@ -60,11 +62,12 @@
           <v-icon class="section-icon">mdi-account-group</v-icon>
           <h2 class="section-title">参与收录整理</h2>
         </div>
-        <p class="section-text">
-          如果你也有想要推荐的作品，欢迎加入一起整理收录！
-        </p>
-        <p class="section-text" style="margin-top: 16px">PS：会复制粘贴就行</p>
-        <div class="group-link" style="margin-top: 20px; text-align: center">
+        <div
+          style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap"
+        >
+          <p class="section-text" style="margin: 0">
+            如果你也有想要推荐的作品，欢迎加入一起整理收录！
+          </p>
           <v-btn
             variant="outlined"
             color="primary"
