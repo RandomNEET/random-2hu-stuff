@@ -199,7 +199,7 @@ def generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit=
             <div class="update-content">
               <ul>
                 <li>{content_items[0]}</li>
-                <li>数据库详细更新内容: <a href="{dolt_url}" target="_blank" rel="noopener noreferrer">查看详情</a></li>
+                <li>本次更新详情: <a href="{dolt_url}" target="_blank" rel="noopener noreferrer">dolt</a></li>
               </ul>
             </div>
           </div>
