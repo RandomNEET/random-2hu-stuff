@@ -16,11 +16,29 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.05.17</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者2位，视频45个，熟肉61个</li>
+                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/ejicr8btfseuic2i98260b3e2o9jsok1" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.05.10</div>
             <div class="update-content">
               <ul>
                 <li>新收录视频61个，熟肉67个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/2ei2g3bl4p4qsi61gv6q0s5s5pq5gsh9" target="_blank" rel="noopener noreferrer">dolt</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/2ei2g3bl4p4qsi61gv6q0s5s5pq5gsh9"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>
@@ -36,7 +54,7 @@
                     href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/pekolcgbl053hf3i0t6805bup0dvb9on"
                     target="_blank"
                     rel="noopener noreferrer"
-                    >dolt</a
+                    >dolthub</a
                   >
                 </li>
               </ul>
@@ -54,7 +72,7 @@
                     href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/uc7pqk7dsd92buuch971j0f3t0l26q9p"
                     target="_blank"
                     rel="noopener noreferrer"
-                    >dolt</a
+                    >dolthub</a
                   >
                 </li>
               </ul>
