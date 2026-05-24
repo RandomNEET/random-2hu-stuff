@@ -185,18 +185,23 @@ const groupVideosByName = (videoList) => {
   return groups;
 };
 
-const groupedSearchedVideos = computed(() => groupVideosByName(searchedVideos.value));
+const groupedSearchedVideos = computed(() =>
+  groupVideosByName(searchedVideos.value),
+);
 
 // Computed property for has results
 const hasResults = computed(() => {
-  if (searchType.value === 'authors') {
+  if (searchType.value === "authors") {
     return filteredAuthors.value.length > 0;
   }
   return searchedVideos.value.length > 0;
 });
 
 // Handle sort change
-const handleSortChange = ({ sortType: newSortType, sortOrder: newSortOrder }) => {
+const handleSortChange = ({
+  sortType: newSortType,
+  sortOrder: newSortOrder,
+}) => {
   sortType.value = newSortType;
   sortOrder.value = newSortOrder;
   saveSortSettings();
@@ -217,8 +222,15 @@ const compareVideoTitles = (titleA, titleB) => {
       }
 
       const chineseNumbers = {
-        一: 1, 二: 2, 三: 3, 四: 4, 五: 5,
-        六: 6, 七: 7, 八: 8, 九: 9,
+        一: 1,
+        二: 2,
+        三: 3,
+        四: 4,
+        五: 5,
+        六: 6,
+        七: 7,
+        八: 8,
+        九: 9,
       };
       const chineseMatch = title.match(/[一二三四五六七八九]/);
       if (chineseMatch) {

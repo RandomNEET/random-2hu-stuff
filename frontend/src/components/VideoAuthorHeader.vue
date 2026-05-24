@@ -14,24 +14,28 @@
     </div>
     <div class="author-info">
       <h1 class="author-name">{{ displayName }}</h1>
-      <div v-if="author.comment" class="author-comment" v-html="processedComment"></div>
+      <div
+        v-if="author.comment"
+        class="author-comment"
+        v-html="processedComment"
+      ></div>
       <div class="video-count">📊 {{ videoCount }} 个视频</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
   author: {
     type: Object,
-    default: null
+    default: null,
   },
   videoCount: {
     type: Number,
-    default: 0
-  }
+    default: 0,
+  },
 });
 
 const avatarLoaded = ref(false);
@@ -41,39 +45,49 @@ let loadingTimeout = null;
 // Helper function to get display name based on priority
 const displayName = computed(() => {
   if (!props.author) return "Unknown";
-  return props.author.yt_name || props.author.nico_name || props.author.twitter_name || "Unknown";
+  return (
+    props.author.yt_name ||
+    props.author.nico_name ||
+    props.author.twitter_name ||
+    "Unknown"
+  );
 });
 
 // Helper function to get display avatar based on priority
 const displayAvatar = computed(() => {
   if (!props.author) return null;
-  return props.author.nico_avatar || props.author.yt_avatar || props.author.twitter_avatar;
+  return (
+    props.author.nico_avatar ||
+    props.author.yt_avatar ||
+    props.author.twitter_avatar
+  );
 });
 
 // Process comment text to make URLs clickable
 const processedComment = computed(() => {
-  if (!props.author?.comment) return '';
-  
+  if (!props.author?.comment) return "";
+
   // Escape HTML first to prevent XSS
   const escapeHtml = (text) => {
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
   };
-  
+
   // Escape the comment first
   let processedComment = escapeHtml(props.author.comment);
-  
+
   // Regular expression to match URLs (http, https, and domain-only)
-  const urlRegex = /(https?:\/\/[^\s]+|(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?))(?=\s|$|[,.!?;)])/g;
-  
+  const urlRegex =
+    /(https?:\/\/[^\s]+|(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?))(?=\s|$|[,.!?;)])/g;
+
   // Replace URLs with clickable links
   processedComment = processedComment.replace(urlRegex, (url) => {
     // Ensure URL has protocol
-    const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
     return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="comment-link">${url}</a>`;
   });
-  
+
   return processedComment;
 });
 
@@ -133,7 +147,10 @@ onUnmounted(() => {
   border-radius: 50%;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transition: opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    width 0.3s ease,
+    height 0.3s ease;
 }
 
 .author-avatar.avatar-hidden {

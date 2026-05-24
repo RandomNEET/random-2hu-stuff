@@ -6,9 +6,9 @@ Fix video URLs in the database:
 Creates a timestamped backup before making any changes.
 """
 
-import sqlite3
 import re
 import shutil
+import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -20,9 +20,11 @@ def fix_url(url):
     if not url:
         return url
     # Twitter → X
-    url = re.sub(r'https?://(?:www\.)?twitter\.com/', 'https://x.com/', url)
+    url = re.sub(r"https?://(?:www\.)?twitter\.com/", "https://x.com/", url)
     # YouTube Shorts → watch URL (strip extra query params like ?si=...)
-    m = re.search(r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})', url)
+    m = re.search(
+        r"(?:https?://)?(?:www\.)?youtube\.com/shorts/([a-zA-Z0-9_-]{11})", url
+    )
     if m:
         url = f"https://www.youtube.com/watch?v={m.group(1)}"
     return url
@@ -54,7 +56,9 @@ def main():
     for vid_id, url in rows:
         new_url = fix_url(url)
         if new_url != url:
-            cur.execute("UPDATE videos SET original_url = ? WHERE id = ?", (new_url, vid_id))
+            cur.execute(
+                "UPDATE videos SET original_url = ? WHERE id = ?", (new_url, vid_id)
+            )
             print(f"  [{vid_id}] {url}")
             print(f"       → {new_url}")
             updated += 1

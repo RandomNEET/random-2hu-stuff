@@ -7,9 +7,11 @@ set -e # Exit immediately on any error
 
 # Load project root .env if present
 _ENV_FILE="${PROJECT_ROOT:-/root/random-2hu-stuff}/.env"
-if [[ -f "$_ENV_FILE" ]]; then
+if [[ -f $_ENV_FILE ]]; then
   # shellcheck disable=SC1091
-  set -a; source "$_ENV_FILE"; set +a
+  set -a
+  source "$_ENV_FILE"
+  set +a
 fi
 
 # Configuration variables (with defaults)

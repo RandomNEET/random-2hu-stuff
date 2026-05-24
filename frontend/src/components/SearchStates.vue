@@ -25,21 +25,21 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps({
   isLoading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   hasQuery: {
     type: Boolean,
-    default: false
+    default: false,
   },
   hasResults: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 const showNoResults = computed(() => {

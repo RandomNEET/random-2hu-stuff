@@ -5,9 +5,18 @@
     url = "github:numtide/flake-utils";
     inputs.systems.follows = "systems";
   };
+  inputs.treefmt-nix = {
+    url = "github:numtide/treefmt-nix";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs =
-    { nixpkgs, flake-utils, ... }:
+    {
+      nixpkgs,
+      flake-utils,
+      treefmt-nix,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -17,6 +26,16 @@
           ps.yt-dlp
           ps.openpyxl
         ]);
+        fmt = treefmt-nix.lib.evalModule pkgs {
+          projectRootFile = "flake.nix";
+          programs = {
+            nixfmt.enable = true;
+            shfmt.enable = true;
+            isort.enable = true;
+            black.enable = true;
+            prettier.enable = true;
+          };
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -32,6 +51,7 @@
             export PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
           '';
         };
+        formatter = fmt.config.build.wrapper;
       }
     );
 }

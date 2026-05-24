@@ -84,6 +84,10 @@ if __name__ == "__main__":
     # 获取命令行第一个参数作为 CSV 路径
     target_csv = sys.argv[1]
 
-    db_file = str(Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent))) / "backend" / "random-2hu-stuff.db")
+    db_file = str(
+        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
+        / "backend"
+        / "random-2hu-stuff.db"
+    )
 
     update_video_dates_standardized(db_file, target_csv)

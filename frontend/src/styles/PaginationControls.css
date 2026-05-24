@@ -38,19 +38,34 @@
 
 /* Navigation buttons (previous/next) */
 .nav-button {
-  background-color: rgba(49, 50, 68, 0.8) !important; /* Catppuccin Mocha Surface0 with transparency */
+  background-color: rgba(
+    49,
+    50,
+    68,
+    0.8
+  ) !important; /* Catppuccin Mocha Surface0 with transparency */
   color: #cdd6f4 !important; /* Catppuccin Mocha Text */
   border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
 }
 
 .nav-button:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important; /* Light theme color on hover */
+  background-color: rgba(
+    203,
+    166,
+    247,
+    0.2
+  ) !important; /* Light theme color on hover */
   color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
 }
 
 /* Individual page number buttons */
 .page-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important; /* Consistent with nav buttons */
+  background-color: rgba(
+    49,
+    50,
+    68,
+    0.8
+  ) !important; /* Consistent with nav buttons */
   color: #cdd6f4 !important;
   border: 1px solid rgba(203, 166, 247, 0.3) !important;
   min-width: 36px !important; /* Ensure minimum touch target size */
@@ -113,7 +128,12 @@
 
 /* Deep styling for Vuetify input components */
 .page-input :deep(.v-field) {
-  background-color: rgba(49, 50, 68, 0.8) !important; /* Match theme background */
+  background-color: rgba(
+    49,
+    50,
+    68,
+    0.8
+  ) !important; /* Match theme background */
   border-radius: 8px !important;
 }
 

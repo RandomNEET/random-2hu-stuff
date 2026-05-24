@@ -9,9 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}/.env"
 
 # Load .env from project root if present
-if [[ -f "$ENV_FILE" ]]; then
+if [[ -f $ENV_FILE ]]; then
   # shellcheck disable=SC1091
-  set -a; source "$ENV_FILE"; set +a
+  set -a
+  source "$ENV_FILE"
+  set +a
 fi
 
 # Configuration variables
@@ -67,7 +69,7 @@ check_dependencies() {
 # Start ssh-agent and load key (prompts for password once)
 setup_ssh_agent() {
   log_info "Loading SSH key into agent..."
-  eval "$(ssh-agent -s)" > /dev/null
+  eval "$(ssh-agent -s)" >/dev/null
   trap 'ssh-agent -k > /dev/null 2>&1' EXIT
   ssh-add "$SSH_KEY"
   log_success "SSH key loaded"

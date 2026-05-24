@@ -47,19 +47,19 @@
 const props = defineProps({
   sortBy: {
     type: String,
-    required: true
+    required: true,
   },
   sortOrder: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
-const emit = defineEmits(['update:sortBy', 'update:sortOrder', 'sort-change']);
+const emit = defineEmits(["update:sortBy", "update:sortOrder", "sort-change"]);
 
 const handleSortBy = (field) => {
   let newSortOrder = props.sortOrder;
-  
+
   if (props.sortBy === field) {
     // If clicking the same field, toggle sort order
     newSortOrder = props.sortOrder === "asc" ? "desc" : "asc";
@@ -67,14 +67,14 @@ const handleSortBy = (field) => {
     // If clicking different field, use default sort
     newSortOrder = field === "name" ? "asc" : "desc";
   }
-  
-  emit('update:sortBy', field);
-  emit('update:sortOrder', newSortOrder);
-  emit('sort-change', { sortBy: field, sortOrder: newSortOrder });
+
+  emit("update:sortBy", field);
+  emit("update:sortOrder", newSortOrder);
+  emit("sort-change", { sortBy: field, sortOrder: newSortOrder });
 };
 </script>
 
 <style scoped>
 /* Import shared sort styles */
-@import '@/styles/SortControls.css';
+@import "@/styles/SortControls.css";
 </style>

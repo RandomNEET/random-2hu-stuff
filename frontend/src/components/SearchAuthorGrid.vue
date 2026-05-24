@@ -21,8 +21,8 @@
 const props = defineProps({
   authors: {
     type: Array,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const getDisplayName = (author) => {

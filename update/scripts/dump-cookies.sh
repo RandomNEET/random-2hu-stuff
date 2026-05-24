@@ -3,11 +3,11 @@
 OUTPUT="$(cd "$(dirname "$0")" && pwd)/cookies.txt"
 
 {
-	echo '# Netscape HTTP Cookie File' # needed by yt-dlp
+  echo '# Netscape HTTP Cookie File' # needed by yt-dlp
 
-	# There is no attempt to url encode $1, but SQLite already handles
-	# characters like spaces, so only ? % and # should cause issues.
-	sqlite3 -separator '	' "file:${1:-$HOME/.local/share/qutebrowser}/webengine/Cookies?nolock=1" "
+  # There is no attempt to url encode $1, but SQLite already handles
+  # characters like spaces, so only ? % and # should cause issues.
+  sqlite3 -separator '	' "file:${1:-$HOME/.local/share/qutebrowser}/webengine/Cookies?nolock=1" "
 SELECT
     host_key,
     IIF(host_key LIKE '.%', 'TRUE', 'FALSE'),

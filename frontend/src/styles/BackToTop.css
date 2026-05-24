@@ -1,6 +1,10 @@
 /* Back to top button styles */
 .back-to-top-btn {
-  background: linear-gradient(135deg, #cba6f7, #f5c2e7) !important; /* Catppuccin Mocha Mauve to Pink gradient */
+  background: linear-gradient(
+    135deg,
+    #cba6f7,
+    #f5c2e7
+  ) !important; /* Catppuccin Mocha Mauve to Pink gradient */
   color: #1e1e2e !important; /* Dark text for contrast against gradient background */
   box-shadow: 0 4px 16px rgba(203, 166, 247, 0.3) !important; /* Soft shadow with theme color */
   transition: all 0.3s ease !important; /* Smooth transitions for all properties */
@@ -29,7 +33,7 @@
     width: 48px !important; /* Smaller size for mobile */
     height: 48px !important;
   }
-  
+
   .back-to-top-btn .v-icon {
     font-size: 20px !important; /* Smaller icon for mobile */
   }

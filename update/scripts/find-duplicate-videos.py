@@ -15,9 +15,9 @@ def _load_env(env_file):
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#') or '=' not in line:
+                if not line or line.startswith("#") or "=" not in line:
                     continue
-                key, _, val = line.partition('=')
+                key, _, val = line.partition("=")
                 key = key.strip()
                 if key and key not in os.environ:
                     os.environ[key] = val.strip()
@@ -25,9 +25,11 @@ def _load_env(env_file):
         pass
 
 
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(Path(__file__).parent.parent.parent)))
-_load_env(_project_root / '.env')
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(_project_root)))
+_project_root = Path(
+    os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent))
+)
+_load_env(_project_root / ".env")
+_project_root = Path(os.environ.get("PROJECT_ROOT", str(_project_root)))
 
 DB_PATH = _project_root / "backend" / "random-2hu-stuff.db"
 
@@ -80,7 +82,18 @@ def main():
 
         print(f"\n  {author_label}  original_name: 「{orig_name}」")
         for r in rows:
-            vid_id, _, yt_name, nico_name, o_name, o_url, r_name, r_url, date, status = r
+            (
+                vid_id,
+                _,
+                yt_name,
+                nico_name,
+                o_name,
+                o_url,
+                r_name,
+                r_url,
+                date,
+                status,
+            ) = r
             print(f"    id={vid_id}  date={date}  translation_status={status}")
             if o_url:
                 print(f"      original_url : {o_url}")

@@ -18,7 +18,12 @@
 
 /* Individual sort button styling */
 .sort-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important; /* Catppuccin Mocha Surface0 with transparency */
+  background-color: rgba(
+    49,
+    50,
+    68,
+    0.8
+  ) !important; /* Catppuccin Mocha Surface0 with transparency */
   color: #cdd6f4 !important; /* Catppuccin Mocha Text */
   border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
   transition: all 0.3s ease !important; /* Smooth transitions for all properties */
@@ -31,7 +36,12 @@
 
 /* Sort button hover effects */
 .sort-btn:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important; /* Light theme color on hover */
+  background-color: rgba(
+    203,
+    166,
+    247,
+    0.2
+  ) !important; /* Light theme color on hover */
   color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
 }
 
@@ -53,18 +63,18 @@
   .sort-controls {
     padding: 12px 16px 0; /* Reduced padding for mobile */
   }
-  
+
   .sort-buttons {
     gap: 6px; /* Tighter spacing on mobile */
     padding: 6px; /* Smaller container padding */
     border-radius: 10px; /* Slightly smaller border radius */
   }
-  
+
   .sort-btn {
     padding: 0 8px !important; /* Reduced button padding */
     gap: 3px !important; /* Tighter spacing between icon and text */
   }
-  
+
   .sort-btn span {
     font-size: 0.8rem; /* Smaller text for mobile */
   }
@@ -75,18 +85,18 @@
   .sort-controls {
     padding: 10px 12px 0; /* Minimal padding for small screens */
   }
-  
+
   .sort-buttons {
     gap: 4px; /* Minimal spacing between buttons */
     padding: 4px; /* Minimal container padding */
     border-radius: 8px; /* Smaller border radius for compact look */
   }
-  
+
   .sort-btn {
     padding: 0 6px !important; /* Very compact button padding */
     gap: 2px !important; /* Minimal spacing between elements */
   }
-  
+
   .sort-btn span {
     font-size: 0.75rem; /* Smallest readable text size */
   }

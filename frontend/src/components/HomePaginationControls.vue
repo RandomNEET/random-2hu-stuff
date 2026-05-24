@@ -1,5 +1,8 @@
 <template>
-  <div class="pagination-container desktop-only" v-if="totalPages > 1 && !isMobile">
+  <div
+    class="pagination-container desktop-only"
+    v-if="totalPages > 1 && !isMobile"
+  >
     <div class="pagination-wrapper">
       <!-- Previous page button -->
       <v-btn
@@ -15,10 +18,7 @@
       <!-- Page number buttons -->
       <div class="page-numbers">
         <!-- Dynamic page display -->
-        <template
-          v-for="item in pageItems"
-          :key="item.page || item.type"
-        >
+        <template v-for="item in pageItems" :key="item.page || item.type">
           <!-- Regular page number -->
           <v-btn
             v-if="item.type === 'page'"
@@ -76,28 +76,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps({
   currentPage: {
     type: Number,
-    required: true
+    required: true,
   },
   totalPages: {
     type: Number,
-    required: true
+    required: true,
   },
   windowWidth: {
     type: Number,
-    required: true
+    required: true,
   },
   pageInputValue: {
     type: String,
-    default: ''
-  }
+    default: "",
+  },
 });
 
-const emit = defineEmits(['update:currentPage', 'update:pageInput', 'jump-to-page', 'go-to-page']);
+const emit = defineEmits([
+  "update:currentPage",
+  "update:pageInput",
+  "jump-to-page",
+  "go-to-page",
+]);
 
 const isMobile = computed(() => props.windowWidth <= 768);
 
@@ -206,7 +211,7 @@ const pageItems = computed(() => {
 </script>
 
 <style scoped>
-@import '@/styles/PaginationControls.css';
+@import "@/styles/PaginationControls.css";
 
 /* Desktop-only display control */
 .desktop-only {

@@ -7,12 +7,14 @@
       isCentered ? 'centered-column' : '',
       {
         'clickable-column': video.url,
-        'disabled-column': !video.url
-      }
+        'disabled-column': !video.url,
+      },
     ]"
     @click="handleClick"
   >
-    <div :class="columnType === 'original' ? 'original-header' : 'repost-header'">
+    <div
+      :class="columnType === 'original' ? 'original-header' : 'repost-header'"
+    >
       <!-- Video thumbnail -->
       <div
         class="video-thumbnail"
@@ -26,20 +28,34 @@
             color="primary"
             indeterminate
           ></v-progress-circular>
-          <span class="loading-text">{{ isCompact ? '加载中...' : '封面加载中...' }}</span>
+          <span class="loading-text">{{
+            isCompact ? "加载中..." : "封面加载中..."
+          }}</span>
         </div>
         <img
           :src="video.thumbnail"
-          :alt="video.name || (columnType === 'original' ? '原视频' : '转载视频')"
-          :referrerpolicy="needsSpecialAttributes(video.thumbnail) ? 'no-referrer' : null"
-          :crossorigin="needsSpecialAttributes(video.thumbnail) ? 'anonymous' : null"
+          :alt="
+            video.name || (columnType === 'original' ? '原视频' : '转载视频')
+          "
+          :referrerpolicy="
+            needsSpecialAttributes(video.thumbnail) ? 'no-referrer' : null
+          "
+          :crossorigin="
+            needsSpecialAttributes(video.thumbnail) ? 'anonymous' : null
+          "
           @load="handleThumbnailLoad"
           @error="handleThumbnailError"
         />
       </div>
 
-      <component :is="isCompact ? 'h4' : 'h3'" class="video-title" :class="{ 'compact-title': isCompact }">
-        {{ video.name || (columnType === 'original' ? '暂无原视频' : '暂无转载') }}
+      <component
+        :is="isCompact ? 'h4' : 'h3'"
+        class="video-title"
+        :class="{ 'compact-title': isCompact }"
+      >
+        {{
+          video.name || (columnType === "original" ? "暂无原视频" : "暂无转载")
+        }}
       </component>
 
       <!-- Video source (for original videos) -->
@@ -66,33 +82,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps({
   video: {
     type: Object,
-    required: true
+    required: true,
   },
   columnType: {
     type: String,
     required: true,
-    validator: (value) => ['original', 'repost'].includes(value)
+    validator: (value) => ["original", "repost"].includes(value),
   },
   isCompact: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isCentered: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
-const emit = defineEmits(['click']);
+const emit = defineEmits(["click"]);
 
 const handleClick = () => {
   if (props.video.url) {
-    emit('click', props.video.url);
+    emit("click", props.video.url);
   }
 };
 
@@ -104,7 +120,10 @@ const videoSource = computed(() => {
 
   if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
     return { text: "YouTube", class: "source-youtube" };
-  } else if (lowerUrl.includes("nicovideo.jp") || lowerUrl.includes("nico.ms")) {
+  } else if (
+    lowerUrl.includes("nicovideo.jp") ||
+    lowerUrl.includes("nico.ms")
+  ) {
     return { text: "NicoNico", class: "source-niconico" };
   } else if (lowerUrl.includes("bilibili.com")) {
     return { text: "Bilibili", class: "source-bilibili" };
@@ -117,9 +136,11 @@ const videoSource = computed(() => {
 
 // Translation status helpers
 const showTranslationStatus = computed(() => {
-  return props.video.translationStatus !== null &&
-         props.video.translationStatus !== '' &&
-         translationStatusText.value !== '';
+  return (
+    props.video.translationStatus !== null &&
+    props.video.translationStatus !== "" &&
+    translationStatusText.value !== ""
+  );
 });
 
 const translationStatusText = computed(() => {
@@ -165,7 +186,10 @@ const needsSpecialAttributes = (imageUrl) => {
 const handleThumbnailLoad = (event) => {
   event.target.style.opacity = "1";
   const loadingElement = event.target.previousElementSibling;
-  if (loadingElement && loadingElement.classList.contains("thumbnail-loading")) {
+  if (
+    loadingElement &&
+    loadingElement.classList.contains("thumbnail-loading")
+  ) {
     loadingElement.style.display = "none";
   }
 };
@@ -173,7 +197,10 @@ const handleThumbnailLoad = (event) => {
 const handleThumbnailError = (event) => {
   event.target.style.display = "none";
   const loadingElement = event.target.previousElementSibling;
-  if (loadingElement && loadingElement.classList.contains("thumbnail-loading")) {
+  if (
+    loadingElement &&
+    loadingElement.classList.contains("thumbnail-loading")
+  ) {
     loadingElement.innerHTML = '<span class="error-text">封面加载失败</span>';
     loadingElement.style.color = "#f38ba8";
   }

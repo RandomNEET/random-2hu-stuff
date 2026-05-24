@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="card-item"
-    @click="$router.push(`/author/${author.id}`)"
-  >
+  <div class="card-item" @click="$router.push(`/author/${author.id}`)">
     <!-- Avatar as background -->
     <div
       class="avatar-background"
@@ -46,10 +43,7 @@
       </v-btn>
 
       <!-- Show platform-specific buttons when hovering and has multiple URLs -->
-      <div
-        v-if="hasMultipleUrls(author) && isHovered"
-        class="platform-buttons"
-      >
+      <div v-if="hasMultipleUrls(author) && isHovered" class="platform-buttons">
         <v-btn
           v-if="author.yt_url"
           icon
@@ -98,13 +92,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref } from "vue";
 
 const props = defineProps({
   author: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const isHovered = ref(false);

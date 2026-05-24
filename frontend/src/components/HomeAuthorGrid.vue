@@ -9,13 +9,13 @@
 </template>
 
 <script setup>
-import HomeAuthorCard from './HomeAuthorCard.vue';
+import HomeAuthorCard from "./HomeAuthorCard.vue";
 
 const props = defineProps({
   authors: {
     type: Array,
-    required: true
-  }
+    required: true,
+  },
 });
 </script>
 

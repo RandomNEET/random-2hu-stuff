@@ -32,9 +32,9 @@ def _load_env(env_file):
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#') or '=' not in line:
+                if not line or line.startswith("#") or "=" not in line:
                     continue
-                key, _, val = line.partition('=')
+                key, _, val = line.partition("=")
                 key = key.strip()
                 val = val.strip()
                 if key and key not in os.environ:
@@ -45,11 +45,11 @@ def _load_env(env_file):
 
 # Resolve project root and load .env
 _script_dir = Path(__file__).parent
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(_script_dir.parent.parent)))
-_load_env(_project_root / '.env')
+_project_root = Path(os.environ.get("PROJECT_ROOT", str(_script_dir.parent.parent)))
+_load_env(_project_root / ".env")
 # Re-read PROJECT_ROOT in case .env overrides it
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(_project_root)))
-DOLTHUB_REPO = os.environ.get('DOLTHUB_REPO', 'randomneet/random-2hu-stuff')
+_project_root = Path(os.environ.get("PROJECT_ROOT", str(_project_root)))
+DOLTHUB_REPO = os.environ.get("DOLTHUB_REPO", "randomneet/random-2hu-stuff")
 
 
 def create_connection(db_path):
@@ -148,10 +148,11 @@ def get_dolt_commit(dolt_dir):
             return None
         # Strip ANSI escape codes
         import re as _re
-        ansi_escape = _re.compile(r'\x1b\[[0-9;]*m')
+
+        ansi_escape = _re.compile(r"\x1b\[[0-9;]*m")
         today = datetime.now().strftime("%Y%m%d")
         for line in result.stdout.splitlines():
-            line = ansi_escape.sub('', line).strip()
+            line = ansi_escape.sub("", line).strip()
             parts = line.split()
             if len(parts) >= 2 and today in line:
                 return parts[0]
@@ -258,7 +259,9 @@ def main():
     script_dir = str(_script_dir)
     db_path = args.db_path
     content_log_path = os.path.join(script_dir, "content.log")
-    vue_file_path = str(_project_root / "frontend" / "src" / "views" / "AnnounceView.vue")
+    vue_file_path = str(
+        _project_root / "frontend" / "src" / "views" / "AnnounceView.vue"
+    )
     dolt_dir = str(_project_root / "dolt")
 
     # Check if database exists
@@ -317,7 +320,9 @@ def main():
             print("Warning: could not get dolt commit hash, using base repo URL")
 
         # Generate update entry
-        update_entry = generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit)
+        update_entry = generate_update_entry(
+            author_diff, video_diff, translated_diff, dolt_commit
+        )
         if not update_entry:
             print("No update entry generated.")
             return

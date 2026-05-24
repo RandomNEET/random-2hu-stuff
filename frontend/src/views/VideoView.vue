@@ -61,14 +61,14 @@ const itemsPerPage = 20;
 const getSavedSortSettings = () => {
   const urlSortBy = route.query.sortBy;
   const urlSortOrder = route.query.sortOrder;
-  
-  if (urlSortBy && (urlSortBy === 'date' || urlSortBy === 'translation')) {
+
+  if (urlSortBy && (urlSortBy === "date" || urlSortBy === "translation")) {
     return {
       sortBy: urlSortBy,
-      sortOrder: urlSortOrder === 'desc' ? 'desc' : 'asc',
+      sortOrder: urlSortOrder === "desc" ? "desc" : "asc",
     };
   }
-  
+
   try {
     const saved = localStorage.getItem("videoList-sortSettings");
     if (saved) {
@@ -108,20 +108,22 @@ const saveSortSettings = () => {
 // Update URL query parameters
 const updateUrlParams = () => {
   const query = {};
-  
+
   if (currentPage.value > 1) {
     query.page = currentPage.value.toString();
   }
-  
-  if (sortBy.value !== 'translation' || sortOrder.value !== 'asc') {
+
+  if (sortBy.value !== "translation" || sortOrder.value !== "asc") {
     query.sortBy = sortBy.value;
     query.sortOrder = sortOrder.value;
   }
-  
-  router.replace({ 
-    path: route.path,
-    query: query 
-  }).catch(() => {});
+
+  router
+    .replace({
+      path: route.path,
+      query: query,
+    })
+    .catch(() => {});
 };
 
 // Handle sort change from VideoSortControls component
@@ -151,8 +153,15 @@ const compareVideoTitles = (titleA, titleB) => {
       }
 
       const chineseNumbers = {
-        一: 1, 二: 2, 三: 3, 四: 4, 五: 5,
-        六: 6, 七: 7, 八: 8, 九: 9,
+        一: 1,
+        二: 2,
+        三: 3,
+        四: 4,
+        五: 5,
+        六: 6,
+        七: 7,
+        八: 8,
+        九: 9,
       };
       const chineseMatch = title.match(/[一二三四五六七八九]/);
       if (chineseMatch) {
@@ -380,24 +389,28 @@ const jumpToPage = (page) => {
 };
 
 // Listen for URL query changes and sync to local state
-watch(() => route.query, (newQuery) => {
-  const urlPage = parseInt(newQuery.page) || 1;
-  const urlSortBy = newQuery.sortBy || 'translation';
-  const urlSortOrder = newQuery.sortOrder || 'asc';
-  
-  const pageChanged = urlPage !== currentPage.value;
-  const sortChanged = urlSortBy !== sortBy.value || urlSortOrder !== sortOrder.value;
-  
-  if (pageChanged) {
-    currentPage.value = urlPage;
-  }
-  
-  if (sortChanged) {
-    sortBy.value = urlSortBy;
-    sortOrder.value = urlSortOrder;
-    sortVideos(false);
-  }
-});
+watch(
+  () => route.query,
+  (newQuery) => {
+    const urlPage = parseInt(newQuery.page) || 1;
+    const urlSortBy = newQuery.sortBy || "translation";
+    const urlSortOrder = newQuery.sortOrder || "asc";
+
+    const pageChanged = urlPage !== currentPage.value;
+    const sortChanged =
+      urlSortBy !== sortBy.value || urlSortOrder !== sortOrder.value;
+
+    if (pageChanged) {
+      currentPage.value = urlPage;
+    }
+
+    if (sortChanged) {
+      sortBy.value = urlSortBy;
+      sortOrder.value = urlSortOrder;
+      sortVideos(false);
+    }
+  },
+);
 
 // Listen for page changes, scroll to top and update URL
 watch(currentPage, (newPage, oldPage) => {

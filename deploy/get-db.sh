@@ -8,9 +8,11 @@ set -e
 
 # Load project root .env if present
 _ENV_FILE="${PROJECT_ROOT:-/root/random-2hu-stuff}/.env"
-if [[ -f "$_ENV_FILE" ]]; then
+if [[ -f $_ENV_FILE ]]; then
   # shellcheck disable=SC1091
-  set -a; source "$_ENV_FILE"; set +a
+  set -a
+  source "$_ENV_FILE"
+  set +a
 fi
 
 : "${DOLTHUB_REPO:?'DOLTHUB_REPO is not set. Add it to /root/.env'}"
@@ -25,9 +27,9 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
-log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 if ! command -v dolt &>/dev/null; then
   log_error "dolt is not installed. Install with:"
@@ -54,7 +56,7 @@ TABLES=$(dolt sql --result-format=csv -q "SHOW TABLES" | tail -n +2 | tr -d '\r'
 # Export each table to CSV
 for table in $TABLES; do
   log_info "  Exporting table: $table"
-  dolt sql --result-format=csv -q "SELECT * FROM \`$table\`" > "$DOLT_WORK_DIR/${table}.csv"
+  dolt sql --result-format=csv -q "SELECT * FROM \`$table\`" >"$DOLT_WORK_DIR/${table}.csv"
 done
 
 # Use Python to handle CSV → SQLite conversion cleanly

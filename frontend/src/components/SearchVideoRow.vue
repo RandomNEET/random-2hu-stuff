@@ -26,7 +26,7 @@
         :video="{
           name: video.original_name,
           url: video.original_url,
-          thumbnail: video.original_thumbnail
+          thumbnail: video.original_thumbnail,
         }"
         column-type="original"
         @click="openUrl"
@@ -36,7 +36,7 @@
           name: video.repost_name,
           url: video.repost_url,
           thumbnail: video.repost_thumbnail,
-          translationStatus: video.translation_status
+          translationStatus: video.translation_status,
         }"
         column-type="repost"
         @click="openUrl"
@@ -46,24 +46,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import VideoCard from './VideoCard.vue';
+import { computed } from "vue";
+import VideoCard from "./VideoCard.vue";
 
 const props = defineProps({
   video: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 });
 
-const emit = defineEmits(['author-click']);
+const emit = defineEmits(["author-click"]);
 
 const authorName = computed(() => {
-  return props.video.yt_name || props.video.nico_name || props.video.twitter_name || "Unknown";
+  return (
+    props.video.yt_name ||
+    props.video.nico_name ||
+    props.video.twitter_name ||
+    "Unknown"
+  );
 });
 
 const authorAvatar = computed(() => {
-  return props.video.nico_avatar || props.video.yt_avatar || props.video.twitter_avatar;
+  return (
+    props.video.nico_avatar ||
+    props.video.yt_avatar ||
+    props.video.twitter_avatar
+  );
 });
 
 const formatDate = (dateStr) => {
@@ -81,7 +90,7 @@ const formatDate = (dateStr) => {
 };
 
 const handleAuthorClick = () => {
-  emit('author-click', props.video.author_id, authorName.value);
+  emit("author-click", props.video.author_id, authorName.value);
 };
 
 const openUrl = (url) => {

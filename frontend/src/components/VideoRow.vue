@@ -29,7 +29,7 @@
         :video="{
           name: group.videos[0].original_name,
           url: group.videos[0].original_url,
-          thumbnail: group.videos[0].original_thumbnail
+          thumbnail: group.videos[0].original_thumbnail,
         }"
         column-type="original"
         @click="openUrl"
@@ -39,7 +39,7 @@
           name: group.videos[0].repost_name,
           url: group.videos[0].repost_url,
           thumbnail: group.videos[0].repost_thumbnail,
-          translationStatus: group.videos[0].translation_status
+          translationStatus: group.videos[0].translation_status,
         }"
         column-type="repost"
         @click="openUrl"
@@ -55,7 +55,7 @@
         :video="{
           name: group.displayOriginal.original_name,
           url: group.displayOriginal.original_url,
-          thumbnail: group.displayOriginal.original_thumbnail
+          thumbnail: group.displayOriginal.original_thumbnail,
         }"
         column-type="original"
         is-centered
@@ -71,7 +71,7 @@
               name: video.repost_name,
               url: video.repost_url,
               thumbnail: video.repost_thumbnail,
-              translationStatus: video.translation_status
+              translationStatus: video.translation_status,
             }"
             column-type="repost"
             @click="openUrl"
@@ -93,7 +93,7 @@
             :video="{
               name: video.original_name,
               url: video.original_url,
-              thumbnail: video.original_thumbnail
+              thumbnail: video.original_thumbnail,
             }"
             column-type="original"
             @click="openUrl"
@@ -106,7 +106,7 @@
           name: group.displayRepost.repost_name,
           url: group.displayRepost.repost_url,
           thumbnail: group.displayRepost.repost_thumbnail,
-          translationStatus: group.displayRepost.translation_status
+          translationStatus: group.displayRepost.translation_status,
         }"
         column-type="repost"
         is-centered
@@ -117,43 +117,43 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import VideoCard from './VideoCard.vue';
+import { computed } from "vue";
+import VideoCard from "./VideoCard.vue";
 
 const props = defineProps({
   group: {
     type: Object,
-    required: true
+    required: true,
   },
   showAuthor: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
-const emit = defineEmits(['author-click']);
+const emit = defineEmits(["author-click"]);
 
 const primaryVideo = computed(() => {
-  if (props.group.type === 'original_group') return props.group.displayOriginal;
-  if (props.group.type === 'repost_group') return props.group.displayRepost;
+  if (props.group.type === "original_group") return props.group.displayOriginal;
+  if (props.group.type === "repost_group") return props.group.displayRepost;
   return props.group.videos[0];
 });
 
 const authorName = computed(() => {
   const v = primaryVideo.value;
-  if (!v) return '';
-  return v.yt_name || v.nico_name || v.twitter_name || 'Unknown';
+  if (!v) return "";
+  return v.yt_name || v.nico_name || v.twitter_name || "Unknown";
 });
 
 const authorAvatar = computed(() => {
   const v = primaryVideo.value;
-  if (!v) return '';
-  return v.nico_avatar || v.yt_avatar || v.twitter_avatar || '';
+  if (!v) return "";
+  return v.nico_avatar || v.yt_avatar || v.twitter_avatar || "";
 });
 
 const handleAuthorClick = () => {
   const v = primaryVideo.value;
-  if (v) emit('author-click', v.author_id, authorName.value);
+  if (v) emit("author-click", v.author_id, authorName.value);
 };
 
 const formatDate = (dateStr) => {

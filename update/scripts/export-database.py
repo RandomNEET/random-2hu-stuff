@@ -65,6 +65,14 @@ def export_full_combined_to_csv(db_path, output_csv):
 
 
 if __name__ == "__main__":
-    _project_root = Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
-    out_file = sys.argv[1] if len(sys.argv) > 1 else str(_project_root / "backend" / "full-data.csv")
-    export_full_combined_to_csv(str(_project_root / "backend" / "random-2hu-stuff.db"), out_file)
+    _project_root = Path(
+        os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent))
+    )
+    out_file = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else str(_project_root / "backend" / "full-data.csv")
+    )
+    export_full_combined_to_csv(
+        str(_project_root / "backend" / "random-2hu-stuff.db"), out_file
+    )

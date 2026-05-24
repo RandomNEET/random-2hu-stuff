@@ -9,8 +9,8 @@ Read-only: does not modify the database.
 
 import os
 import sqlite3
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 
 def _load_env(env_file):
@@ -18,9 +18,9 @@ def _load_env(env_file):
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#') or '=' not in line:
+                if not line or line.startswith("#") or "=" not in line:
                     continue
-                key, _, val = line.partition('=')
+                key, _, val = line.partition("=")
                 key = key.strip()
                 if key and key not in os.environ:
                     os.environ[key] = val.strip()
@@ -28,9 +28,11 @@ def _load_env(env_file):
         pass
 
 
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(Path(__file__).parent.parent.parent)))
-_load_env(_project_root / '.env')
-_project_root = Path(os.environ.get('PROJECT_ROOT', str(_project_root)))
+_project_root = Path(
+    os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent))
+)
+_load_env(_project_root / ".env")
+_project_root = Path(os.environ.get("PROJECT_ROOT", str(_project_root)))
 
 DB_PATH = _project_root / "backend" / "random-2hu-stuff.db"
 
@@ -137,7 +139,9 @@ def main():
 
     print()
     print("=" * 60)
-    print(f"合计: {len(yt_dups)} 组 yt_name 重复 + {len(nico_dups)} 组 nico_name 重复 + {len(cross_dups)} 组跨列重复")
+    print(
+        f"合计: {len(yt_dups)} 组 yt_name 重复 + {len(nico_dups)} 组 nico_name 重复 + {len(cross_dups)} 组跨列重复"
+    )
 
     con.close()
 

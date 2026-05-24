@@ -36,19 +36,19 @@
 const props = defineProps({
   sortBy: {
     type: String,
-    required: true
+    required: true,
   },
   sortOrder: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
-const emit = defineEmits(['update:sortBy', 'update:sortOrder', 'sort-change']);
+const emit = defineEmits(["update:sortBy", "update:sortOrder", "sort-change"]);
 
 const handleSortBy = (type) => {
   let newSortOrder = props.sortOrder;
-  
+
   if (props.sortBy === type) {
     // If clicking the same sort type, toggle sort order
     newSortOrder = props.sortOrder === "asc" ? "desc" : "asc";
@@ -56,14 +56,14 @@ const handleSortBy = (type) => {
     // If clicking different sort type, set new type and reset to ascending
     newSortOrder = "asc";
   }
-  
-  emit('update:sortBy', type);
-  emit('update:sortOrder', newSortOrder);
-  emit('sort-change', { sortBy: type, sortOrder: newSortOrder });
+
+  emit("update:sortBy", type);
+  emit("update:sortOrder", newSortOrder);
+  emit("sort-change", { sortBy: type, sortOrder: newSortOrder });
 };
 </script>
 
 <style scoped>
 /* Import shared sort styles */
-@import '@/styles/SortControls.css';
+@import "@/styles/SortControls.css";
 </style>

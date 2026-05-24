@@ -82,4 +82,11 @@ if __name__ == "__main__":
         print("使用说明: python 脚本名.py <CSV文件路径>")
     else:
         target_csv = sys.argv[1]
-        import_csv_to_sqlite(str(Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent))) / "backend" / "random-2hu-stuff.db"), target_csv)
+        import_csv_to_sqlite(
+            str(
+                Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
+                / "backend"
+                / "random-2hu-stuff.db"
+            ),
+            target_csv,
+        )

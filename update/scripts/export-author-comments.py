@@ -60,4 +60,6 @@ def export_authors_to_xlsx(db_path, output_xlsx):
 
 # --- 执行 ---
 _project_root = Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
-export_authors_to_xlsx(str(_project_root / "backend" / "random-2hu-stuff.db"), "authors-comments.xlsx")
+export_authors_to_xlsx(
+    str(_project_root / "backend" / "random-2hu-stuff.db"), "authors-comments.xlsx"
+)
