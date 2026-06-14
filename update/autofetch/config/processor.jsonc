@@ -1,0 +1,126 @@
+{
+  // ============================================================
+  //  时间范围 —— 决定处理哪些 CSV 文件
+  //  null 或不写      → 从 fetch 配置 (config/fetcher.jsonc) 中读取
+  //  "today"         → 仅日期 = 今天的 CSV
+  //  "all"           → 所有 CSV
+  //  数字 (如 3)      → 最近 N 天的 CSV
+  //  具体日期 "20260614" → 仅该日期的 CSV
+  // ============================================================
+  "time_range": null,
+  // fetch 脚本的配置文件路径（time_range 回退时读取）
+  "fetch_config_path": "config/fetcher.jsonc",
+  // CSV 文件所在目录
+  "csv_dir": "output",
+  // ============================================================
+  //  Cookies 配置 —— yt-dlp 携带 cookies 访问 B 站
+  //  没有 cookies 则 B 站会拒绝返回视频简介！
+  // ============================================================
+  "cookies": {
+    // 是否启用 cookies
+    "enabled": true,
+    // cookies 文件路径（Netscape 格式，与 yt-dlp --cookies 兼容）
+    // 相对路径相对于脚本所在目录
+    "file": "cookies.txt"
+  },
+  // ============================================================
+  //  阶段一：从视频简介中提取原视频链接
+  //  规则按顺序执行，命中即停止
+  // ============================================================
+  "extraction_rules": [
+    {
+      "name": "原视频链接标记",
+      "comment": "匹配「原视频链接：URL」或「原视频链接:URL」",
+      "pattern": "原视频链接[：:]\\s*(https?://[^\\s\n\r]+)",
+      "group": 1
+    },
+    {
+      "name": "原作链接标记",
+      "comment": "匹配「原作链接 URL」",
+      "pattern": "原作链接\\s*(https?://[^\\s\n\r]+)",
+      "group": 1
+    },
+    {
+      "name": "独立行视频URL",
+      "comment": "独立成行的 YouTube / NicoNico 链接",
+      "pattern": "(?:^|\n)\\s*(https?://(?:www\\.)?(?:youtube\\.com/watch\\?v=[\\w-]+|youtu\\.be/[\\w-]+|nicovideo\\.jp/watch/sm\\d+|m\\.youtube\\.com/watch\\?v=[\\w-]+))(?:[?&]\\S*)?\\s*$",
+      "group": 1
+    },
+    {
+      "name": "首个YouTube链接",
+      "comment": "简介中出现的第一个 YouTube 链接",
+      "pattern": "(https?://(?:www\\.|m\\.)?(?:youtube\\.com/watch\\?v=[\\w-]+|youtu\\.be/[\\w-]+))",
+      "group": 1
+    },
+    {
+      "name": "首个NicoNico链接",
+      "comment": "简介中出现的第一个 NicoNico 链接或纯 ID",
+      "pattern": "((?:https?:\\/\\/(?:www\\.)?nicovideo\\.jp\\/watch\\/)?(?:sm|nm|so)\\d+)",
+      "group": 1,
+      "postProcess": "url"
+    },
+    {
+      "name": "首个外部链接",
+      "comment": "兜底：任意 http(s) 链接（排除 bilibili 自身）",
+      "pattern": "(https?://(?!www\\.bilibili\\.com|b23\\.tv)[^\\s\n\r]+)",
+      "group": 1
+    }
+  ],
+  // ============================================================
+  //  原视频链接格式化
+  // ============================================================
+  "link_format": {
+    "remove_params": [
+      "si",
+      "list",
+      "index",
+      "pp",
+      "feature",
+      "t",
+      "start",
+      "ref",
+      "source",
+      "ab_channel",
+      "utm_source",
+      "utm_medium",
+      "utm_campaign"
+    ],
+    "normalize_youtube": true,
+    "normalize_mobile": true,
+    "clean_trailing": true
+  },
+  // ============================================================
+  //  阶段二：从原视频链接获取原作者频道名
+  // ============================================================
+  "author_extraction": {
+    "use_ytdlp": true,
+    "ytdlp_fields": [
+      "channel",
+      "uploader",
+      "creator",
+      "channel_id"
+    ],
+    "fallback_patterns": [
+      {
+        "name": "原作者标记",
+        "pattern": "原作者[：:]\\s*([^\\n\\r]+?)(?:\\s*https?://|$)",
+        "group": 1
+      },
+      {
+        "name": "作者标记",
+        "pattern": "(?:^|\n)\\s*作者[：:]\\s*([^\\n\\r]+?)(?:\\s*https?://|\n|$)",
+        "group": 1
+      },
+      {
+        "name": "YouTube频道标记",
+        "pattern": "原作者主页[：:]\\s*https?://(?:www\\.)?youtube\\.com/@([^\\s\n\r/]+)",
+        "group": 1
+      }
+    ]
+  },
+  // ============================================================
+  //  其他选项
+  // ============================================================
+  "skip_existing": true,
+  "request_delay": 1.0
+}

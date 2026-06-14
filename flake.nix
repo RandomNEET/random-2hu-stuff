@@ -26,6 +26,10 @@
           ps.yt-dlp
           ps.openpyxl
         ]);
+        pyWrapper = pkgs.runCommand "py-wrapper" { } ''
+          mkdir -p $out/bin
+          ln -s ${pythonEnv}/bin/python $out/bin/py
+        '';
         fmt = treefmt-nix.lib.evalModule pkgs {
           projectRootFile = "flake.nix";
           programs = {
@@ -41,6 +45,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             pythonEnv
+            pyWrapper
             pkgs.nodejs
             pkgs.sqlite
             pkgs.sqlitebrowser

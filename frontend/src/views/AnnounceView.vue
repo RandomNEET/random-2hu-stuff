@@ -20,7 +20,15 @@
             <div class="update-content">
               <ul>
                 <li>新收录作者4位，视频85个，熟肉101个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/2cij1gs9r53uft6g7r0kafpacvopc8p1" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/2cij1gs9r53uft6g7r0kafpacvopc8p1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>
@@ -30,7 +38,15 @@
             <div class="update-content">
               <ul>
                 <li>新收录视频4个，熟肉6个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/g3huf3ntpim8dqghsnldtee95e7ru4eo" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/g3huf3ntpim8dqghsnldtee95e7ru4eo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>
@@ -40,7 +56,15 @@
             <div class="update-content">
               <ul>
                 <li>新收录作者4位，视频70个，熟肉77个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/oiiujfeu6v5p9fksb2m2p4g6tmjuo4l1" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/oiiujfeu6v5p9fksb2m2p4g6tmjuo4l1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>

@@ -1,0 +1,16 @@
+{
+  /*
+   * 时间范围 —— 决定处理哪些 CSV 文件。
+   * 可取值：null(回退到fetcher配置)、"today"、"all"、数字(最近N天)、"20260614"
+   */
+  "time_range": null,
+  // 回退的时间范围来源
+  "fetch_config_path": "config/fetcher.jsonc",
+  // CSV 文件所在目录
+  "csv_dir": "output",
+  /*
+   * 腾讯文档配置（隐私部分请在 .env 中填写）
+   */
+  "file_id": "DVW5KdEZmSmxZSXVq", // 腾讯文档的 fileId
+  "sheet_id": "6zzy76" // 子表名称或 sheetId
+}
