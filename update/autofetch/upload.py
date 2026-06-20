@@ -19,8 +19,9 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
+import json5
 import requests
 
 
@@ -51,12 +52,6 @@ OPEN_ID = os.getenv("TENCENT_DOCS_OPEN_ID")
 
 
 # ==================== 2. 配置加载 ====================
-def remove_json_comments(text: str) -> str:
-    text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
-    return text
-
-
 def load_upload_config() -> dict:
     config_file = Path("config/upload.jsonc")
     if not config_file.exists():
@@ -64,18 +59,24 @@ def load_upload_config() -> dict:
         return {}
     with open(config_file, "r", encoding="utf-8") as f:
         raw = f.read()
-    clean = remove_json_comments(raw)
-    return json.loads(clean)
+    cfg: Any = json5.loads(raw)
+    if not isinstance(cfg, dict):
+        raise TypeError(f"配置文件顶层应为对象/字典，实际为 {type(cfg).__name__}")
+    return cfg
 
 
 def load_fetcher_config() -> dict:
-    config_file = Path("config/fetcher_config.jsonc")
+    config_file = Path("config/fetcher.jsonc")
     if not config_file.exists():
         return {}
     with open(config_file, "r", encoding="utf-8") as f:
         raw = f.read()
-    clean = remove_json_comments(raw)
-    return json.loads(clean)
+    cfg: Any = json5.loads(raw)
+    if not isinstance(cfg, dict):
+        raise TypeError(
+            f"fetcher 配置文件顶层应为对象/字典，实际为 {type(cfg).__name__}"
+        )
+    return cfg
 
 
 def get_time_range(cfg_upload: dict) -> str:

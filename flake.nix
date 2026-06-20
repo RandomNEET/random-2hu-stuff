@@ -25,6 +25,7 @@
           ps.requests
           ps.yt-dlp
           ps.openpyxl
+          ps.json5
         ]);
         pyWrapper = pkgs.runCommand "py-wrapper" { } ''
           mkdir -p $out/bin
