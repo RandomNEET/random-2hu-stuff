@@ -194,8 +194,25 @@ def update_thumbnails(
         print("❌ No thumbnail type specified for update")
         return {"processed": 0, "updated": 0, "errors": 0}
 
+    delete_keywords = [
+        "已删除",
+        "删除",
+        "已隐藏",
+        "隐藏",
+        "已失效",
+        "失效",
+        "非公开",
+        "地域限制",
+        "区域限制",
+        "版权限制",
+        "专享",
+        "私享",
+        "无法播放",
+        "无补档",
+    ]
+
     where_clause = " OR ".join(conditions)
-    query = f"SELECT id, original_url, original_thumbnail, repost_url, repost_thumbnail FROM videos WHERE {where_clause}"
+    query = f"SELECT id, original_url, original_thumbnail, repost_url, repost_thumbnail, comment FROM videos WHERE {where_clause}"
 
     if limit:
         query += f" LIMIT {limit}"
@@ -214,8 +231,17 @@ def update_thumbnails(
     }
 
     for video in videos:
-        video_id, original_url, original_thumbnail, repost_url, repost_thumbnail = video
+        (
+            video_id,
+            original_url,
+            original_thumbnail,
+            repost_url,
+            repost_thumbnail,
+            comment,
+        ) = video
         stats["processed"] += 1
+
+        skip_original = comment and any(kw in comment for kw in delete_keywords)
 
         print(f"\nProcessing video ID {video_id} ({stats['processed']}/{len(videos)})")
 
@@ -227,25 +253,30 @@ def update_thumbnails(
             should_update_original = force or not original_thumbnail
 
             if should_update_original:
-                try:
-                    print(f"  Getting original video thumbnail: {original_url}")
-                    new_thumbnail = get_video_thumbnail(
-                        original_url, debug, browser_cookies, cookies_file
+                if skip_original:
+                    print(
+                        f"  ⏭️  Original video skipped: comment contains delete keyword"
                     )
+                else:
+                    try:
+                        print(f"  Getting original video thumbnail: {original_url}")
+                        new_thumbnail = get_video_thumbnail(
+                            original_url, debug, browser_cookies, cookies_file
+                        )
 
-                    if new_thumbnail:
-                        if not dry_run:
-                            updated_fields.append("original_thumbnail = ?")
-                            update_params.append(new_thumbnail)
-                            stats["original_updated"] += 1
+                        if new_thumbnail:
+                            if not dry_run:
+                                updated_fields.append("original_thumbnail = ?")
+                                update_params.append(new_thumbnail)
+                                stats["original_updated"] += 1
 
-                        print(f"  ✅ Original video thumbnail: {new_thumbnail}")
-                    else:
-                        print(f"  ⚠️  Original video thumbnail not obtained")
+                            print(f"  ✅ Original video thumbnail: {new_thumbnail}")
+                        else:
+                            print(f"  ⚠️  Original video thumbnail not obtained")
 
-                except Exception as e:
-                    print(f"  ❌ Original video thumbnail failed: {e}")
-                    stats["errors"] += 1
+                    except Exception as e:
+                        print(f"  ❌ Original video thumbnail failed: {e}")
+                        stats["errors"] += 1
             else:
                 print(f"  ⏭️  Original video already has thumbnail, skipping")
 

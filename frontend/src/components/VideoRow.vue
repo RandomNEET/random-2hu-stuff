@@ -32,6 +32,7 @@
           thumbnail: group.videos[0].original_thumbnail,
         }"
         column-type="original"
+        :comment="group.comment"
         @click="openUrl"
       />
       <VideoCard
@@ -58,6 +59,7 @@
           thumbnail: group.displayOriginal.original_thumbnail,
         }"
         column-type="original"
+        :comment="group.comment"
         is-centered
         @click="openUrl"
       />
@@ -96,6 +98,7 @@
               thumbnail: video.original_thumbnail,
             }"
             column-type="original"
+            :comment="group.comment"
             @click="openUrl"
           />
         </div>

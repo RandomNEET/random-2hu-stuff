@@ -29,6 +29,7 @@
           thumbnail: video.original_thumbnail,
         }"
         column-type="original"
+        :comment="video.comment"
         @click="openUrl"
       />
       <VideoCard

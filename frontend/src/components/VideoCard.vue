@@ -6,8 +6,8 @@
       isCompact ? 'compact-column' : '',
       isCentered ? 'centered-column' : '',
       {
-        'clickable-column': video.url,
-        'disabled-column': !video.url,
+        'clickable-column': effectiveVideo.url,
+        'disabled-column': !effectiveVideo.url,
       },
     ]"
     @click="handleClick"
@@ -19,7 +19,7 @@
       <div
         class="video-thumbnail"
         :class="{ 'compact-thumbnail': isCompact }"
-        v-if="video.thumbnail"
+        v-if="effectiveVideo.thumbnail"
       >
         <div class="thumbnail-loading">
           <v-progress-circular
@@ -33,15 +33,20 @@
           }}</span>
         </div>
         <img
-          :src="video.thumbnail"
+          :src="effectiveVideo.thumbnail"
           :alt="
-            video.name || (columnType === 'original' ? '原视频' : '转载视频')
+            effectiveVideo.name ||
+            (columnType === 'original' ? '原视频' : '转载视频')
           "
           :referrerpolicy="
-            needsSpecialAttributes(video.thumbnail) ? 'no-referrer' : null
+            needsSpecialAttributes(effectiveVideo.thumbnail)
+              ? 'no-referrer'
+              : null
           "
           :crossorigin="
-            needsSpecialAttributes(video.thumbnail) ? 'anonymous' : null
+            needsSpecialAttributes(effectiveVideo.thumbnail)
+              ? 'anonymous'
+              : null
           "
           @load="handleThumbnailLoad"
           @error="handleThumbnailError"
@@ -54,14 +59,15 @@
         :class="{ 'compact-title': isCompact }"
       >
         {{
-          video.name || (columnType === "original" ? "暂无原视频" : "暂无转载")
+          effectiveVideo.name ||
+          (columnType === "original" ? "暂无原视频" : "暂无转载")
         }}
       </component>
 
       <!-- Video source (for original videos) -->
       <div
         class="video-source"
-        v-if="columnType === 'original' && video.url && videoSource"
+        v-if="columnType === 'original' && effectiveVideo.url && videoSource"
       >
         <span :class="videoSource.class">
           {{ videoSource.text }}
@@ -102,21 +108,56 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  comment: {
+    type: String,
+    default: "",
+  },
 });
 
 const emit = defineEmits(["click"]);
 
+const isOriginalDeleted = computed(() => {
+  const deleteKeywords = [
+    "已删除",
+    "删除",
+    "已隐藏",
+    "隐藏",
+    "已失效",
+    "失效",
+    "非公开",
+    "地域限制",
+    "区域限制",
+    "版权限制",
+    "专享",
+    "私享",
+    "无法播放",
+    "无补档",
+  ];
+  return (
+    props.columnType === "original" &&
+    props.comment &&
+    deleteKeywords.some((kw) => props.comment.includes(kw))
+  );
+});
+
+const effectiveVideo = computed(() => ({
+  name: isOriginalDeleted.value ? "" : props.video.name,
+  url: isOriginalDeleted.value ? null : props.video.url,
+  thumbnail: props.video.thumbnail,
+  translationStatus: props.video.translationStatus,
+}));
+
 const handleClick = () => {
-  if (props.video.url) {
+  if (props.video.url && !isOriginalDeleted.value) {
     emit("click", props.video.url);
   }
 };
 
 // Video source helpers
 const videoSource = computed(() => {
-  if (!props.video.url) return null;
+  if (!effectiveVideo.value.url) return null;
 
-  const lowerUrl = props.video.url.toLowerCase();
+  const lowerUrl = effectiveVideo.value.url.toLowerCase();
 
   if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
     return { text: "YouTube", class: "source-youtube" };
@@ -137,14 +178,14 @@ const videoSource = computed(() => {
 // Translation status helpers
 const showTranslationStatus = computed(() => {
   return (
-    props.video.translationStatus !== null &&
-    props.video.translationStatus !== "" &&
+    effectiveVideo.value.translationStatus !== null &&
+    effectiveVideo.value.translationStatus !== "" &&
     translationStatusText.value !== ""
   );
 });
 
 const translationStatusText = computed(() => {
-  switch (props.video.translationStatus) {
+  switch (effectiveVideo.value.translationStatus) {
     case 1:
       return "中文内嵌";
     case 2:
@@ -161,7 +202,7 @@ const translationStatusText = computed(() => {
 });
 
 const translationStatusClass = computed(() => {
-  switch (props.video.translationStatus) {
+  switch (effectiveVideo.value.translationStatus) {
     case 1:
     case 2:
     case 4:
