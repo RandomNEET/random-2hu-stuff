@@ -4,6 +4,7 @@
   // ========== 时间范围 ==========
   // "today" | "all" | 数字(最近N天)
   "time_range": "today",
+  // "time_range": 2,
   // ========== 全局默认翻译状态配置 ==========
   // 数字 1~5 固定值，或 "auto" 启用关键字匹配
   "default_translation_status": "auto",
