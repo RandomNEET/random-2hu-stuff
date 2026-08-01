@@ -16,11 +16,38 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.08.01</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者32位，视频85个，熟肉42个</li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/3jac20m33rp0ud926dv4bn303qgdcotr"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
+                <li>网站成功存活一年,可喜可贺</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.07.26</div>
             <div class="update-content">
               <ul>
                 <li>新收录作者3位，视频120个，熟肉66个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/qrp4gcba4b43ndjikbqrbgqg24pnoc3b" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/qrp4gcba4b43ndjikbqrbgqg24pnoc3b"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>
@@ -30,7 +57,15 @@
             <div class="update-content">
               <ul>
                 <li>新收录作者3位，视频54个，熟肉60个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/ndgmcggj48erprkll0vhcfsgto0u8j5q" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/ndgmcggj48erprkll0vhcfsgto0u8j5q"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>
