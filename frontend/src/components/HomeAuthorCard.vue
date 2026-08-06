@@ -1,5 +1,5 @@
 <template>
-  <div class="card-item" @click="$router.push(`/author/${author.id}`)">
+  <a class="card-item" :href="'/author/' + author.id" target="_blank">
     <!-- Avatar as background -->
     <div
       class="avatar-background"
@@ -88,11 +88,12 @@
 
     <!-- Video count in bottom-right corner -->
     <div class="works">📊 {{ author.worksCount }} 视频</div>
-  </div>
+  </a>
 </template>
 
 <script setup>
 import { ref } from "vue";
+
 
 const props = defineProps({
   author: {
@@ -165,6 +166,9 @@ const openUrl = (url) => {
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  display: block;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   /* Default background for cards without avatar */
   background: linear-gradient(

@@ -1,19 +1,24 @@
 <template>
   <div class="authors-grid">
-    <v-card
+    <a
       v-for="author in authors"
       :key="author.id"
-      class="author-card"
-      elevation="3"
-      hover
-      @click="$router.push(`/author/${author.id}`)"
+      :href="'/author/' + author.id"
+      target="_blank"
+      class="author-link"
     >
+      <v-card
+        class="author-card"
+        elevation="3"
+        hover
+      >
       <v-img :src="getDisplayAvatar(author)" class="author-avatar" />
       <div class="author-info">
         <div class="author-name">{{ getDisplayName(author) }}</div>
         <div class="author-works">视频数：{{ author.worksCount }}</div>
       </div>
     </v-card>
+    </a>
   </div>
 </template>
 
@@ -41,6 +46,12 @@ const getDisplayAvatar = (author) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px;
+}
+
+.author-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 
 .author-card {

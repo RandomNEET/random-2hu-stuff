@@ -570,7 +570,8 @@ const performSearch = (query) => {
 
 // Navigate to author page
 const goToAuthor = (authorId, authorName) => {
-  router.push(`/author/${authorId}`);
+  const url = router.resolve(`/author/${authorId}`).href;
+  window.open(url, "_blank");
 };
 
 onMounted(() => {
