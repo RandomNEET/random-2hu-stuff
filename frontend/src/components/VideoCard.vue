@@ -257,6 +257,7 @@ const handleThumbnailError = (event) => {
   padding: 16px;
   border: 1px solid #585b70;
   transition: all 0.3s ease;
+  min-width: 0; /* Prevent grid item from overflowing its column */
 }
 
 /* Compact column styles for grouped items */
@@ -382,6 +383,8 @@ const handleThumbnailError = (event) => {
   color: #cdd6f4; /* Catppuccin Mocha Text */
   line-height: 1.4;
   transition: all 0.2s ease;
+  overflow-wrap: break-word; /* Break long URLs/unbroken strings */
+  word-break: break-word;
 }
 
 .compact-title {
