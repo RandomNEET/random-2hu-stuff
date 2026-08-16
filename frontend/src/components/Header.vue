@@ -518,11 +518,9 @@ const performSearch = () => {
 
   console.log("Final search query:", query); // 调试信息
 
-  // Navigate to search page with query parameters
-  router.push({
-    path: "/search",
-    query,
-  });
+  // Open search results in a new tab
+  const url = router.resolve({ path: "/search", query }).href;
+  window.open(url, "_blank");
 
   // Close panel
   showSearchPanel.value = false;
@@ -558,11 +556,9 @@ const handleMobileSearch = () => {
     }
   }
 
-  // Navigate to search page
-  router.push({
-    path: "/search",
-    query,
-  });
+  // Open search results in a new tab
+  const url = router.resolve({ path: "/search", query }).href;
+  window.open(url, "_blank");
 
   // Close mobile search
   showMobileSearch.value = false;
