@@ -8,9 +8,10 @@ Database Structure:
 - Authors table now has separate fields for different platforms:
   * yt_name, yt_url, yt_avatar (YouTube)
   * nico_name, nico_url, nico_avatar (NicoNico)
+  * twitter_name, twitter_url, twitter_avatar (Twitter/X)
 - Priority rules:
-  * name and url: YouTube first, then NicoNico
-  * avatar: NicoNico first, then YouTube
+  * name and url: YouTube first, then NicoNico, then Twitter
+  * avatar: NicoNico first, then YouTube, then Twitter
 
 Usage:
 python3 update_author_info.py
@@ -47,10 +48,80 @@ def create_connection(db_path):
         return None
 
 
+def _fxtwitter_request(screen_name):
+    """Fetch user info from fxtwitter API, trying requests first, then system curl"""
+    import json
+
+    url = f"https://api.fxtwitter.com/{screen_name}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    try:
+        import requests
+
+        resp = requests.get(url, timeout=10, headers=headers)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["curl", "-sS", "--max-time", "15", "-A", "Mozilla/5.0", url],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return json.loads(out.stdout)
+    except Exception:
+        pass
+
+    return None
+
+
 def get_author_info_from_url(author_url, debug=False):
     """Get author info (name and avatar) from author URL"""
     if not author_url:
         return None, None
+
+    # Twitter/X user page (use fxtwitter API since yt-dlp has no Twitter user extractor)
+    if "twitter.com" in author_url or "x.com" in author_url:
+        try:
+            import re
+
+            match = re.search(r"(?:twitter\.com|x\.com)/([A-Za-z0-9_]+)", author_url)
+            if not match:
+                return None, None
+            screen_name = match.group(1)
+            if screen_name in ("i", "status", "intent", "search", "share", "home"):
+                return None, None
+
+            data = _fxtwitter_request(screen_name)
+            if not data:
+                return None, None
+
+            user = data.get("user") or {}
+            author_name = user.get("name")
+            avatar = user.get("avatar_url")
+            if avatar:
+                # Use 200x200 like other records in database
+                avatar = avatar.replace("_normal.jpg", "_200x200.jpg")
+
+            if debug:
+                if author_name:
+                    print(f"  Got author name: {author_name}")
+                if avatar:
+                    print(f"  Got avatar: {avatar}")
+                if not author_name and not avatar:
+                    print(f"  No author info found")
+
+            return author_name, avatar
+        except Exception as e:
+            if debug:
+                print(f"  Failed to get author info: {e}")
+            return None, None
 
     try:
         options = {
@@ -262,10 +333,10 @@ def get_authors_to_update(
         # Update author with specified ID
         cursor.execute(
             """SELECT id, 
-                                 COALESCE(yt_name, nico_name) as name, 
-                                 COALESCE(yt_url, nico_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
+                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
                           FROM authors WHERE id = ?""",
             (author_id,),
         )
@@ -273,11 +344,11 @@ def get_authors_to_update(
         # Update author with specified name
         cursor.execute(
             """SELECT id, 
-                                 COALESCE(yt_name, nico_name) as name, 
-                                 COALESCE(yt_url, nico_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
-                          FROM authors WHERE COALESCE(yt_name, nico_name) = ?""",
+                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
+                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
+                          FROM authors WHERE COALESCE(yt_name, nico_name, twitter_name) = ?""",
             (author_name,),
         )
     elif author_id_after is not None:
@@ -285,90 +356,90 @@ def get_authors_to_update(
         if force:
             cursor.execute(
                 """SELECT id, 
-                                     COALESCE(yt_name, nico_name) as name, 
-                                     COALESCE(yt_url, nico_url) as url, 
-                                     COALESCE(nico_avatar, yt_avatar) as avatar,
-                                     yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
-                              FROM authors WHERE id > ? AND (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '') ORDER BY id""",
+                                     COALESCE(yt_name, nico_name, twitter_name) as name, 
+                                     COALESCE(yt_url, nico_url, twitter_url) as url, 
+                                     COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                                     yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
+                              FROM authors WHERE id > ? AND (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '') ORDER BY id""",
                 (author_id_after,),
             )
         else:
             # Build query conditions based on update options
             conditions = [
                 f"id > {author_id_after}",
-                "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '')",
+                "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '')",
             ]
 
             if update_names and update_avatars:
                 # Update authors missing any platform-specific name or avatar
                 conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')))"
+                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '' OR twitter_avatar IS NULL OR twitter_avatar = '')))"
                 )
             elif update_names:
                 # Update authors missing platform-specific names
                 conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')))"
+                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '')))"
                 )
             elif update_avatars:
                 # Update authors missing platform-specific avatars
                 conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))"
+                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
                 )
             else:
                 # Default behavior: update authors missing platform-specific avatars
                 conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))"
+                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
                 )
 
             query = f"""SELECT id, 
-                               COALESCE(yt_name, nico_name) as name, 
-                               COALESCE(yt_url, nico_url) as url, 
-                               COALESCE(nico_avatar, yt_avatar) as avatar,
-                               yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                               COALESCE(yt_name, nico_name, twitter_name) as name, 
+                               COALESCE(yt_url, nico_url, twitter_url) as url, 
+                               COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                               yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
                         FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
             cursor.execute(query)
     elif force:
         # Force update all authors with URLs
         cursor.execute(
             """SELECT id, 
-                                 COALESCE(yt_name, nico_name) as name, 
-                                 COALESCE(yt_url, nico_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
-                          FROM authors WHERE (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '') ORDER BY id"""
+                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
+                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
+                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
+                          FROM authors WHERE (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '') ORDER BY id"""
         )
     else:
         # Build query conditions based on update options
         conditions = [
-            "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '')"
+            "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '')"
         ]
 
         if update_names and update_avatars:
             # Update authors missing any platform-specific name or avatar
             conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')))"
+                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '' OR twitter_avatar IS NULL OR twitter_avatar = '')))"
             )
         elif update_names:
             # Update authors missing platform-specific names
             conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')))"
+                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '')))"
             )
         elif update_avatars:
             # Update authors missing platform-specific avatars
             conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))"
+                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
             )
         else:
             # Default behavior: update authors missing platform-specific avatars
             conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')))"
+                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
             )
 
         query = f"""SELECT id, 
-                           COALESCE(yt_name, nico_name) as name, 
-                           COALESCE(yt_url, nico_url) as url, 
-                           COALESCE(nico_avatar, yt_avatar) as avatar,
-                           yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar 
+                           COALESCE(yt_name, nico_name, twitter_name) as name, 
+                           COALESCE(yt_url, nico_url, twitter_url) as url, 
+                           COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
+                           yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
                     FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
         cursor.execute(query)
 
@@ -454,6 +525,30 @@ def update_author_info(
                         print(f"  Updated Bilibili name: {author_name}")
                     elif avatar_url:
                         print(f"  Updated Bilibili avatar: {avatar_url}")
+
+        elif "twitter.com" in author_url or "x.com" in author_url:
+            # Twitter/X source - update twitter_* fields
+            updates = []
+            params = []
+
+            if author_name:
+                updates.append("twitter_name = ?")
+                params.append(author_name)
+            if avatar_url:
+                updates.append("twitter_avatar = ?")
+                params.append(avatar_url)
+
+            if updates:
+                params.append(author_id)
+                query = f"UPDATE authors SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                if debug:
+                    if author_name and avatar_url:
+                        print(f"  Updated Twitter name and avatar")
+                    elif author_name:
+                        print(f"  Updated Twitter name: {author_name}")
+                    elif avatar_url:
+                        print(f"  Updated Twitter avatar: {avatar_url}")
         else:
             if debug:
                 print(f"  Unknown URL source: {author_url}")
@@ -512,13 +607,26 @@ def process_authors(
     for i, row in enumerate(authors, 1):
         # Unpack the row - now includes all the individual fields
         author_id, name, url, current_avatar = row[0], row[1], row[2], row[3]
-        yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar = (
+        (
+            yt_name,
+            yt_url,
+            yt_avatar,
+            nico_name,
+            nico_url,
+            nico_avatar,
+            twitter_name,
+            twitter_url,
+            twitter_avatar,
+        ) = (
             row[4],
             row[5],
             row[6],
             row[7],
             row[8],
             row[9],
+            row[10],
+            row[11],
+            row[12],
         )
 
         print(
@@ -627,13 +735,68 @@ def process_authors(
             else:
                 print(f"  - Skipped NicoNico: Already has complete info")
 
+        # Process Twitter URL if exists
+        twitter_updated = False
+        if twitter_url:
+            print(f"  Twitter URL: {twitter_url}")
+
+            # Check if should skip based on existing data
+            skip_twitter_name = update_names and twitter_name and not force
+            skip_twitter_avatar = update_avatars and twitter_avatar and not force
+
+            if not (skip_twitter_name and skip_twitter_avatar):
+                try:
+                    fetched_name, fetched_avatar = get_author_info_from_url(
+                        twitter_url, debug
+                    )
+
+                    # Determine what info to update for Twitter
+                    update_twitter_name = None
+                    update_twitter_avatar = None
+
+                    if update_names and fetched_name and (not twitter_name or force):
+                        update_twitter_name = fetched_name
+
+                    if (
+                        update_avatars
+                        and fetched_avatar
+                        and (not twitter_avatar or force)
+                    ):
+                        update_twitter_avatar = fetched_avatar
+
+                    if update_twitter_name or update_twitter_avatar:
+                        if update_author_info(
+                            conn,
+                            author_id,
+                            twitter_url,
+                            update_twitter_name,
+                            update_twitter_avatar,
+                            debug,
+                        ):
+                            success_msg = "  ✓ Twitter update successful:"
+                            if update_twitter_name:
+                                success_msg += f" Name: {update_twitter_name}"
+                            if update_twitter_avatar:
+                                success_msg += f" Avatar: {update_twitter_avatar}"
+                            print(success_msg)
+                            twitter_updated = True
+                        else:
+                            print(f"  ✗ Twitter database update failed")
+                    else:
+                        print(f"  - No updatable Twitter info found")
+
+                except Exception as e:
+                    print(f"  ✗ Twitter processing failed: {e}")
+            else:
+                print(f"  - Skipped Twitter: Already has complete info")
+
         # Check if no URLs available
-        if not yt_url and not nico_url:
+        if not yt_url and not nico_url and not twitter_url:
             print("  Skipped: No author URLs")
             stats["skipped"] += 1
-        elif yt_updated or nico_updated:
+        elif yt_updated or nico_updated or twitter_updated:
             stats["updated"] += 1
-        elif not yt_url and not nico_url:
+        elif not yt_url and not nico_url and not twitter_url:
             stats["skipped"] += 1
         else:
             stats["failed"] += 1

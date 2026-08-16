@@ -77,7 +77,9 @@
       <!-- Translation status (for repost videos) -->
       <div
         class="translation-status"
-        v-if="columnType === 'repost' && (isRepostDead || showTranslationStatus)"
+        v-if="
+          columnType === 'repost' && (isRepostDead || showTranslationStatus)
+        "
       >
         <span :class="isRepostDead ? 'status-none' : translationStatusClass">
           {{ isRepostDead ? "转载失效" : translationStatusText }}

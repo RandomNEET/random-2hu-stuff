@@ -16,11 +16,37 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.08.16</div>
+            <div class="update-content">
+              <ul>
+                <li>新收录作者24位，视频185个，熟肉35个</li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/7g6o2mik08h7q7d43v7e3f04n786nn8v"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.08.09</div>
             <div class="update-content">
               <ul>
                 <li>新收录作者5位，视频226个，熟肉110个</li>
-                <li>本次更新详情: <a href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/0mepj8ej33f66pdna8rnjpr78maekuao" target="_blank" rel="noopener noreferrer">dolthub</a></li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/0mepj8ej33f66pdna8rnjpr78maekuao"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
               </ul>
             </div>
           </div>

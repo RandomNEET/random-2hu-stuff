@@ -19,7 +19,9 @@ from pathlib import Path
 
 import requests
 
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "backend" / "random-2hu-stuff.db"
+DB_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "backend" / "random-2hu-stuff.db"
+)
 LOG_DIR = Path(__file__).resolve().parent
 
 API_UA = "Mozilla/5.0 (compatible; check-repost-urls/1.0)"
@@ -65,7 +67,9 @@ def main():
     parser.add_argument("--from-id", type=int, default=None)
     parser.add_argument("--to-id", type=int, default=None)
     parser.add_argument(
-        "--output", "-o", default=None,
+        "--output",
+        "-o",
+        default=None,
         help="Output CSV path (default: check-repost-urls_TIMESTAMP.csv)",
     )
     args = parser.parse_args()
@@ -116,15 +120,19 @@ def main():
             print(f"\r  [{idx}/{n}]  OK: {ok}  Bad: {bad}", end="", flush=True)
         else:
             bad += 1
-            print(f"\r  [{idx}/{n}]  OK: {ok}  Bad: {bad}  ✗ [{vid_id}] {title or '(no title)'}")
+            print(
+                f"\r  [{idx}/{n}]  OK: {ok}  Bad: {bad}  ✗ [{vid_id}] {title or '(no title)'}"
+            )
             print(f"           {url}")
             print(f"           -> {msg}")
-            bad_rows.append({
-                "id": vid_id,
-                "title": title or "",
-                "repost_url": url,
-                "error": msg,
-            })
+            bad_rows.append(
+                {
+                    "id": vid_id,
+                    "title": title or "",
+                    "repost_url": url,
+                    "error": msg,
+                }
+            )
         time.sleep(0.25)
 
     print(f"\n\nDone.  OK: {ok},  Bad: {bad}")
@@ -133,7 +141,9 @@ def main():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_path = args.output or str(LOG_DIR / f"check-repost-urls_{timestamp}.csv")
         with open(log_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["id", "title", "repost_url", "error"])
+            writer = csv.DictWriter(
+                f, fieldnames=["id", "title", "repost_url", "error"]
+            )
             writer.writeheader()
             writer.writerows(bad_rows)
         print(f"Results written: {log_path}")

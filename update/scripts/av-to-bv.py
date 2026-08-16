@@ -21,7 +21,9 @@ from pathlib import Path
 
 import requests
 
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "backend" / "random-2hu-stuff.db"
+DB_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "backend" / "random-2hu-stuff.db"
+)
 
 TABLE = "fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF"
 S = [11, 10, 3, 8, 4, 6]
@@ -35,7 +37,7 @@ def av_to_bv_xor(av: int) -> str:
     num = (av ^ XOR) + ADD
     bv = ["B", "V", "1", "", "", "4", "", "1", "", "7", "", ""]
     for i in range(6):
-        bv[S[i]] = TABLE[num // 58 ** i % 58]
+        bv[S[i]] = TABLE[num // 58**i % 58]
     return "".join(bv)
 
 
@@ -115,14 +117,24 @@ def main():
         bv = av_to_bv_api(av)
         if bv:
             api_ok += 1
-            print(f"\r  [{idx+1}/{n}]  API:{api_ok}  XOR_fallback:{xor_fallback}", end="", flush=True)
+            print(
+                f"\r  [{idx+1}/{n}]  API:{api_ok}  XOR_fallback:{xor_fallback}",
+                end="",
+                flush=True,
+            )
         else:
             xv = av_to_bv_xor(av)
             xor_fallback += 1
             bv = xv
-            print(f"\r  [{idx+1}/{n}]  API:{api_ok}  XOR_fallback:{xor_fallback}  ✗ [{vid_id}] av{av} API failed, using XOR: {xv}")
+            print(
+                f"\r  [{idx+1}/{n}]  API:{api_ok}  XOR_fallback:{xor_fallback}  ✗ [{vid_id}] av{av} API failed, using XOR: {xv}"
+            )
 
-        new_url = f"{prefix}{bv}{'/' if suffix else ''}{suffix}" if suffix else f"{prefix}{bv}"
+        new_url = (
+            f"{prefix}{bv}{'/' if suffix else ''}{suffix}"
+            if suffix
+            else f"{prefix}{bv}"
+        )
         if new_url != url:
             to_update.append((vid_id, url, new_url))
 

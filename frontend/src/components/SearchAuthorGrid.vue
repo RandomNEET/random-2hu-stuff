@@ -7,17 +7,13 @@
       target="_blank"
       class="author-link"
     >
-      <v-card
-        class="author-card"
-        elevation="3"
-        hover
-      >
-      <v-img :src="getDisplayAvatar(author)" class="author-avatar" />
-      <div class="author-info">
-        <div class="author-name">{{ getDisplayName(author) }}</div>
-        <div class="author-works">视频数：{{ author.worksCount }}</div>
-      </div>
-    </v-card>
+      <v-card class="author-card" elevation="3" hover>
+        <v-img :src="getDisplayAvatar(author)" class="author-avatar" />
+        <div class="author-info">
+          <div class="author-name">{{ getDisplayName(author) }}</div>
+          <div class="author-works">视频数：{{ author.worksCount }}</div>
+        </div>
+      </v-card>
     </a>
   </div>
 </template>

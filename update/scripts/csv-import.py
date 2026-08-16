@@ -113,6 +113,61 @@ def clean_bilibili_url(url):
         return url
 
 
+def _fxtwitter_request(screen_name):
+    """Fetch user info from fxtwitter API, trying requests first, then system curl"""
+    import json
+
+    url = f"https://api.fxtwitter.com/{screen_name}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    try:
+        import requests
+
+        resp = requests.get(url, timeout=10, headers=headers)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["curl", "-sS", "--max-time", "15", "-A", "Mozilla/5.0", url],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return json.loads(out.stdout)
+    except Exception:
+        pass
+
+    return None
+
+
+def get_twitter_avatar(screen_name, debug=False):
+    """Get Twitter user avatar URL via fxtwitter API (best effort)"""
+    if not screen_name:
+        return None
+
+    try:
+        data = _fxtwitter_request(screen_name)
+        if not data:
+            return None
+
+        avatar = (data.get("user") or {}).get("avatar_url")
+        if not avatar:
+            return None
+
+        # Prefer higher resolution like other records in database
+        return avatar.replace("_normal.jpg", "_400x400.jpg")
+    except Exception as e:
+        if debug:
+            print(f"Failed to get Twitter avatar for {screen_name}: {e}")
+        return None
+
+
 def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None):
     """Get video metadata from URL"""
     if not url or url.strip() == "" or url == "未转载":
@@ -225,13 +280,13 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
                     if debug:
                         print(f"Date formatting error: {upload_date} -> {e}")
 
-                # Get author information with platform identification
-                author_info = {
-                    "name": uploader,
-                    "url": None,
-                    "avatar": None,
-                    "platform": None,  # Add platform identification
-                }
+            # Get author information with platform identification
+            author_info = {
+                "name": uploader,
+                "url": None,
+                "avatar": None,
+                "platform": None,  # Add platform identification
+            }
 
             # Build author URL and identify platform
             if "youtube.com" in url or "youtu.be" in url:
@@ -245,6 +300,15 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
                 uploader_id = info.get("uploader_id")
                 if uploader_id:
                     author_info["url"] = f"https://www.nicovideo.jp/user/{uploader_id}"
+
+            elif "twitter.com" in url or "x.com" in url:
+                author_info["platform"] = "twitter"
+                uploader_id = info.get("uploader_id")
+                if uploader_id:
+                    author_info["url"] = f"https://x.com/{uploader_id}"
+                avatar = get_twitter_avatar(uploader_id, debug)
+                if avatar:
+                    author_info["avatar"] = avatar
 
             return title, formatted_date, author_info
 
@@ -265,11 +329,11 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
     # Step 1: Try to find by CSV author name in both platform name fields
     cursor.execute(
         """
-        SELECT id, yt_name, yt_url, nico_name, nico_url 
+        SELECT id, yt_name, yt_url, nico_name, nico_url, twitter_name, twitter_url, twitter_avatar
         FROM authors 
-        WHERE yt_name = ? OR nico_name = ?
+        WHERE yt_name = ? OR nico_name = ? OR twitter_name = ?
     """,
-        (csv_author_name, csv_author_name),
+        (csv_author_name, csv_author_name, csv_author_name),
     )
     result = cursor.fetchone()
 
@@ -315,6 +379,31 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                     if debug:
                         print(f"Updated NicoNico name for author: {csv_author_name}")
 
+            elif platform == "twitter" and url:
+                # Update Twitter fields if empty
+                if not result[6]:  # twitter_url is empty
+                    cursor.execute(
+                        "UPDATE authors SET twitter_url = ? WHERE id = ?",
+                        (url, author_id),
+                    )
+                    if debug:
+                        print(f"Updated Twitter URL for author: {csv_author_name}")
+                if not result[5] and name:  # twitter_name is empty
+                    cursor.execute(
+                        "UPDATE authors SET twitter_name = ? WHERE id = ?",
+                        (name, author_id),
+                    )
+                    if debug:
+                        print(f"Updated Twitter name for author: {csv_author_name}")
+                avatar = author_info.get("avatar")
+                if not result[7] and avatar:  # twitter_avatar is empty
+                    cursor.execute(
+                        "UPDATE authors SET twitter_avatar = ? WHERE id = ?",
+                        (avatar, author_id),
+                    )
+                    if debug:
+                        print(f"Updated Twitter avatar for author: {csv_author_name}")
+
             conn.commit()
 
         return author_id
@@ -328,9 +417,12 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
             cursor.execute("SELECT id FROM authors WHERE yt_url = ?", (url,))
         elif platform == "niconico":
             cursor.execute("SELECT id FROM authors WHERE nico_url = ?", (url,))
+        elif platform == "twitter":
+            cursor.execute("SELECT id FROM authors WHERE twitter_url = ?", (url,))
         else:
             cursor.execute(
-                "SELECT id FROM authors WHERE yt_url = ? OR nico_url = ?", (url, url)
+                "SELECT id FROM authors WHERE yt_url = ? OR nico_url = ? OR twitter_url = ?",
+                (url, url, url),
             )
 
         result = cursor.fetchone()
@@ -341,10 +433,16 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
 
             # Get current author names to check if update is needed
             cursor.execute(
-                "SELECT yt_name, nico_name FROM authors WHERE id = ?", (author_id,)
+                "SELECT yt_name, nico_name, twitter_name, twitter_avatar FROM authors WHERE id = ?",
+                (author_id,),
             )
             current_names = cursor.fetchone()
-            current_yt_name, current_nico_name = current_names
+            (
+                current_yt_name,
+                current_nico_name,
+                current_twitter_name,
+                current_twitter_avatar,
+            ) = current_names
 
             # Only update name if current name is empty or clearly inferior
             updated = False
@@ -374,6 +472,30 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                     print(
                         f"Keeping existing NicoNico name: {current_nico_name} (not updating to: {csv_author_name})"
                     )
+            elif platform == "twitter":
+                if not current_twitter_name or len(current_twitter_name.strip()) == 0:
+                    cursor.execute(
+                        "UPDATE authors SET twitter_name = ? WHERE id = ?",
+                        (csv_author_name, author_id),
+                    )
+                    updated = True
+                    if debug:
+                        print(f"Updated empty Twitter name to: {csv_author_name}")
+                elif debug:
+                    print(
+                        f"Keeping existing Twitter name: {current_twitter_name} (not updating to: {csv_author_name})"
+                    )
+                avatar = author_info.get("avatar")
+                if not current_twitter_avatar and avatar:
+                    cursor.execute(
+                        "UPDATE authors SET twitter_avatar = ? WHERE id = ?",
+                        (avatar, author_id),
+                    )
+                    updated = True
+                    if debug:
+                        print(
+                            f"Updated empty Twitter avatar for author: {csv_author_name}"
+                        )
             else:
                 # If platform unknown, only update empty fields
                 if (not current_yt_name or len(current_yt_name.strip()) == 0) and (
@@ -397,6 +519,9 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
     yt_url = None
     nico_name = None
     nico_url = None
+    twitter_name = None
+    twitter_url = None
+    twitter_avatar = None
 
     if author_info and author_info.get("platform"):
         platform = author_info["platform"]
@@ -419,6 +544,13 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
             nico_url = metadata_url
             if debug:
                 print(f"Creating new author with NicoNico info: {nico_name}")
+        elif platform == "twitter":
+            # For Twitter, use metadata name if available, otherwise CSV name
+            twitter_name = metadata_name or csv_author_name
+            twitter_url = metadata_url
+            twitter_avatar = author_info.get("avatar")
+            if debug:
+                print(f"Creating new author with Twitter info: {twitter_name}")
     else:
         # No platform info, use CSV name for both (fallback for compatibility)
         yt_name = csv_author_name
@@ -430,10 +562,18 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
 
     cursor.execute(
         """
-        INSERT INTO authors (yt_name, yt_url, nico_name, nico_url) 
-        VALUES (?, ?, ?, ?)
+        INSERT INTO authors (yt_name, yt_url, nico_name, nico_url, twitter_name, twitter_url, twitter_avatar) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """,
-        (yt_name, yt_url, nico_name, nico_url),
+        (
+            yt_name,
+            yt_url,
+            nico_name,
+            nico_url,
+            twitter_name,
+            twitter_url,
+            twitter_avatar,
+        ),
     )
     conn.commit()
     author_id = cursor.lastrowid
@@ -448,6 +588,12 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
         populated_fields.append(f"nico_name='{nico_name}'")
     if nico_url:
         populated_fields.append(f"nico_url='{nico_url}'")
+    if twitter_name:
+        populated_fields.append(f"twitter_name='{twitter_name}'")
+    if twitter_url:
+        populated_fields.append(f"twitter_url='{twitter_url}'")
+    if twitter_avatar:
+        populated_fields.append(f"twitter_avatar='{twitter_avatar}'")
 
     print(f"Created new author (ID: {author_id}): {', '.join(populated_fields)}")
     return author_id
@@ -462,6 +608,9 @@ def simulate_author_creation(csv_author_name, author_info, debug=False):
     yt_url = None
     nico_name = None
     nico_url = None
+    twitter_name = None
+    twitter_url = None
+    twitter_avatar = None
 
     if author_info and author_info.get("platform"):
         platform = author_info["platform"]
@@ -478,6 +627,10 @@ def simulate_author_creation(csv_author_name, author_info, debug=False):
         elif platform == "niconico":
             nico_name = metadata_name or csv_author_name
             nico_url = metadata_url
+        elif platform == "twitter":
+            twitter_name = metadata_name or csv_author_name
+            twitter_url = metadata_url
+            twitter_avatar = author_info.get("avatar")
     else:
         # No platform info, use CSV name for both
         yt_name = csv_author_name
@@ -493,21 +646,30 @@ def simulate_author_creation(csv_author_name, author_info, debug=False):
         populated_fields.append(f"nico_name='{nico_name}'")
     if nico_url:
         populated_fields.append(f"nico_url='{nico_url}'")
+    if twitter_name:
+        populated_fields.append(f"twitter_name='{twitter_name}'")
+    if twitter_url:
+        populated_fields.append(f"twitter_url='{twitter_url}'")
+    if twitter_avatar:
+        populated_fields.append(f"twitter_avatar='{twitter_avatar}'")
 
     print(f"[DRY RUN] Would create author: {', '.join(populated_fields)}")
 
     # Return display name for video assignment
-    return yt_name or nico_name or csv_author_name
+    return yt_name or nico_name or twitter_name or csv_author_name
 
 
 def get_author_display_name(conn, author_id):
-    """Get author display name based on priority: yt_name > nico_name"""
+    """Get author display name based on priority: yt_name > nico_name > twitter_name"""
     cursor = conn.cursor()
-    cursor.execute("SELECT yt_name, nico_name FROM authors WHERE id = ?", (author_id,))
+    cursor.execute(
+        "SELECT yt_name, nico_name, twitter_name FROM authors WHERE id = ?",
+        (author_id,),
+    )
     result = cursor.fetchone()
     if result:
-        yt_name, nico_name = result
-        return yt_name or nico_name or "Unknown"
+        yt_name, nico_name, twitter_name = result
+        return yt_name or nico_name or twitter_name or "Unknown"
     return "Unknown"
 
 
