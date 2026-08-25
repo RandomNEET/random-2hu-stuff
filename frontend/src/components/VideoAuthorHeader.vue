@@ -21,11 +21,15 @@
       ></div>
       <div class="video-count">📊 {{ videoCount }} 个视频</div>
     </div>
+
+    <!-- External link button -->
+    <AuthorExternalLinkButton :author="author" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import AuthorExternalLinkButton from "./AuthorExternalLinkButton.vue";
 
 const props = defineProps({
   author: {
@@ -133,6 +137,7 @@ onUnmounted(() => {
 <style scoped>
 /* Author information header */
 .author-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 20px;

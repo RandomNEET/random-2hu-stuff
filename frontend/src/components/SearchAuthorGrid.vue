@@ -13,12 +13,16 @@
           <div class="author-name">{{ getDisplayName(author) }}</div>
           <div class="author-works">视频数：{{ author.worksCount }}</div>
         </div>
+        <!-- External link button -->
+        <AuthorExternalLinkButton :author="author" />
       </v-card>
     </a>
   </div>
 </template>
 
 <script setup>
+import AuthorExternalLinkButton from "./AuthorExternalLinkButton.vue";
+
 const props = defineProps({
   authors: {
     type: Array,
@@ -51,6 +55,7 @@ const getDisplayAvatar = (author) => {
 }
 
 .author-card {
+  position: relative;
   background: #45475a !important; /* Catppuccin Mocha Surface1 */
   border: 1px solid #585b70; /* Catppuccin Mocha Surface2 */
   cursor: pointer;

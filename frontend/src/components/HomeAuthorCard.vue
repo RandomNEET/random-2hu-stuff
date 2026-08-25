@@ -14,72 +14,7 @@
     <div class="acrylic-overlay"></div>
 
     <!-- External link button in top-left corner -->
-    <div
-      v-if="getDisplayUrl(author)"
-      class="url-button-container"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
-    >
-      <v-btn
-        icon
-        size="small"
-        class="url-button-top-left"
-        @click.stop="handleUrlClick(author)"
-        :title="
-          hasMultipleUrls(author)
-            ? '访问作者频道'
-            : `访问${
-                author.yt_url
-                  ? 'YouTube'
-                  : author.nico_url
-                    ? 'NicoNico'
-                    : author.twitter_url
-                      ? 'Twitter'
-                      : '作者'
-              }频道`
-        "
-      >
-        <v-icon size="16">mdi-open-in-new</v-icon>
-      </v-btn>
-
-      <!-- Show platform-specific buttons when hovering and has multiple URLs -->
-      <div v-if="hasMultipleUrls(author) && isHovered" class="platform-buttons">
-        <v-btn
-          v-if="author.yt_url"
-          icon
-          size="small"
-          class="platform-btn youtube-btn"
-          @click.stop="openSpecificUrl(author.yt_url)"
-          title="YouTube频道"
-        >
-          <v-icon size="14">mdi-youtube</v-icon>
-        </v-btn>
-        <v-btn
-          v-if="author.nico_url"
-          icon
-          size="small"
-          class="platform-btn nico-btn"
-          @click.stop="openSpecificUrl(author.nico_url)"
-          title="NicoNico频道"
-        >
-          <img
-            src="https://www.nicovideo.jp/favicon.ico"
-            alt="NicoNico"
-            style="width: 14px; height: 14px"
-          />
-        </v-btn>
-        <v-btn
-          v-if="author.twitter_url"
-          icon
-          size="small"
-          class="platform-btn twitter-btn"
-          @click.stop="openSpecificUrl(author.twitter_url)"
-          title="Twitter频道"
-        >
-          <v-icon size="14">mdi-twitter</v-icon>
-        </v-btn>
-      </div>
-    </div>
+    <AuthorExternalLinkButton :author="author" />
 
     <!-- Info section in center -->
     <div class="info-section">
@@ -92,7 +27,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import AuthorExternalLinkButton from "./AuthorExternalLinkButton.vue";
 
 const props = defineProps({
   author: {
@@ -101,57 +36,14 @@ const props = defineProps({
   },
 });
 
-const isHovered = ref(false);
-
 // Helper function to get display name based on priority
 const getDisplayName = (author) => {
   return author.yt_name || author.nico_name || author.twitter_name || "Unknown";
 };
 
-// Helper function to get display URL based on priority
-const getDisplayUrl = (author) => {
-  return author.yt_url || author.nico_url || author.twitter_url;
-};
-
 // Helper function to get display avatar based on priority
 const getDisplayAvatar = (author) => {
   return author.nico_avatar || author.yt_avatar || author.twitter_avatar;
-};
-
-// Check if author has multiple URLs
-const hasMultipleUrls = (author) => {
-  if (!author) return false;
-  const urlCount = [author.yt_url, author.nico_url, author.twitter_url].filter(
-    Boolean,
-  ).length;
-  return urlCount > 1;
-};
-
-// Handle URL button click - direct navigation if only one URL
-const handleUrlClick = (author) => {
-  if (!hasMultipleUrls(author)) {
-    const url = getDisplayUrl(author);
-    if (url) {
-      openUrl(url);
-    }
-  }
-  // If has multiple URLs, do nothing on click - let hover handle it
-};
-
-// Open specific URL (YouTube or NicoNico)
-const openSpecificUrl = (url) => {
-  if (url) {
-    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-    window.open(fullUrl, "_blank", "noopener,noreferrer");
-  }
-};
-
-const openUrl = (url) => {
-  if (url) {
-    // Ensure URL has protocol prefix
-    const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-    window.open(fullUrl, "_blank", "noopener,noreferrer");
-  }
 };
 </script>
 
@@ -212,94 +104,6 @@ const openUrl = (url) => {
   backdrop-filter: blur(4px) saturate(1.2);
   /* Reduce blur intensity */
   -webkit-backdrop-filter: blur(4px) saturate(1.2);
-}
-
-/* External link button in top-left corner */
-.url-button-container {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.url-button-top-left {
-  background-color: rgba(30, 30, 46, 0.9) !important;
-  color: #89b4fa !important;
-  /* Catppuccin Mocha Blue */
-  transition: all 0.3s ease;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(137, 180, 250, 0.4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.url-button-top-left:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  color: #74c7ec !important;
-  /* Catppuccin Mocha Sapphire */
-  transform: scale(1.15);
-  border-color: rgba(116, 199, 236, 0.6);
-  box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
-}
-
-/* Platform-specific buttons */
-.platform-buttons {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  opacity: 0;
-  transform: translateX(-10px);
-  animation: slideInFade 0.3s ease-out forwards;
-}
-
-@keyframes slideInFade {
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.platform-btn {
-  background-color: rgba(30, 30, 46, 0.9) !important;
-  color: #89b4fa !important;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(12px);
-  border: 2px solid rgba(137, 180, 250, 0.4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.platform-btn:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  color: #74c7ec !important;
-  transform: scale(1.15);
-  border-color: rgba(116, 199, 236, 0.6);
-  box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
-}
-
-.youtube-btn {
-  color: #ff0000 !important;
-}
-
-.youtube-btn:hover {
-  color: #ff3333 !important;
-}
-
-.nico-btn {
-  color: #ff6b00 !important;
-}
-
-.nico-btn:hover {
-  color: #ff8533 !important;
-}
-
-.twitter-btn {
-  color: #1da1f2 !important;
-}
-
-.twitter-btn:hover {
-  color: #4db6f7 !important;
 }
 
 /* Info section styling - occupies entire card, centered display */
@@ -369,11 +173,6 @@ const openUrl = (url) => {
     right: 8px;
   }
 
-  .url-button-container {
-    top: 8px;
-    left: 8px;
-  }
-
   .info-section {
     padding: 16px;
   }
@@ -382,11 +181,6 @@ const openUrl = (url) => {
 @media (max-width: 480px) {
   .info-section {
     padding: 12px;
-  }
-
-  .url-button-container {
-    top: 6px;
-    left: 6px;
   }
 
   .name {
