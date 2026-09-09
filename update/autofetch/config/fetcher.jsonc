@@ -48,10 +48,27 @@
     // {
     //   "id": "123456",
     //   "translation_status": 3
+    // },
+    // // ---- 示例：只抓取 tag 中含指定关键字的视频 ----
+    // {
+    //   "id": "123456",
+    // "tag_keywords": [
+    //   "东方PROJECT",
+    //   "东方MMD"
+    // ]
     // }
     {
       "id": "835843", // 烏馬伊
       "translation_status": 1
+    },
+    {
+      "id": "673546651", // 伊hviewer
+      "translation_status": 1,
+      "tag_keywords": [
+        "东方PROJECT",
+        "东方MMD",
+        "MMD"
+      ]
     }
   ]
 }

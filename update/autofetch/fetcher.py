@@ -82,7 +82,8 @@ def normalize_user_config(raw_entry, defaults: dict) -> dict:
         "id": str,
         "translation_status": int | "auto",
         "keyword_map": dict[str, int],
-        "fallback": int | None
+        "fallback": int | None,
+        "tag_keywords": list[str]
     }
     """
     if isinstance(raw_entry, str):
@@ -103,6 +104,7 @@ def normalize_user_config(raw_entry, defaults: dict) -> dict:
         ),
         "keyword_map": entry.get("keyword_map", defaults["keyword_map"]),
         "fallback": entry.get("fallback", defaults["fallback"]),
+        "tag_keywords": entry.get("tag_keywords", []),
     }
 
 
@@ -201,6 +203,50 @@ def fetch_rss(baseurl: str, user_id: str) -> str:
     return resp.text
 
 
+def fetch_video_tags(video_url: str) -> list[str]:
+    """从 B 站 API 获取视频 tag 名称。"""
+    match = re.search(r"/video/(BV[0-9A-Za-z]+)", video_url)
+    if not match:
+        raise ValueError(f"无法从视频链接提取 BV 号: {video_url}")
+
+    resp = requests.get(
+        "https://api.bilibili.com/x/tag/archive/tags",
+        params={"bvid": match.group(1)},
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    payload = resp.json()
+    if payload.get("code") != 0:
+        raise RuntimeError(f"B站 tag API 返回错误: {payload.get('message')}")
+
+    return [
+        tag["tag_name"]
+        for tag in payload.get("data") or []
+        if isinstance(tag, dict) and tag.get("tag_name")
+    ]
+
+
+def matches_tag_keywords(tags: list[str], user_cfg: dict) -> bool:
+    """检查 tag 是否包含该用户配置的任一关键字（忽略大小写）。"""
+    keywords = user_cfg.get("tag_keywords", [])
+    if not keywords:
+        return True
+
+    folded_tags = [tag.casefold() for tag in tags]
+    return any(
+        str(keyword).casefold() in tag
+        for keyword in keywords
+        for tag in folded_tags
+    )
+
+
 def parse_rss(xml_content: str) -> tuple[str | None, list[dict]]:
     """
     解析 RSS XML。
@@ -292,6 +338,18 @@ def main():
                 if not is_within_range(pub_dt, time_range):
                     continue
 
+                tag_keywords = user_cfg["tag_keywords"]
+                if tag_keywords:
+                    try:
+                        tags = fetch_video_tags(item["link"])
+                    except (requests.RequestException, ValueError, RuntimeError) as e:
+                        print(
+                            f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}"
+                        )
+                        continue
+                    if not matches_tag_keywords(tags, user_cfg):
+                        continue
+
                 ts = determine_translation_status(item["title"], user_cfg)
                 grouped_rows[author].append(
                     {
@@ -303,7 +361,7 @@ def main():
                 matched += 1
                 total_matched += 1
 
-            print(f"  命中时间范围: {matched} 条")
+            print(f"  命中时间范围及 tag 过滤条件: {matched} 条")
 
         except requests.RequestException as e:
             print(f"  [警告] 网络请求失败: {e}")
