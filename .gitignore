@@ -38,3 +38,4 @@ cookies.txt
 dolt/
 
 !backend/full-data.csv
+!update/scripts/content.log

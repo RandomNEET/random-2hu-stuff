@@ -241,9 +241,7 @@ def matches_tag_keywords(tags: list[str], user_cfg: dict) -> bool:
 
     folded_tags = [tag.casefold() for tag in tags]
     return any(
-        str(keyword).casefold() in tag
-        for keyword in keywords
-        for tag in folded_tags
+        str(keyword).casefold() in tag for keyword in keywords for tag in folded_tags
     )
 
 
@@ -343,9 +341,7 @@ def main():
                     try:
                         tags = fetch_video_tags(item["link"])
                     except (requests.RequestException, ValueError, RuntimeError) as e:
-                        print(
-                            f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}"
-                        )
+                        print(f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}")
                         continue
                     if not matches_tag_keywords(tags, user_cfg):
                         continue
