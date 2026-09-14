@@ -2,9 +2,15 @@
   // ========== RSSHub 基础地址 ==========
   "baseurl": "https://rsshub.defnothowl.com",
   // ========== 时间范围 ==========
-  // "today" | "all" | 数字(最近N天)
-  "time_range": "today",
-  // "time_range": 2,
+  // "today" | "all" | "YYYYMMDD" | 数字(最近N个自然日，含今天)
+  // 默认检查今天和昨天；已处理的 BV 由状态文件去重
+  "time_range": 2,
+  // 状态文件用于同日多次运行时仅补抓新投稿
+  "state_file": "state/fetcher.json",
+  // RSS 和 B 站 API 的单次连接/读取超时（秒）、重试次数及退避系数
+  "request_timeout": 30,
+  "request_retries": 3,
+  "retry_backoff_factor": 1.0,
   // ========== 全局默认翻译状态配置 ==========
   // 数字 1~5 固定值，或 "auto" 启用关键字匹配
   "default_translation_status": "auto",

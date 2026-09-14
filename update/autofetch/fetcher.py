@@ -7,6 +7,7 @@ CSV 输出：output/author-YYYYMMDD.csv
 CSV 格式：空, 空, title, link, 翻译状态
 """
 
+import argparse
 import csv
 import json
 import os
@@ -19,6 +20,8 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # ==================== JSONC 解析 ====================
 
@@ -124,19 +127,54 @@ def parse_pub_date(date_str: str) -> datetime | None:
         return None
 
 
-def is_within_range(dt: datetime | None, time_range: Any) -> bool:
+def parse_time_range(value: str) -> str | int:
+    """解析命令行时间范围。"""
+    normalized = value.strip().lower()
+    if normalized in {"today", "all"}:
+        return normalized
+    if re.fullmatch(r"\d{8}", normalized):
+        try:
+            datetime.strptime(normalized, "%Y%m%d")
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(f"无效日期: {value}") from e
+        return normalized
+    try:
+        days = int(normalized)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(
+            "时间范围必须是 today、all、YYYYMMDD 或正整数"
+        ) from e
+    if days < 1:
+        raise argparse.ArgumentTypeError("天数必须大于 0")
+    return days
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="抓取 B 站用户视频 RSS")
+    parser.add_argument(
+        "--time-range",
+        type=parse_time_range,
+        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+    )
+    return parser.parse_args(argv)
+
+
+def is_within_range(
+    dt: datetime | None, time_range: Any, now: datetime | None = None
+) -> bool:
     """
     判断视频发布时间是否在时间范围内。
     - "today": 仅当天（北京时间）
     - "all":   所有视频
-    - int:     最近 N 天（含今天）
+    - int:     最近 N 个自然日（含今天）
+    - YYYYMMDD: 指定日期
     """
     if dt is None:
         return False
     if time_range == "all":
         return True
 
-    now = datetime.now(TZ_BEIJING)
+    now = now or datetime.now(TZ_BEIJING)
     dt_beijing = dt.astimezone(TZ_BEIJING)
 
     if time_range == "today":
@@ -144,8 +182,11 @@ def is_within_range(dt: datetime | None, time_range: Any) -> bool:
 
     if isinstance(time_range, (int, float)):
         days = int(time_range)
-        delta = now - dt_beijing
-        return delta.days < days
+        start_date = now.date() - timedelta(days=days - 1)
+        return start_date <= dt_beijing.date() <= now.date()
+
+    if isinstance(time_range, str) and re.fullmatch(r"\d{8}", time_range):
+        return dt_beijing.strftime("%Y%m%d") == time_range
 
     return False
 
@@ -185,10 +226,102 @@ def determine_translation_status(title: str, user_cfg: dict) -> int | str:
     return ""
 
 
+# ==================== 状态与请求 ====================
+
+
+def load_state(filepath: Path) -> dict:
+    if not filepath.exists():
+        return {"version": 1, "users": {}}
+    with open(filepath, "r", encoding="utf-8") as f:
+        state = json.load(f)
+    if not isinstance(state, dict) or not isinstance(state.get("users"), dict):
+        raise ValueError(f"状态文件格式无效: {filepath}")
+    return state
+
+
+def save_state(filepath: Path, state: dict) -> None:
+    """原子写入状态，避免运行中断留下半个 JSON 文件。"""
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = filepath.with_suffix(filepath.suffix + ".tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    os.replace(temp_path, filepath)
+
+
+def create_retry_session(retries: int = 3, backoff_factor: float = 1.0):
+    retry = Retry(
+        total=retries,
+        connect=retries,
+        read=retries,
+        status=retries,
+        allowed_methods=frozenset({"GET"}),
+        status_forcelist=(429, 500, 502, 503, 504),
+        backoff_factor=backoff_factor,
+        respect_retry_after_header=True,
+    )
+    session = requests.Session()
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+def extract_bvid(video_url: str) -> str:
+    match = re.search(r"/video/(BV[0-9A-Za-z]+)", video_url)
+    if not match:
+        raise ValueError(f"无法从视频链接提取 BV 号: {video_url}")
+    return match.group(1)
+
+
+def update_csv(filepath: Path, rows: list[dict]) -> tuple[int, int]:
+    """保留已有 CSV 行，按 B 站链接追加新行并原子替换文件。"""
+    existing_rows = []
+    if filepath.exists():
+        with open(filepath, "r", newline="", encoding="utf-8-sig") as f:
+            existing_rows = list(csv.reader(f))
+
+    known_links = {row[3] for row in existing_rows if len(row) > 3}
+    rows_to_append = []
+    for row in rows:
+        if row["link"] in known_links:
+            continue
+        known_links.add(row["link"])
+        rows_to_append.append(row)
+
+    temp_path = filepath.with_suffix(filepath.suffix + ".tmp")
+    with open(temp_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerows(existing_rows)
+        for row in rows_to_append:
+            writer.writerow(
+                ["", "", row["title"], row["link"], row["translation_status"]]
+            )
+    os.replace(temp_path, filepath)
+    return len(rows_to_append), len(existing_rows) + len(rows_to_append)
+
+
+def load_existing_bvids(output_dir: Path) -> set[str]:
+    """从已有 CSV 恢复已输出 BV，兼容首次启用或状态文件丢失。"""
+    bvids = set()
+    if not output_dir.exists():
+        return bvids
+    for filepath in output_dir.glob("*.csv"):
+        with open(filepath, "r", newline="", encoding="utf-8-sig") as f:
+            for row in csv.reader(f):
+                if len(row) <= 3:
+                    continue
+                try:
+                    bvids.add(extract_bvid(row[3]))
+                except ValueError:
+                    continue
+    return bvids
+
+
 # ==================== RSS 获取与解析 ====================
 
 
-def fetch_rss(baseurl: str, user_id: str) -> str:
+def fetch_rss(baseurl: str, user_id: str, session=requests, timeout: float = 30) -> str:
     """从 RSSHub 获取指定用户的视频 RSS XML。"""
     url = f"{baseurl.rstrip('/')}/bilibili/user/video/{user_id}"
     headers = {
@@ -198,20 +331,19 @@ def fetch_rss(baseurl: str, user_id: str) -> str:
             "Chrome/120.0.0.0 Safari/537.36"
         )
     }
-    resp = requests.get(url, headers=headers, timeout=30)
+    resp = session.get(url, headers=headers, timeout=timeout)
     resp.raise_for_status()
     return resp.text
 
 
-def fetch_video_tags(video_url: str) -> list[str]:
+def fetch_video_tags(
+    video_url: str, session=requests, timeout: float = 30
+) -> list[str]:
     """从 B 站 API 获取视频 tag 名称。"""
-    match = re.search(r"/video/(BV[0-9A-Za-z]+)", video_url)
-    if not match:
-        raise ValueError(f"无法从视频链接提取 BV 号: {video_url}")
-
-    resp = requests.get(
+    bvid = extract_bvid(video_url)
+    resp = session.get(
         "https://api.bilibili.com/x/tag/archive/tags",
-        params={"bvid": match.group(1)},
+        params={"bvid": bvid},
         headers={
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -219,7 +351,7 @@ def fetch_video_tags(video_url: str) -> list[str]:
                 "Chrome/120.0.0.0 Safari/537.36"
             )
         },
-        timeout=30,
+        timeout=timeout,
     )
     resp.raise_for_status()
     payload = resp.json()
@@ -281,7 +413,8 @@ def parse_rss(xml_content: str) -> tuple[str | None, list[dict]]:
 # ==================== 主流程 ====================
 
 
-def main():
+def main(argv=None):
+    args = parse_args(argv)
     script_dir = Path(__file__).resolve().parent
 
     # 配置文件位于 config/ 子目录
@@ -294,7 +427,26 @@ def main():
 
     # ---------- 全局默认值 ----------
     baseurl = config.get("baseurl", "https://rsshub.defnothowl.com")
-    time_range = config.get("time_range", "today")
+    time_range = (
+        args.time_range
+        if args.time_range is not None
+        else config.get("time_range", "today")
+    )
+    state_path = Path(config.get("state_file", "state/fetcher.json"))
+    if not state_path.is_absolute():
+        state_path = script_dir / state_path
+    state = load_state(state_path)
+    request_timeout = float(config.get("request_timeout", 30))
+    if request_timeout <= 0:
+        print("[错误] request_timeout 必须大于 0")
+        sys.exit(1)
+    retry_session = create_retry_session(
+        retries=int(config.get("request_retries", 3)),
+        backoff_factor=float(config.get("retry_backoff_factor", 1.0)),
+    )
+    output_dir = script_dir / "output"
+    os.makedirs(output_dir, exist_ok=True)
+    existing_bvids = load_existing_bvids(output_dir)
     defaults = {
         "translation_status": config.get("default_translation_status", "auto"),
         "keyword_map": config.get("default_keyword_map", {}),
@@ -324,9 +476,13 @@ def main():
 
     for user_cfg in users:
         uid = user_cfg["id"]
+        user_state = state["users"].setdefault(uid, {"seen_bvids": []})
+        seen_bvids = set(user_state.get("seen_bvids", []))
         print(f"→ 正在获取用户 {uid} 的视频 RSS ...")
         try:
-            xml_content = fetch_rss(baseurl, uid)
+            xml_content = fetch_rss(
+                baseurl, uid, retry_session, timeout=request_timeout
+            )
             author, items = parse_rss(xml_content)
             print(f"  作者: {author}  |  RSS 共返回 {len(items)} 条")
 
@@ -336,14 +492,26 @@ def main():
                 if not is_within_range(pub_dt, time_range):
                     continue
 
+                try:
+                    bvid = extract_bvid(item["link"])
+                except ValueError as e:
+                    print(f"  [警告] {e}")
+                    continue
+                if bvid in seen_bvids or bvid in existing_bvids:
+                    seen_bvids.add(bvid)
+                    continue
+
                 tag_keywords = user_cfg["tag_keywords"]
                 if tag_keywords:
                     try:
-                        tags = fetch_video_tags(item["link"])
+                        tags = fetch_video_tags(
+                            item["link"], retry_session, timeout=request_timeout
+                        )
                     except (requests.RequestException, ValueError, RuntimeError) as e:
                         print(f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}")
                         continue
                     if not matches_tag_keywords(tags, user_cfg):
+                        seen_bvids.add(bvid)
                         continue
 
                 ts = determine_translation_status(item["title"], user_cfg)
@@ -352,12 +520,15 @@ def main():
                         "title": item["title"],
                         "link": item["link"],
                         "translation_status": ts,
+                        "uid": uid,
+                        "bvid": bvid,
                     }
                 )
                 matched += 1
                 total_matched += 1
 
             print(f"  命中时间范围及 tag 过滤条件: {matched} 条")
+            user_state["seen_bvids"] = sorted(seen_bvids)
 
         except requests.RequestException as e:
             print(f"  [警告] 网络请求失败: {e}")
@@ -369,14 +540,7 @@ def main():
             print(f"  [警告] 未知错误: {e}")
             continue
 
-    if total_matched == 0:
-        print("\n没有找到符合时间范围的视频，未生成 CSV。")
-        return
-
     # ---------- 按作者输出 CSV 到 output/ 目录 ----------
-    output_dir = script_dir / "output"
-    os.makedirs(output_dir, exist_ok=True)
-
     today_str = datetime.now(TZ_BEIJING).strftime("%Y%m%d")
 
     for author, rows in grouped_rows.items():
@@ -384,15 +548,20 @@ def main():
         filename = f"{safe_author}-{today_str}.csv"
         filepath = output_dir / filename
 
-        with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            for row in rows:
-                # 第 1、2 列留空 | 第 3 列 title | 第 4 列 link | 第 5 列 翻译状态
-                writer.writerow(
-                    ["", "", row["title"], row["link"], row["translation_status"]]
-                )
+        added_count, row_count = update_csv(filepath, rows)
 
-        print(f"\n✓ 已生成: {filepath}  ({len(rows)} 条记录)")
+        for row in rows:
+            user_state = state["users"][row["uid"]]
+            seen = set(user_state.get("seen_bvids", []))
+            seen.add(row["bvid"])
+            user_state["seen_bvids"] = sorted(seen)
+
+        print(f"\n✓ 已更新: {filepath}  " f"(新增 {added_count} 条，共 {row_count} 条)")
+
+    save_state(state_path, state)
+
+    if total_matched == 0:
+        print("\n没有发现尚未处理且符合条件的视频。")
 
     print(f"\n完成！共处理 {len(users)} 个用户，输出 {total_matched} 条视频。")
 
