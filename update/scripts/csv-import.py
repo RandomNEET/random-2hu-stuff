@@ -10,7 +10,6 @@ python3 csv_import.py input.csv
 
 Optional arguments:
 --db-path: Database path (default: ../backend/random-2hu-stuff.db)
---debug: Enable debug mode
 --dry-run: Check only, do not actually import
 --skip-metadata: Skip metadata retrieval from links, use titles from CSV
 --cookies: Netscape formatted cookie file to read cookies from
@@ -19,16 +18,11 @@ Optional arguments:
                        Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
                        Examples: firefox, chrome, edge+gnomekeyring, safari:Default::Facebook Container, qutebrowser
                        Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6
---interactive: Interactive mode - manually choose handling method when encountering duplicate links (default mode)
---auto-merge: Auto-merge mode - intelligently handle duplicate links, skip interaction
-
-Two modes for handling duplicate links:
-1. Interactive mode (default): Ask for your choice each time duplicates are encountered
+When a duplicate original video link is found, all matching records are shown and
+you can choose how to handle the new record:
    - Skip: Keep existing record
    - Overwrite: Completely replace existing record with new record
-   - Merge: Intelligently merge information
    - Add: Force add as new record (will have duplicate links)
-2. Auto-merge mode (--auto-merge): Intelligently merge information, keep best data
 """
 
 import argparse
@@ -146,7 +140,7 @@ def _fxtwitter_request(screen_name):
     return None
 
 
-def get_twitter_avatar(screen_name, debug=False):
+def get_twitter_avatar(screen_name):
     """Get Twitter user avatar URL via fxtwitter API (best effort)"""
     if not screen_name:
         return None
@@ -163,19 +157,18 @@ def get_twitter_avatar(screen_name, debug=False):
         # Prefer higher resolution like other records in database
         return avatar.replace("_normal.jpg", "_400x400.jpg")
     except Exception as e:
-        if debug:
-            print(f"Failed to get Twitter avatar for {screen_name}: {e}")
+        print(f"Failed to get Twitter avatar for {screen_name}: {e}")
         return None
 
 
-def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None):
+def get_video_metadata(url, browser_cookies=None, cookies_file=None):
     """Get video metadata from URL"""
     if not url or url.strip() == "" or url == "未转载":
         return None, None, None
 
     try:
         options = {
-            "quiet": not debug,
+            "quiet": False,
             "skip_download": True,
             "extract_flat": False,
         }
@@ -277,8 +270,7 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
                         else:
                             formatted_date = date_str
                 except Exception as e:
-                    if debug:
-                        print(f"Date formatting error: {upload_date} -> {e}")
+                    print(f"Date formatting error: {upload_date} -> {e}")
 
             # Get author information with platform identification
             author_info = {
@@ -306,20 +298,19 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
                 uploader_id = info.get("uploader_id")
                 if uploader_id:
                     author_info["url"] = f"https://x.com/{uploader_id}"
-                avatar = get_twitter_avatar(uploader_id, debug)
+                avatar = get_twitter_avatar(uploader_id)
                 if avatar:
                     author_info["avatar"] = avatar
 
             return title, formatted_date, author_info
 
     except Exception as e:
-        if debug:
-            print(f"Failed to get video metadata {url}: {e}")
+        print(f"Failed to get video metadata {url}: {e}")
         # Raise exception for upper-level handling
         raise e
 
 
-def get_or_create_author(conn, csv_author_name, author_info, debug=False):
+def get_or_create_author(conn, csv_author_name, author_info):
     """Get or create author with new platform-specific fields, return author ID"""
     cursor = conn.cursor()
 
@@ -339,8 +330,7 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
 
     if result:
         author_id = result[0]
-        if debug:
-            print(f"Found existing author by name: {csv_author_name} (ID: {author_id})")
+        print(f"Found existing author by name: {csv_author_name} (ID: {author_id})")
 
         # If we have video metadata, update the corresponding platform fields
         if author_info and author_info.get("platform"):
@@ -354,14 +344,12 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                     cursor.execute(
                         "UPDATE authors SET yt_url = ? WHERE id = ?", (url, author_id)
                     )
-                    if debug:
-                        print(f"Updated YouTube URL for author: {csv_author_name}")
+                    print(f"Updated YouTube URL for author: {csv_author_name}")
                 if not result[1] and name:  # yt_name is empty
                     cursor.execute(
                         "UPDATE authors SET yt_name = ? WHERE id = ?", (name, author_id)
                     )
-                    if debug:
-                        print(f"Updated YouTube name for author: {csv_author_name}")
+                    print(f"Updated YouTube name for author: {csv_author_name}")
 
             elif platform == "niconico" and url:
                 # Update NicoNico fields if empty
@@ -369,15 +357,13 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                     cursor.execute(
                         "UPDATE authors SET nico_url = ? WHERE id = ?", (url, author_id)
                     )
-                    if debug:
-                        print(f"Updated NicoNico URL for author: {csv_author_name}")
+                    print(f"Updated NicoNico URL for author: {csv_author_name}")
                 if not result[3] and name:  # nico_name is empty
                     cursor.execute(
                         "UPDATE authors SET nico_name = ? WHERE id = ?",
                         (name, author_id),
                     )
-                    if debug:
-                        print(f"Updated NicoNico name for author: {csv_author_name}")
+                    print(f"Updated NicoNico name for author: {csv_author_name}")
 
             elif platform == "twitter" and url:
                 # Update Twitter fields if empty
@@ -386,23 +372,20 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         "UPDATE authors SET twitter_url = ? WHERE id = ?",
                         (url, author_id),
                     )
-                    if debug:
-                        print(f"Updated Twitter URL for author: {csv_author_name}")
+                    print(f"Updated Twitter URL for author: {csv_author_name}")
                 if not result[5] and name:  # twitter_name is empty
                     cursor.execute(
                         "UPDATE authors SET twitter_name = ? WHERE id = ?",
                         (name, author_id),
                     )
-                    if debug:
-                        print(f"Updated Twitter name for author: {csv_author_name}")
+                    print(f"Updated Twitter name for author: {csv_author_name}")
                 avatar = author_info.get("avatar")
                 if not result[7] and avatar:  # twitter_avatar is empty
                     cursor.execute(
                         "UPDATE authors SET twitter_avatar = ? WHERE id = ?",
                         (avatar, author_id),
                     )
-                    if debug:
-                        print(f"Updated Twitter avatar for author: {csv_author_name}")
+                    print(f"Updated Twitter avatar for author: {csv_author_name}")
 
             conn.commit()
 
@@ -428,8 +411,7 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
         result = cursor.fetchone()
         if result:
             author_id = result[0]
-            if debug:
-                print(f"Found existing author by URL (ID: {author_id})")
+            print(f"Found existing author by URL (ID: {author_id})")
 
             # Get current author names to check if update is needed
             cursor.execute(
@@ -453,9 +435,8 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         (csv_author_name, author_id),
                     )
                     updated = True
-                    if debug:
-                        print(f"Updated empty YouTube name to: {csv_author_name}")
-                elif debug:
+                    print(f"Updated empty YouTube name to: {csv_author_name}")
+                else:
                     print(
                         f"Keeping existing YouTube name: {current_yt_name} (not updating to: {csv_author_name})"
                     )
@@ -466,9 +447,8 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         (csv_author_name, author_id),
                     )
                     updated = True
-                    if debug:
-                        print(f"Updated empty NicoNico name to: {csv_author_name}")
-                elif debug:
+                    print(f"Updated empty NicoNico name to: {csv_author_name}")
+                else:
                     print(
                         f"Keeping existing NicoNico name: {current_nico_name} (not updating to: {csv_author_name})"
                     )
@@ -479,9 +459,8 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         (csv_author_name, author_id),
                     )
                     updated = True
-                    if debug:
-                        print(f"Updated empty Twitter name to: {csv_author_name}")
-                elif debug:
+                    print(f"Updated empty Twitter name to: {csv_author_name}")
+                else:
                     print(
                         f"Keeping existing Twitter name: {current_twitter_name} (not updating to: {csv_author_name})"
                     )
@@ -492,10 +471,7 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         (avatar, author_id),
                     )
                     updated = True
-                    if debug:
-                        print(
-                            f"Updated empty Twitter avatar for author: {csv_author_name}"
-                        )
+                    print(f"Updated empty Twitter avatar for author: {csv_author_name}")
             else:
                 # If platform unknown, only update empty fields
                 if (not current_yt_name or len(current_yt_name.strip()) == 0) and (
@@ -506,8 +482,7 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
                         (csv_author_name, csv_author_name, author_id),
                     )
                     updated = True
-                    if debug:
-                        print(f"Updated empty author names to: {csv_author_name}")
+                    print(f"Updated empty author names to: {csv_author_name}")
 
             if updated:
                 conn.commit()
@@ -536,29 +511,25 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
             # For YouTube, use metadata name if available, otherwise CSV name
             yt_name = metadata_name or csv_author_name
             yt_url = metadata_url
-            if debug:
-                print(f"Creating new author with YouTube info: {yt_name}")
+            print(f"Creating new author with YouTube info: {yt_name}")
         elif platform == "niconico":
             # For NicoNico, use metadata name if available, otherwise CSV name
             nico_name = metadata_name or csv_author_name
             nico_url = metadata_url
-            if debug:
-                print(f"Creating new author with NicoNico info: {nico_name}")
+            print(f"Creating new author with NicoNico info: {nico_name}")
         elif platform == "twitter":
             # For Twitter, use metadata name if available, otherwise CSV name
             twitter_name = metadata_name or csv_author_name
             twitter_url = metadata_url
             twitter_avatar = author_info.get("avatar")
-            if debug:
-                print(f"Creating new author with Twitter info: {twitter_name}")
+            print(f"Creating new author with Twitter info: {twitter_name}")
     else:
         # No platform info, use CSV name for both (fallback for compatibility)
         yt_name = csv_author_name
         nico_name = csv_author_name
-        if debug:
-            print(
-                f"Creating new author without platform info, using CSV name: {csv_author_name}"
-            )
+        print(
+            f"Creating new author without platform info, using CSV name: {csv_author_name}"
+        )
 
     cursor.execute(
         """
@@ -599,7 +570,7 @@ def get_or_create_author(conn, csv_author_name, author_info, debug=False):
     return author_id
 
 
-def simulate_author_creation(csv_author_name, author_info, debug=False):
+def simulate_author_creation(csv_author_name, author_info):
     """Simulate author creation for dry-run mode, return mock author info"""
     csv_author_name = clean_author_name(csv_author_name)
 
@@ -683,8 +654,6 @@ def insert_video_wrapper(
     repost_url,
     translation_status,
     comment=None,
-    debug=False,
-    interactive_mode=False,
     supplementary_note=None,
 ):
     """Video insertion wrapper function, adapted for new database structure
@@ -705,31 +674,33 @@ def insert_video_wrapper(
                 """
                 SELECT id, original_name, date, repost_name, repost_url, translation_status, comment, author FROM videos 
                 WHERE original_url = ?
+                ORDER BY id
             """,
                 (original_url,),
             )
 
-            existing = cursor.fetchone()
+            existing_records = cursor.fetchall()
         else:
-            existing = None  # For empty URLs, skip duplicate check and insert new record directly
+            existing_records = []
 
-        if existing:
-            (
-                existing_id,
-                existing_title,
-                existing_date,
-                existing_repost_name,
-                existing_repost_url,
-                existing_translation_status,
-                existing_comment,
-                existing_author_id,
-            ) = existing
+        if existing_records:
+            print(f"\n🔄 Found duplicate original video link:")
+            print(f"   URL: {original_url}")
+            print(f"\n📹 Existing records in database ({len(existing_records)}):")
 
-            if interactive_mode:
-                # Interactive mode: Show conflict information and let user choose
-                print(f"\n🔄 Found duplicate original video link:")
-                print(f"   URL: {original_url}")
-                print(f"\n📹 Existing record in database:")
+            for index, existing in enumerate(existing_records, 1):
+                (
+                    existing_id,
+                    existing_title,
+                    existing_date,
+                    existing_repost_name,
+                    existing_repost_url,
+                    existing_translation_status,
+                    existing_comment,
+                    existing_author_id,
+                ) = existing
+                existing_author_name = get_author_display_name(conn, existing_author_id)
+                print(f"\n   [{index}] Record ID: {existing_id}")
                 print(f"   Title: {existing_title}")
                 print(f"   Date: {existing_date or 'Unknown'}")
                 print(f"   Repost title: {existing_repost_name or 'None'}")
@@ -738,212 +709,106 @@ def insert_video_wrapper(
                     f"   Translation status: {get_translation_status_text(existing_translation_status)}"
                 )
                 print(f"   Notes: {existing_comment or 'None'}")
-
-                # Get existing record author information
-                existing_author_name = get_author_display_name(conn, existing_author_id)
                 print(f"   Author: {existing_author_name}")
 
-                print(f"\n🆕 New record information:")
-                print(f"   Title: {title}")
-                print(f"   Date: {date_str or 'Unknown'}")
-                print(f"   Repost title: {repost_name or 'None'}")
-                print(f"   Repost link: {repost_url or 'None'}")
-                print(
-                    f"   Translation status: {get_translation_status_text(translation_status)}"
-                )
-                print(f"   Notes: {comment or 'None'}")
+            print(f"\n🆕 New record information:")
+            print(f"   Title: {title}")
+            print(f"   Date: {date_str or 'Unknown'}")
+            print(f"   Repost title: {repost_name or 'None'}")
+            print(f"   Repost link: {repost_url or 'None'}")
+            print(
+                f"   Translation status: {get_translation_status_text(translation_status)}"
+            )
+            print(f"   Notes: {comment or 'None'}")
+            if supplementary_note:
+                print(f"   📝 Supplementary note: {supplementary_note}")
+            new_author_name = get_author_display_name(conn, author_id)
+            print(f"   Author: {new_author_name}")
 
-                # Display supplementary note if available
-                if supplementary_note:
-                    print(f"   📝 Supplementary note: {supplementary_note}")
+            print(f"\nPlease choose action:")
+            print(f"  [1] Skip - Keep existing records")
+            print(
+                f"  [2] Overwrite - Completely replace one existing record with new record"
+            )
+            print(f"  [3] Add - Force add as new record (will have duplicate links)")
+            print(f"  [q] Exit program")
 
-                # Get new record author information
-                new_author_name = get_author_display_name(conn, author_id)
-                print(f"   Author: {new_author_name}")
+            while True:
+                choice = input("Please enter choice [1/2/3/q]: ").strip().lower()
+                if choice in ["1", "2", "3", "q"]:
+                    break
+                print("❌ Invalid choice, please enter again")
 
-                print(f"\nPlease choose action:")
-                print(f"  [1] Skip - Keep existing record")
-                print(
-                    f"  [2] Overwrite - Completely replace existing record with new record"
-                )
-                print(
-                    f"  [3] Merge - Intelligently merge information (keep best information)"
-                )
-                print(
-                    f"  [4] Add - Force add as new record (will have duplicate links)"
-                )
-                print(f"  [q] Exit program")
-
-                while True:
-                    choice = input("Please enter choice [1/2/3/4/q]: ").strip().lower()
-                    if choice in ["1", "2", "3", "4", "q"]:
-                        break
-                    print("❌ Invalid choice, please enter again")
-
-                if choice == "q":
-                    print("🛑 User chose to exit program")
-                    return "cancelled"
-                elif choice == "1":
-                    print("⏭️  Skipped, keeping existing record")
-                    return "skipped"
-                elif choice == "2":
-                    # Overwrite existing record
-                    cursor.execute(
-                        """
-                        UPDATE videos SET 
-                        author = ?, original_name = ?, date = ?, 
-                        repost_name = ?, repost_url = ?, translation_status = ?, comment = ?
-                        WHERE id = ?
-                    """,
-                        (
-                            author_id,
-                            title,
-                            date_str,
-                            repost_name,
-                            repost_url,
-                            translation_status,
-                            comment,
-                            existing_id,
-                        ),
-                    )
-                    conn.commit()
-                    print("✅ Overwritten existing record")
-                    return "updated"
-                elif choice == "3":
-                    # Intelligent merge
-                    merged_title = title if title else existing_title
-                    merged_date = date_str if date_str else existing_date
-                    merged_repost_name = repost_name or existing_repost_name
-                    merged_repost_url = repost_url or existing_repost_url
-                    merged_comment = comment or existing_comment
-                    # Choose better translation status (smaller value is better, but exclude 0)
-                    if translation_status and existing_translation_status:
-                        merged_translation_status = min(
-                            translation_status, existing_translation_status
-                        )
-                    else:
-                        merged_translation_status = (
-                            translation_status or existing_translation_status
-                        )
-
-                    cursor.execute(
-                        """
-                        UPDATE videos SET 
-                        original_name = ?, date = ?, 
-                        repost_name = ?, repost_url = ?, translation_status = ?, comment = ?
-                        WHERE id = ?
-                    """,
-                        (
-                            merged_title,
-                            merged_date,
-                            merged_repost_name,
-                            merged_repost_url,
-                            merged_translation_status,
-                            merged_comment,
-                            existing_id,
-                        ),
-                    )
-                    conn.commit()
-                    print("🔀 Intelligently merged record")
-                    return "updated"
-                elif choice == "4":
-                    # Force add new record
-                    cursor.execute(
-                        """
-                        INSERT INTO videos 
-                        (author, original_name, original_url, date, repost_name, repost_url, translation_status, comment)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (
-                            author_id,
-                            title,
-                            original_url,
-                            date_str,
-                            repost_name,
-                            repost_url,
-                            translation_status,
-                            comment,
-                        ),
-                    )
-                    conn.commit()
-                    print("➕ Force added as new record")
-                    return "inserted"
-
-            else:
-                # Auto-processing mode: Intelligently merge information
-                should_update = False
-                update_fields = []
-                params = []
-
-                # If existing record has no repost info but new record does, update
-                if not existing_repost_name and repost_name:
-                    update_fields.append("repost_name = ?")
-                    params.append(repost_name)
-                    should_update = True
-
-                if not existing_repost_url and repost_url:
-                    update_fields.append("repost_url = ?")
-                    params.append(repost_url)
-                    should_update = True
-
-                # If existing record has no date but new record does, update
-                if not existing_date and date_str:
-                    update_fields.append("date = ?")
-                    params.append(date_str)
-                    should_update = True
-
-                # If existing record has no notes but new record does, update
-                if not existing_comment and comment:
-                    update_fields.append("comment = ?")
-                    params.append(comment)
-                    should_update = True
-
-                # If new record has better translation status (smaller value usually means better translation), update
-                if translation_status and (
-                    not existing_translation_status
-                    or (
-                        translation_status > 0
-                        and translation_status < existing_translation_status
-                    )
-                ):
-                    update_fields.append("translation_status = ?")
-                    params.append(translation_status)
-                    should_update = True
-
-                if should_update:
-                    params.append(existing_id)
-                    update_query = (
-                        f"UPDATE videos SET {', '.join(update_fields)} WHERE id = ?"
-                    )
-                    cursor.execute(update_query, params)
-                    conn.commit()
-
-                    if debug:
-                        print(f"🔄 Auto-updated existing video info: {title}")
-                        if repost_name and not existing_repost_name:
-                            print(f"  ➕ Added repost title: {repost_name}")
-                        if repost_url and not existing_repost_url:
-                            print(f"  ➕ Added repost link: {repost_url}")
-                        if date_str and not existing_date:
-                            print(f"  ➕ Added release date: {date_str}")
-                        if comment and not existing_comment:
-                            print(f"  ➕ Added notes: {comment}")
-                        if translation_status and (
-                            not existing_translation_status
-                            or translation_status < existing_translation_status
-                        ):
-                            print(
-                                f"  🔄 Updated translation status: {get_translation_status_text(existing_translation_status)} -> {get_translation_status_text(translation_status)}"
-                            )
-
-                    return "updated"
+            if choice == "q":
+                print("🛑 User chose to exit program")
+                return "cancelled"
+            if choice == "1":
+                print("⏭️  Skipped, keeping existing records")
+                return "skipped"
+            if choice == "2":
+                if len(existing_records) == 1:
+                    target = existing_records[0]
                 else:
-                    if debug:
-                        print(
-                            f"⏭️  Video already exists and info is complete, skipping: {original_url}"
+                    while True:
+                        target_choice = (
+                            input(
+                                f"Please select record to overwrite [1-{len(existing_records)}/q]: "
+                            )
+                            .strip()
+                            .lower()
                         )
-                    return "skipped"
+                        if target_choice == "q":
+                            print("🛑 User chose to exit program")
+                            return "cancelled"
+                        if target_choice.isdigit():
+                            target_index = int(target_choice)
+                            if 1 <= target_index <= len(existing_records):
+                                target = existing_records[target_index - 1]
+                                break
+                        print("❌ Invalid record number, please enter again")
 
+                cursor.execute(
+                    """
+                    UPDATE videos SET
+                    author = ?, original_name = ?, date = ?,
+                    repost_name = ?, repost_url = ?, translation_status = ?, comment = ?
+                    WHERE id = ?
+                """,
+                    (
+                        author_id,
+                        title,
+                        date_str,
+                        repost_name,
+                        repost_url,
+                        translation_status,
+                        comment,
+                        target[0],
+                    ),
+                )
+                conn.commit()
+                print(f"✅ Overwritten existing record (ID: {target[0]})")
+                return "updated"
+            if choice == "3":
+                cursor.execute(
+                    """
+                    INSERT INTO videos
+                    (author, original_name, original_url, date, repost_name, repost_url, translation_status, comment)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        author_id,
+                        title,
+                        original_url,
+                        date_str,
+                        repost_name,
+                        repost_url,
+                        translation_status,
+                        comment,
+                    ),
+                )
+                conn.commit()
+                print("➕ Force added as new record")
+                return "inserted"
         # Insert new video
         cursor.execute(
             """
@@ -965,25 +830,23 @@ def insert_video_wrapper(
 
         conn.commit()
 
-        if debug:
-            print(f"➕ Inserted new video: {title or 'No title'}")
-            if repost_name:
-                print(f"   Repost title: {repost_name}")
-            if repost_url:
-                print(f"   Repost link: {repost_url}")
-            if comment:
-                print(f"   Notes: {comment}")
-            print(
-                f"   Translation status: {get_translation_status_text(translation_status)}"
-            )
+        print(f"➕ Inserted new video: {title or 'No title'}")
+        if repost_name:
+            print(f"   Repost title: {repost_name}")
+        if repost_url:
+            print(f"   Repost link: {repost_url}")
+        if comment:
+            print(f"   Notes: {comment}")
+        print(
+            f"   Translation status: {get_translation_status_text(translation_status)}"
+        )
 
         return "inserted"
 
     except Exception as e:
         print(f"❌ Failed to insert video: {e}")
-        if debug:
-            print(f"   Title: {title}")
-            print(f"   URL: {original_url}")
+        print(f"   Title: {title}")
+        print(f"   URL: {original_url}")
         return "error"
 
 
@@ -1018,7 +881,6 @@ def insert_video(
     repost_url,
     translation_status,
     comment,
-    debug=False,
 ):
     """Insert video record to database"""
     cursor.execute(
@@ -1039,19 +901,18 @@ def insert_video(
         ),
     )
 
-    if debug:
-        print(f"  Inserted video: {title} (Author ID: {author_id})")
-        if repost_name and repost_name != "":
-            print(f"    Repost title: {repost_name}")
-        if repost_url and repost_url != "":
-            print(f"    Repost link: {repost_url}")
-        print(f"    Translation status: {translation_status}")
-        if comment:
-            print(f"    Notes: {comment}")
-        print()
+    print(f"  Inserted video: {title} (Author ID: {author_id})")
+    if repost_name and repost_name != "":
+        print(f"    Repost title: {repost_name}")
+    if repost_url and repost_url != "":
+        print(f"    Repost link: {repost_url}")
+    print(f"    Translation status: {translation_status}")
+    if comment:
+        print(f"    Notes: {comment}")
+    print()
 
 
-def parse_csv_line(line, debug=False):
+def parse_csv_line(line):
     """Parse CSV line, return processed data"""
     parts = [part.strip() for part in line.split(",")]
 
@@ -1069,16 +930,15 @@ def parse_csv_line(line, debug=False):
         parts[6] if parts[6] else None
     )  # Supplementary note (for display only)
 
-    if debug:
-        print(f"Parsing CSV line:")
-        print(f"  Author: {author_name}")
-        print(f"  Original video link: {original_url}")
-        print(f"  Repost title: {repost_name}")
-        print(f"  Repost link: {repost_url}")
-        print(f"  Translation status: {translation_status}")
-        print(f"  Notes: {comment}")
-        if supplementary_note:
-            print(f"  Supplementary note: {supplementary_note}")
+    print(f"Parsing CSV line:")
+    print(f"  Author: {author_name}")
+    print(f"  Original video link: {original_url}")
+    print(f"  Repost title: {repost_name}")
+    print(f"  Repost link: {repost_url}")
+    print(f"  Translation status: {translation_status}")
+    print(f"  Notes: {comment}")
+    if supplementary_note:
+        print(f"  Supplementary note: {supplementary_note}")
 
     return (
         author_name,
@@ -1110,12 +970,10 @@ def write_error_to_csv(error_file, line_num, line_content, error_msg):
 def process_csv(
     input_file,
     conn,
-    debug=False,
     dry_run=False,
     skip_metadata=False,
     browser_cookies=None,
     cookies_file=None,
-    interactive_mode=False,
 ):
     """Process CSV file"""
     stats = {
@@ -1150,8 +1008,7 @@ def process_csv(
             try:
                 parts = original_line.split(",")
                 if len(parts) < 2:
-                    if debug:
-                        print(f"Skipping line {line_num}: Incorrect format")
+                    print(f"Skipping line {line_num}: Incorrect format")
                     continue
 
                 csv_author = clean_author_name(parts[0].strip())
@@ -1177,19 +1034,17 @@ def process_csv(
 
                 # Skip invalid lines - only require author name, other fields can be empty
                 if not csv_author:
-                    if debug:
-                        print(f"Skipping line {line_num}: Author name is empty")
+                    print(f"Skipping line {line_num}: Author name is empty")
                     continue
 
-                if debug:
-                    print(f"\nProcessing line {line_num}: {csv_author}")
-                    if repost_name:
-                        print(f"  Repost title: {repost_name}")
-                    if repost_url:
-                        print(f"  Repost link: {repost_url}")
-                    if comment:
-                        print(f"  Notes: {comment}")
-                    print(f"  Original video link: {original_url}")
+                print(f"\nProcessing line {line_num}: {csv_author}")
+                if repost_name:
+                    print(f"  Repost title: {repost_name}")
+                if repost_url:
+                    print(f"  Repost link: {repost_url}")
+                if comment:
+                    print(f"  Notes: {comment}")
+                print(f"  Original video link: {original_url}")
 
                 # Get or use cached author information
                 author_info = None
@@ -1198,12 +1053,11 @@ def process_csv(
                 if csv_author not in author_cache:
                     if not skip_metadata and original_url and original_url.strip():
                         try:
-                            if debug:
-                                print(
-                                    f"First time encountering author '{csv_author}', getting metadata: {original_url}"
-                                )
+                            print(
+                                f"First time encountering author '{csv_author}', getting metadata: {original_url}"
+                            )
                             _, _, author_info = get_video_metadata(
-                                original_url, debug, browser_cookies, cookies_file
+                                original_url, browser_cookies, cookies_file
                             )
                         except Exception as e:
                             error_msg = str(e)
@@ -1229,7 +1083,7 @@ def process_csv(
                             stats["errors"] += 1
                             # Don't set error_occurred = True, continue processing this line
                     else:
-                        if debug and not original_url:
+                        if not original_url:
                             print(
                                 f"Author '{csv_author}' has no original video link, skipping metadata retrieval"
                             )
@@ -1238,8 +1092,7 @@ def process_csv(
                     author_cache[csv_author] = author_info
                 else:
                     author_info = author_cache[csv_author]
-                    if debug:
-                        print(f"Using cached author info: {csv_author}")
+                    print(f"Using cached author info: {csv_author}")
 
                 # Only skip when author metadata retrieval failed and there's no original video link
                 # If there's repost info, process even if original video info retrieval failed
@@ -1248,26 +1101,18 @@ def process_csv(
                 if not dry_run:
                     if csv_author in author_id_cache:
                         author_id = author_id_cache[csv_author]
-                        if debug:
-                            print(
-                                f"Using cached author ID: {csv_author} (ID: {author_id})"
-                            )
+                        print(f"Using cached author ID: {csv_author} (ID: {author_id})")
                     else:
-                        author_id = get_or_create_author(
-                            conn, csv_author, author_info, debug
-                        )
+                        author_id = get_or_create_author(conn, csv_author, author_info)
                         author_id_cache[csv_author] = author_id
                 else:
                     # Dry-run mode: simulate author creation and show details
                     if csv_author in author_id_cache:
                         author_display_name = author_id_cache[csv_author]
-                        if debug:
-                            print(
-                                f"[DRY RUN] Using cached author: {author_display_name}"
-                            )
+                        print(f"[DRY RUN] Using cached author: {author_display_name}")
                     else:
                         author_display_name = simulate_author_creation(
-                            csv_author, author_info, debug
+                            csv_author, author_info
                         )
                         author_id_cache[csv_author] = author_display_name
                     author_id = 1  # Mock ID
@@ -1280,14 +1125,14 @@ def process_csv(
                 if skip_metadata or not original_url or not original_url.strip():
                     title = repost_name  # Use repost title as title, if none then None
                     date_str = None
-                    if debug and not original_url:
+                    if not original_url:
                         print(
                             f"  Original video link is empty, using repost title: {title}"
                         )
                 else:
                     try:
                         title, date_str, _ = get_video_metadata(
-                            original_url, debug, browser_cookies, cookies_file
+                            original_url, browser_cookies, cookies_file
                         )
                     except Exception as e:
                         error_msg = str(e)
@@ -1325,8 +1170,6 @@ def process_csv(
                         repost_url,
                         translation_status_int,
                         comment,
-                        debug,
-                        interactive_mode,
                         supplementary_note,
                     )
 
@@ -1360,8 +1203,7 @@ def process_csv(
             except Exception as e:
                 error_msg = f"Error processing line {line_num}: {e}"
                 print(error_msg)
-                if debug:
-                    print(f"Line content: {original_line}")
+                print(f"Line content: {original_line}")
 
                 # Record error to CSV file
                 write_error_to_csv(error_file, line_num, original_line, str(e))
@@ -1390,11 +1232,6 @@ def main():
     parser.add_argument("csv_file", help="CSV file path")
     parser.add_argument("--db-path", default=_default_db, help="Database path")
     parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode for detailed information",
-    )
-    parser.add_argument(
         "--dry-run", action="store_true", help="Check only, do not actually import"
     )
     parser.add_argument(
@@ -1412,17 +1249,6 @@ def main():
         type=str,
         help="Extract cookies from specified browser to handle restricted videos. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]. Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6. Note: qutebrowser not supported, use --cookies instead",
     )
-    parser.add_argument(
-        "--interactive",
-        action="store_true",
-        help="Enable interactive mode: manually choose handling method when encountering duplicate links (default mode)",
-    )
-    parser.add_argument(
-        "--auto-merge",
-        action="store_true",
-        help="Enable auto-merge mode: intelligently handle duplicate links, skip interaction",
-    )
-
     args = parser.parse_args()
 
     # Check if CSV file exists
@@ -1456,27 +1282,14 @@ def main():
                 f"*** Using {args.cookies_from_browser} browser cookies to handle restricted videos ***"
             )
 
-        # Determine processing mode - default to interactive mode
-        interactive_mode = (
-            not args.auto_merge
-        )  # If auto_merge not specified, use interactive mode
-        if interactive_mode:
-            print(
-                "*** 🤝 Interactive mode: Will ask for your handling method when encountering duplicate links (default mode)***"
-            )
-        else:
-            print("*** 🤖 Auto-merge mode: Intelligently handle duplicate links ***")
-
         # Process CSV
         stats = process_csv(
             args.csv_file,
             conn,
-            args.debug,
             args.dry_run,
             args.skip_metadata,
             args.cookies_from_browser,
             args.cookies,
-            interactive_mode,
         )
 
         # Print statistics
