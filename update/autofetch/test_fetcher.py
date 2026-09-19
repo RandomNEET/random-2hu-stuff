@@ -5,6 +5,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import fetcher
+import processor
+import upload
+from time_range import parse_time_range
 
 
 class FetcherTests(unittest.TestCase):
@@ -39,10 +42,20 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(session.timeouts, [8, 12])
 
     def test_parse_time_range(self):
-        self.assertEqual(fetcher.parse_time_range("today"), "today")
-        self.assertEqual(fetcher.parse_time_range("all"), "all")
-        self.assertEqual(fetcher.parse_time_range("20260914"), "20260914")
-        self.assertEqual(fetcher.parse_time_range("7"), 7)
+        self.assertEqual(parse_time_range("today"), "today")
+        self.assertEqual(parse_time_range("all"), "all")
+        self.assertEqual(parse_time_range("20260914"), "20260914")
+        self.assertEqual(parse_time_range("7"), 7)
+
+    def test_time_range_cli_is_shared_by_processor_and_upload(self):
+        self.assertEqual(
+            processor.parse_args(["--time-range", "today"]).time_range, "today"
+        )
+        upload_args = upload.parse_args(
+            ["--dry-run", "--time-range", "today"]
+        )
+        self.assertTrue(upload_args.dry_run)
+        self.assertEqual(upload_args.time_range, "today")
 
     def test_two_days_uses_calendar_dates(self):
         now = datetime(2026, 9, 14, 0, 5, tzinfo=fetcher.TZ_BEIJING)

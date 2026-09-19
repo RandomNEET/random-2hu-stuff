@@ -2,6 +2,7 @@
   /*
    * 时间范围 —— 决定处理哪些 CSV 文件。
    * 可取值：null(回退到fetcher配置)、"today"、"all"、数字(最近N天)、"20260614"
+   * 命令行 --time-range 会覆盖这里及 fetcher 配置。
    */
   "time_range": null,
   // 回退的时间范围来源

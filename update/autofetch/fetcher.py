@@ -21,6 +21,7 @@ from xml.etree import ElementTree as ET
 
 import requests
 from requests.adapters import HTTPAdapter
+from time_range import parse_time_range
 from urllib3.util.retry import Retry
 
 # ==================== JSONC 解析 ====================
@@ -125,28 +126,6 @@ def parse_pub_date(date_str: str) -> datetime | None:
         return dt.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
-
-
-def parse_time_range(value: str) -> str | int:
-    """解析命令行时间范围。"""
-    normalized = value.strip().lower()
-    if normalized in {"today", "all"}:
-        return normalized
-    if re.fullmatch(r"\d{8}", normalized):
-        try:
-            datetime.strptime(normalized, "%Y%m%d")
-        except ValueError as e:
-            raise argparse.ArgumentTypeError(f"无效日期: {value}") from e
-        return normalized
-    try:
-        days = int(normalized)
-    except ValueError as e:
-        raise argparse.ArgumentTypeError(
-            "时间范围必须是 today、all、YYYYMMDD 或正整数"
-        ) from e
-    if days < 1:
-        raise argparse.ArgumentTypeError("天数必须大于 0")
-    return days
 
 
 def parse_args(argv=None):

@@ -6,9 +6,12 @@
 配置文件：config/processor.jsonc
 CSV 目录：output/
 
+命令行可用 --time-range 覆盖配置中的时间范围。
+
 新增：支持通过配置文件指定 cookies 文件，yt-dlp 携带 cookies 访问 B 站。
 """
 
+import argparse
 import csv
 import json
 import os
@@ -20,6 +23,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+from time_range import parse_time_range
 
 # ==================== JSONC 解析 ====================
 
@@ -98,6 +103,16 @@ def resolve_cookies(config: dict, script_dir: Path) -> Optional[str]:
 TZ_BEIJING = timezone(timedelta(hours=8))
 
 DATE_PATTERN = re.compile(r"(\d{8})")
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="处理 autofetch CSV")
+    parser.add_argument(
+        "--time-range",
+        type=parse_time_range,
+        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+    )
+    return parser.parse_args(argv)
 
 
 def resolve_time_range(process_config: dict) -> str:
@@ -359,7 +374,8 @@ def ensure_columns(row: list, min_cols: int = 5) -> list:
 # ==================== 主流程 ====================
 
 
-def main():
+def main(argv=None):
+    args = parse_args(argv)
     script_dir = Path(__file__).resolve().parent
     config_path = script_dir / "config" / "processor.jsonc"
 
@@ -377,7 +393,11 @@ def main():
     else:
         print("→ Cookies: 未启用（B 站简介可能获取失败）")
 
-    time_range = resolve_time_range(process_config)
+    time_range = (
+        args.time_range
+        if args.time_range is not None
+        else resolve_time_range(process_config)
+    )
 
     csv_dir = Path(process_config.get("csv_dir", "output"))
     if not csv_dir.is_absolute():

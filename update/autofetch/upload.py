@@ -3,6 +3,7 @@
 腾讯文档上传 + 整理一体脚本
 用法：
     python upload.py                  # 全流程：合并本地 CSV → 上传 → 整理在线表格
+    python upload.py --time-range today  # 仅合并今天的 CSV
     python upload.py --check-only     # 仅本地处理（不实际上传）
     python upload.py --upload-only    # 仅上传已有的 combined 文件 → 然后整理
     python upload.py --order-only     # 仅整理在线表格（不处理本地文件）
@@ -10,6 +11,7 @@
     python upload.py --order-only --file-id <ID> --sheet-id <ID>  # 手动指定表格
 """
 
+import argparse
 import copy
 import csv
 import json
@@ -23,6 +25,8 @@ from typing import Any, List
 
 import json5
 import requests
+
+from time_range import parse_time_range
 
 
 # ==================== 1. 加载 .env ====================
@@ -88,32 +92,22 @@ def get_time_range(cfg_upload: dict) -> str:
 
 
 # ==================== 3. 参数解析 ====================
-def parse_args():
-    check_only = False
-    upload_only = False
-    order_only = False
-    dry_run = False
-    file_id = None
-    sheet_id = None
-    i = 1
-    while i < len(sys.argv):
-        arg = sys.argv[i]
-        if arg in ("--check-only", "--local-only"):
-            check_only = True
-        elif arg == "--upload-only":
-            upload_only = True
-        elif arg == "--order-only":
-            order_only = True
-        elif arg == "--dry-run":
-            dry_run = True
-        elif arg == "--file-id" and i + 1 < len(sys.argv):
-            file_id = sys.argv[i + 1]
-            i += 1
-        elif arg == "--sheet-id" and i + 1 < len(sys.argv):
-            sheet_id = sys.argv[i + 1]
-            i += 1
-        i += 1
-    return check_only, upload_only, order_only, dry_run, file_id, sheet_id
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="整理并上传 autofetch CSV")
+    parser.add_argument(
+        "--check-only", "--local-only", dest="check_only", action="store_true"
+    )
+    parser.add_argument("--upload-only", action="store_true")
+    parser.add_argument("--order-only", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--file-id")
+    parser.add_argument("--sheet-id")
+    parser.add_argument(
+        "--time-range",
+        type=parse_time_range,
+        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+    )
+    return parser.parse_args(argv)
 
 
 # ==================== 4. 时间范围处理 ====================
@@ -726,15 +720,14 @@ def order_sheet(file_id, sheet_id, dry_run=False):
 
 
 # ==================== 10. 主流程 ====================
-def main():
-    (
-        check_only,
-        upload_only,
-        order_only,
-        dry_run,
-        file_id_override,
-        sheet_id_override,
-    ) = parse_args()
+def main(argv=None):
+    args = parse_args(argv)
+    check_only = args.check_only
+    upload_only = args.upload_only
+    order_only = args.order_only
+    dry_run = args.dry_run
+    file_id_override = args.file_id
+    sheet_id_override = args.sheet_id
 
     # 如果指定了 file_id/sheet_id 且运行 order_only，则用指定的覆盖配置
     if order_only:
@@ -793,7 +786,11 @@ def main():
 
     print("→ 模式：本地整理" + (" (仅本地)" if check_only else " + 上传"))
     upload_cfg = load_upload_config()
-    time_range_str = get_time_range(upload_cfg)
+    time_range_str = (
+        args.time_range
+        if args.time_range is not None
+        else get_time_range(upload_cfg)
+    )
     csv_dir_name = upload_cfg.get("csv_dir", "output")
     csv_dir_path = Path(csv_dir_name)
 
