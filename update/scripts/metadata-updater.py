@@ -12,6 +12,7 @@ Optional arguments:
 --debug: Enable debug mode
 --dry-run: Check only, do not actually update
 --limit: Limit the number of records to process
+--workers: Number of concurrent metadata requests (default: 4)
 --update-original: Update original video thumbnails
 --update-repost: Update repost video thumbnails
 --force: Force update existing thumbnails
@@ -23,13 +24,102 @@ Optional arguments:
 """
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import sqlite3
 import sys
+import threading
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 import yt_dlp
+
+
+class YdlLogger:
+    """Keep concurrent yt-dlp output readable; errors are reported by the caller."""
+
+    def __init__(self, debug=False):
+        self.debug_enabled = debug
+
+    def debug(self, message):
+        if self.debug_enabled:
+            print(message)
+
+    def warning(self, message):
+        if self.debug_enabled:
+            print(f"WARNING: {message}")
+
+    def error(self, _message):
+        pass
+
+
+_ydl_local = threading.local()
+
+
+def build_ydl_options(debug=False, browser_cookies=None, cookies_file=None):
+    """Build yt-dlp options shared by all worker-local instances."""
+    options = {
+        "quiet": not debug,
+        "skip_download": True,
+        "extract_flat": False,
+        "no_playlist": True,
+        "socket_timeout": 10,
+        "no_warnings": not debug,
+        "logger": YdlLogger(debug),
+        # Retry the complete URL once in fetch_job instead of retrying each
+        # internal yt-dlp request several times.
+        "retries": 0,
+        "extractor_retries": 0,
+    }
+
+    if cookies_file:
+        options["cookiefile"] = cookies_file
+    elif browser_cookies:
+        if "+" in browser_cookies and ":" in browser_cookies:
+            browser, remainder = browser_cookies.split("+", 1)
+            if "::" in remainder:
+                keyring_profile, container = remainder.split("::", 1)
+                if ":" in keyring_profile:
+                    keyring, profile = keyring_profile.split(":", 1)
+                    options["cookiesfrombrowser"] = (browser, keyring, profile, container)
+                else:
+                    options["cookiesfrombrowser"] = (browser, keyring_profile, None, container)
+            elif ":" in remainder:
+                keyring, profile = remainder.split(":", 1)
+                options["cookiesfrombrowser"] = (browser, keyring, profile)
+            else:
+                options["cookiesfrombrowser"] = (browser, remainder)
+        elif "::" in browser_cookies:
+            browser_profile, container = browser_cookies.split("::", 1)
+            if ":" in browser_profile:
+                browser, profile = browser_profile.split(":", 1)
+                options["cookiesfrombrowser"] = (browser, None, profile, container)
+            else:
+                options["cookiesfrombrowser"] = (
+                    browser_profile,
+                    None,
+                    None,
+                    container,
+                )
+        elif ":" in browser_cookies:
+            browser, profile = browser_cookies.split(":", 1)
+            options["cookiesfrombrowser"] = (browser, None, profile)
+        else:
+            options["cookiesfrombrowser"] = (browser_cookies,)
+
+    return options
+
+
+def get_worker_ydl(debug=False, browser_cookies=None, cookies_file=None):
+    """Reuse one isolated YoutubeDL instance in each worker thread."""
+    key = (debug, browser_cookies, cookies_file)
+    if getattr(_ydl_local, "key", None) != key:
+        _ydl_local.ydl = yt_dlp.YoutubeDL(
+            build_ydl_options(debug, browser_cookies, cookies_file)
+        )
+        _ydl_local.key = key
+    return _ydl_local.ydl
 
 
 def create_connection(db_path):
@@ -48,117 +138,58 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
         return None, None
 
     try:
-        options = {
-            "quiet": not debug,
-            "skip_download": True,
-            "extract_flat": False,
-            "no_playlist": True,  # Only get single video, don't process playlist
-        }
+        ydl = get_worker_ydl(debug, browser_cookies, cookies_file)
+        info = ydl.extract_info(url, download=False)
 
-        # If cookies file is specified, use it
-        if cookies_file:
-            options["cookiefile"] = cookies_file
+        # If it's a playlist, get info from first video
+        if "entries" in info and info["entries"]:
+            info = info["entries"][0]
 
-        # If cookies enabled, extract cookies from specified browser
-        elif browser_cookies:
-            # Parse browser cookies parameter
-            # Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
-            if "+" in browser_cookies and ":" in browser_cookies:
-                # Full format: browser+keyring:profile::container
-                parts = browser_cookies.split("+", 1)
-                browser = parts[0]
-                keyring_profile_container = parts[1]
+        thumbnail = info.get("thumbnail")
+        if not thumbnail and "thumbnails" in info:
+            thumbnails = info["thumbnails"]
+            if thumbnails:
+                thumbnails.sort(key=lambda x: x.get("preference", 0), reverse=True)
+                thumbnail = thumbnails[0].get("url")
 
-                if "::" in keyring_profile_container:
-                    keyring_profile, container = keyring_profile_container.split(
-                        "::", 1
-                    )
-                    if ":" in keyring_profile:
-                        keyring, profile = keyring_profile.split(":", 1)
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            keyring,
-                            profile,
-                            container,
-                        )
-                    else:
-                        keyring = keyring_profile
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            keyring,
-                            None,
-                            container,
-                        )
-                else:
-                    if ":" in keyring_profile_container:
-                        keyring, profile = keyring_profile_container.split(":", 1)
-                        options["cookiesfrombrowser"] = (browser, keyring, profile)
-                    else:
-                        keyring = keyring_profile_container
-                        options["cookiesfrombrowser"] = (browser, keyring)
-            elif "::" in browser_cookies:
-                # Format: browser::container or browser:profile::container
-                if browser_cookies.count(":") == 2:
-                    browser_profile, container = browser_cookies.split("::", 1)
-                    if ":" in browser_profile:
-                        browser, profile = browser_profile.split(":", 1)
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            None,
-                            profile,
-                            container,
-                        )
-                    else:
-                        browser = browser_profile
-                        options["cookiesfrombrowser"] = (browser, None, None, container)
-                else:
-                    browser, container = browser_cookies.split("::", 1)
-                    options["cookiesfrombrowser"] = (browser, None, None, container)
-            elif ":" in browser_cookies:
-                # Format: browser:profile
-                browser, profile = browser_cookies.split(":", 1)
-                options["cookiesfrombrowser"] = (browser, None, profile)
-            else:
-                # Browser name only
-                options["cookiesfrombrowser"] = (browser_cookies,)
+        if thumbnail and "hdslb.com" in thumbnail and thumbnail.startswith("http://"):
+            thumbnail = thumbnail.replace("http://", "https://")
 
-        with yt_dlp.YoutubeDL(options) as ydl:
-            info = ydl.extract_info(url, download=False)
+        raw_duration = info.get("duration")
+        duration = None
+        if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
+            duration = round(raw_duration)
 
-            # If it's a playlist, get info from first video
-            if "entries" in info and info["entries"]:
-                info = info["entries"][0]
-
-            # Get thumbnail URL
-            thumbnail = info.get("thumbnail")
-
-            # If can't get thumbnail, try to get highest quality from thumbnails list
-            if not thumbnail and "thumbnails" in info:
-                thumbnails = info["thumbnails"]
-                if thumbnails:
-                    # Sort by preference, choose best thumbnail
-                    thumbnails.sort(key=lambda x: x.get("preference", 0), reverse=True)
-                    thumbnail = thumbnails[0].get("url")
-
-            # Handle Bilibili thumbnail URL: change http to https
-            if (
-                thumbnail
-                and "hdslb.com" in thumbnail
-                and thumbnail.startswith("http://")
-            ):
-                thumbnail = thumbnail.replace("http://", "https://")
-
-            raw_duration = info.get("duration")
-            duration = None
-            if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
-                duration = round(raw_duration)
-
-            return thumbnail, duration
+        return thumbnail, duration
 
     except Exception as e:
         if debug:
             print(f"Failed to get video metadata {url}: {e}")
         raise e
+
+
+def is_non_video_url(url):
+    """Return True for known database entries that cannot have video metadata."""
+    host = urlparse(url).netloc.lower()
+    return host == "manga.nicovideo.jp"
+
+
+def is_retryable_error(error):
+    """Retry transient transport failures, not permanent access/content failures."""
+    message = str(error).lower()
+    permanent_markers = (
+        "sign in to confirm your age",
+        "video unavailable",
+        "not available from your location",
+        "geo restriction",
+        "unsupported url",
+        "keyerror('bvid')",
+        "http error 412",
+        "precondition failed",
+        "private video",
+        "this video has been removed",
+    )
+    return not any(marker in message for marker in permanent_markers)
 
 
 def update_thumbnails(
@@ -171,6 +202,8 @@ def update_thumbnails(
     force=False,
     browser_cookies=None,
     cookies_file=None,
+    workers=4,
+    metadata_fetcher=get_video_metadata,
 ):
     """Update missing video thumbnails and durations."""
     cursor = conn.cursor()
@@ -244,8 +277,14 @@ def update_thumbnails(
         "repost_updated": 0,
         "original_duration_updated": 0,
         "repost_duration_updated": 0,
+        "unique_urls": 0,
+        "retries": 0,
+        "skipped_non_video": 0,
+        "original_url_tasks": 0,
+        "repost_url_tasks": 0,
     }
 
+    url_jobs = {}
     for video in videos:
         (
             video_id,
@@ -258,104 +297,122 @@ def update_thumbnails(
             comment,
         ) = video
         stats["processed"] += 1
-
         skip_original = comment and any(kw in comment for kw in delete_keywords)
 
-        print(f"\nProcessing video ID {video_id} ({stats['processed']}/{len(videos)})")
-
-        updated_fields = []
-        update_params = []
-
-        # Process original video metadata
-        if update_original and original_url and original_url != "未转载":
-            should_update_original = force or not original_thumbnail or original_duration is None
-
-            if should_update_original:
-                if skip_original:
-                    print(
-                        f"  ⏭️  Original video skipped: comment contains delete keyword"
-                    )
-                else:
-                    try:
-                        print(f"  Getting original video metadata: {original_url}")
-                        new_thumbnail, new_duration = get_video_metadata(
-                            original_url, debug, browser_cookies, cookies_file
-                        )
-
-                        if new_thumbnail and (force or not original_thumbnail):
-                            updated_fields.append("original_thumbnail = ?")
-                            update_params.append(new_thumbnail)
-                            stats["original_updated"] += 1
-                            print(f"  ✅ Original video thumbnail: {new_thumbnail}")
-                        elif not new_thumbnail and not original_thumbnail:
-                            print(f"  ⚠️  Original video thumbnail not obtained")
-
-                        if new_duration is not None and (
-                            force or original_duration is None
-                        ):
-                            updated_fields.append("original_duration = ?")
-                            update_params.append(new_duration)
-                            stats["original_duration_updated"] += 1
-                            print(f"  ✅ Original video duration: {new_duration}s")
-                        elif new_duration is None and original_duration is None:
-                            print(f"  ⚠️  Original video duration not obtained")
-
-                    except Exception as e:
-                        print(f"  ❌ Original video metadata failed: {e}")
-                        stats["errors"] += 1
+        if (
+            update_original
+            and original_url
+            and original_url != "未转载"
+            and (force or not original_thumbnail or original_duration is None)
+            and not skip_original
+        ):
+            clean_url = original_url.strip()
+            if is_non_video_url(clean_url):
+                stats["skipped_non_video"] += 1
             else:
-                print(f"  ⏭️  Original video metadata already complete, skipping")
-
-        # Process repost video metadata
-        if update_repost and repost_url and repost_url != "未转载":
-            should_update_repost = force or not repost_thumbnail or repost_duration is None
-
-            if should_update_repost:
-                try:
-                    print(f"  Getting repost video metadata: {repost_url}")
-                    new_thumbnail, new_duration = get_video_metadata(
-                        repost_url, debug, browser_cookies, cookies_file
-                    )
-
-                    if new_thumbnail and (force or not repost_thumbnail):
-                        updated_fields.append("repost_thumbnail = ?")
-                        update_params.append(new_thumbnail)
-                        stats["repost_updated"] += 1
-                        print(f"  ✅ Repost video thumbnail: {new_thumbnail}")
-                    elif not new_thumbnail and not repost_thumbnail:
-                        print(f"  ⚠️  Repost video thumbnail not obtained")
-
-                    if new_duration is not None and (force or repost_duration is None):
-                        updated_fields.append("repost_duration = ?")
-                        update_params.append(new_duration)
-                        stats["repost_duration_updated"] += 1
-                        print(f"  ✅ Repost video duration: {new_duration}s")
-                    elif new_duration is None and repost_duration is None:
-                        print(f"  ⚠️  Repost video duration not obtained")
-
-                except Exception as e:
-                    print(f"  ❌ Repost video metadata failed: {e}")
-                    stats["errors"] += 1
-            else:
-                print(f"  ⏭️  Repost video metadata already complete, skipping")
-
-        # Update database
-        if updated_fields and not dry_run:
-            try:
-                update_params.append(video_id)
-                update_query = (
-                    f"UPDATE videos SET {', '.join(updated_fields)} WHERE id = ?"
+                url_jobs.setdefault(clean_url, []).append(
+                    (video_id, "original", original_thumbnail, original_duration)
                 )
-                cursor.execute(update_query, update_params)
-                conn.commit()
-                stats["updated"] += 1
-                print(f"  💾 Database updated")
-            except Exception as e:
-                print(f"  ❌ Database update failed: {e}")
+                stats["original_url_tasks"] += 1
+        if (
+            update_repost
+            and repost_url
+            and repost_url != "未转载"
+            and (force or not repost_thumbnail or repost_duration is None)
+        ):
+            url_jobs.setdefault(repost_url.strip(), []).append(
+                (video_id, "repost", repost_thumbnail, repost_duration)
+            )
+            stats["repost_url_tasks"] += 1
+
+    stats["unique_urls"] = len(url_jobs)
+    total_references = stats["original_url_tasks"] + stats["repost_url_tasks"]
+    print(
+        f"Prepared {total_references} URL references "
+        f"({stats['original_url_tasks']} original, {stats['repost_url_tasks']} repost)"
+    )
+    print(
+        f"Fetching {len(url_jobs)} unique URLs with {workers} workers "
+        f"({total_references - len(url_jobs)} duplicate references reused)"
+    )
+
+    def fetch_job(url):
+        for attempt in range(2):
+            try:
+                thumbnail, duration = metadata_fetcher(
+                    url, debug, browser_cookies, cookies_file
+                )
+                return thumbnail, duration, attempt, None
+            except Exception as error:
+                if attempt == 0 and is_retryable_error(error):
+                    time.sleep(1)
+                else:
+                    return None, None, attempt, error
+
+    updated_video_ids = set()
+    pending_writes = 0
+    executor = ThreadPoolExecutor(max_workers=workers)
+    futures = {executor.submit(fetch_job, url): url for url in url_jobs}
+    interrupted = False
+
+    try:
+        for completed_urls, future in enumerate(as_completed(futures), 1):
+            url = futures[future]
+            thumbnail, duration, retry_count, error = future.result()
+            stats["retries"] += retry_count
+            print(f"\n[{completed_urls}/{len(url_jobs)}] {url}")
+
+            if error is not None:
                 stats["errors"] += 1
-        elif updated_fields and dry_run:
-            print(f"  [DRY RUN] Will update: {', '.join(updated_fields)}")
-            stats["updated"] += 1
+                print(f"  ❌ Metadata failed: {error}")
+                continue
+            if retry_count:
+                print("  ✅ Retry succeeded")
+
+            updates_by_video = {}
+            for video_id, side, old_thumbnail, old_duration in url_jobs[url]:
+                fields = updates_by_video.setdefault(video_id, {})
+                if thumbnail and (force or not old_thumbnail):
+                    fields[f"{side}_thumbnail"] = thumbnail
+                    stats[f"{side}_updated"] += 1
+                if duration is not None and (force or old_duration is None):
+                    fields[f"{side}_duration"] = duration
+                    stats[f"{side}_duration_updated"] += 1
+
+            for video_id, fields in updates_by_video.items():
+                if not fields:
+                    continue
+                assignments = ", ".join(f"{field} = ?" for field in fields)
+                values = list(fields.values())
+                update_details = ", ".join(
+                    f"{field}={value}s" if field.endswith("_duration") else f"{field}={value}"
+                    for field, value in fields.items()
+                )
+                if dry_run:
+                    print(f"  [DRY RUN] Video {video_id}: {update_details}")
+                else:
+                    cursor.execute(
+                        f"UPDATE videos SET {assignments} WHERE id = ?",
+                        (*values, video_id),
+                    )
+                    pending_writes += 1
+                    if pending_writes >= 50:
+                        conn.commit()
+                        pending_writes = 0
+                    print(f"  💾 Video {video_id} updated: {update_details}")
+                updated_video_ids.add(video_id)
+    except KeyboardInterrupt:
+        interrupted = True
+        print("\nInterrupted; cancelling pending metadata requests...")
+        for future in futures:
+            future.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=not interrupted, cancel_futures=True)
+        if pending_writes and not dry_run:
+            conn.commit()
+
+    stats["updated"] = len(updated_video_ids)
 
     return stats
 
@@ -543,6 +600,12 @@ def main():
         "--limit", type=int, help="Limit the number of records to process"
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of concurrent metadata requests (default: 4)",
+    )
+    parser.add_argument(
         "--update-original",
         action="store_true",
         default=True,
@@ -591,6 +654,9 @@ def main():
 
     args = parser.parse_args()
 
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
+
     # Check if database file exists
     if not os.path.exists(args.db_path):
         print(f"Error: Database file does not exist: {args.db_path}")
@@ -616,6 +682,7 @@ def main():
             print(f"*** Using cookies from file: {args.cookies} ***")
         if args.limit:
             print(f"*** Limiting to {args.limit} records ***")
+        print(f"*** Concurrent workers: {args.workers} ***")
 
         update_types = []
         if args.update_original:
@@ -644,12 +711,18 @@ def main():
             force=args.force,
             browser_cookies=args.cookies_from_browser,
             cookies_file=args.cookies,
+            workers=args.workers,
         )
 
         # Print statistics
         print(f"\n=== 📊 Processing Complete ===")
         print(f"Records processed: {stats['processed']}")
         print(f"Records updated: {stats['updated']}")
+        print(f"Original URL references: {stats['original_url_tasks']}")
+        print(f"Repost URL references: {stats['repost_url_tasks']}")
+        print(f"Unique URLs requested: {stats['unique_urls']}")
+        print(f"Requests retried: {stats['retries']}")
+        print(f"Non-video URLs skipped: {stats['skipped_non_video']}")
         print(f"Original video thumbnails updated: {stats['original_updated']}")
         print(f"Repost video thumbnails updated: {stats['repost_updated']}")
         print(
@@ -658,6 +731,8 @@ def main():
         print(f"Repost video durations updated: {stats['repost_duration_updated']}")
         print(f"Errors: {stats['errors']}")
 
+    except KeyboardInterrupt:
+        print("Stopped by user. Completed database updates have been saved.")
     finally:
         conn.close()
 
