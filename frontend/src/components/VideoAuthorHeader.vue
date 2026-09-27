@@ -142,8 +142,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 20px;
   padding: 32px;
-  background: linear-gradient(135deg, #313244 0%, #45475a 100%);
-  border-bottom: 2px solid #585b70;
+  background: linear-gradient(135deg, var(--color-surface-0) 0%, var(--color-surface-1) 100%);
+  border-bottom: 2px solid var(--color-surface-2);
 }
 
 .author-avatar {
@@ -151,7 +151,7 @@ onUnmounted(() => {
   height: 160px;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px var(--color-black-40);
   transition:
     opacity 0.3s ease,
     width 0.3s ease,
@@ -181,38 +181,38 @@ onUnmounted(() => {
 .author-name {
   font-size: 2rem;
   font-weight: bold;
-  color: #f9e2af; /* Catppuccin Mocha Yellow */
+  color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   margin: 0 0 8px 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 4px var(--color-black-50);
 }
 
 .video-count {
   font-size: 1.1rem;
-  color: #cba6f7; /* Catppuccin Mocha Mauve */
-  background: rgba(203, 166, 247, 0.1);
+  color: var(--color-mauve); /* Catppuccin Mocha Mauve */
+  background: var(--color-mauve-10);
   padding: 6px 12px;
   border-radius: 8px;
   display: inline-block;
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid var(--color-mauve-30);
   margin-bottom: 8px;
 }
 
 .author-comment {
   font-size: 1rem;
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
   padding: 4px 0;
   margin-bottom: 12px;
   line-height: 1.4;
 }
 
 .author-comment :deep(.comment-link) {
-  color: #89b4fa; /* Catppuccin Mocha Blue */
+  color: var(--color-blue); /* Catppuccin Mocha Blue */
   text-decoration: underline;
   transition: color 0.2s ease;
 }
 
 .author-comment :deep(.comment-link:hover) {
-  color: #74c7ec; /* Catppuccin Mocha Sapphire */
+  color: var(--color-sapphire); /* Catppuccin Mocha Sapphire */
   text-decoration: underline;
 }
 
@@ -261,7 +261,7 @@ onUnmounted(() => {
   }
 
   .author-comment :deep(.comment-link) {
-    color: #89b4fa; /* Keep same link color on mobile */
+    color: var(--color-blue); /* Keep same link color on mobile */
   }
 }
 </style>

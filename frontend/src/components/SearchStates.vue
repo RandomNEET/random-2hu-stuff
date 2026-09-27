@@ -5,7 +5,7 @@
       <v-progress-circular
         size="64"
         width="4"
-        color="#89b4fa"
+        color="var(--color-blue)"
         indeterminate
       ></v-progress-circular>
       <h3>搜索中...</h3>
@@ -14,7 +14,7 @@
 
     <!-- No results found -->
     <div v-if="showNoResults" class="no-results">
-      <v-icon size="64" color="#6c7086">mdi-magnify-remove-outline</v-icon>
+      <v-icon size="64" color="var(--color-overlay)">mdi-magnify-remove-outline</v-icon>
       <h3>未找到相关结果</h3>
       <p>尝试使用不同的关键词进行搜索</p>
       <v-btn color="primary" @click="$router.push('/')" class="back-home-btn">
@@ -51,27 +51,27 @@ const showNoResults = computed(() => {
 .loading-state {
   text-align: center;
   padding: 60px 20px;
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
 }
 
 .loading-state h3 {
-  color: #89b4fa; /* Catppuccin Mocha Blue */
+  color: var(--color-blue); /* Catppuccin Mocha Blue */
   margin: 16px 0 8px 0;
 }
 
 .loading-state p {
   margin-bottom: 24px;
-  color: #cdd6f4; /* Catppuccin Mocha Text */
+  color: var(--color-text); /* Catppuccin Mocha Text */
 }
 
 .no-results {
   text-align: center;
   padding: 60px 20px;
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
 }
 
 .no-results h3 {
-  color: #cdd6f4; /* Catppuccin Mocha Text */
+  color: var(--color-text); /* Catppuccin Mocha Text */
   margin: 16px 0 8px 0;
 }
 
@@ -80,8 +80,8 @@ const showNoResults = computed(() => {
 }
 
 .back-home-btn {
-  background: linear-gradient(90deg, #89b4fa, #74c7ec) !important;
-  color: #1e1e2e !important;
+  background: linear-gradient(90deg, var(--color-blue), var(--color-sapphire)) !important;
+  color: var(--color-base) !important;
   font-weight: 600;
 }
 </style>

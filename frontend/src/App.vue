@@ -18,27 +18,27 @@ body,
   width: 100vw;
   height: 100vh;
   min-height: 100vh;
-  background: #1e1e2e !important; /* Catppuccin Mocha Base */
+  background: var(--color-base) !important; /* Catppuccin Mocha Base */
   margin: 0;
   padding: 0;
 }
 
 .v-main {
-  background: #1e1e2e !important; /* Catppuccin Mocha Base */
+  background: var(--color-base) !important; /* Catppuccin Mocha Base */
   padding-top: 70px; /* Header height */
 }
 
 body {
-  background: #1e1e2e !important; /* Catppuccin Mocha Base */
+  background: var(--color-base) !important; /* Catppuccin Mocha Base */
 }
 
 /* Override Vuetify default styles */
 .v-application .primary {
-  background-color: #89b4fa !important; /* Catppuccin Mocha Blue */
+  background-color: var(--color-blue) !important; /* Catppuccin Mocha Blue */
 }
 
 .v-application .secondary {
-  background-color: #cba6f7 !important; /* Catppuccin Mocha Mauve */
+  background-color: var(--color-mauve) !important; /* Catppuccin Mocha Mauve */
 }
 
 /* Scrollbar styles */
@@ -47,15 +47,15 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #313244; /* Catppuccin Mocha Surface0 */
+  background: var(--color-surface-0); /* Catppuccin Mocha Surface0 */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #585b70; /* Catppuccin Mocha Surface2 */
+  background: var(--color-surface-2); /* Catppuccin Mocha Surface2 */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6c7086; /* Catppuccin Mocha Overlay0 */
+  background: var(--color-overlay); /* Catppuccin Mocha Overlay0 */
 }
 </style>

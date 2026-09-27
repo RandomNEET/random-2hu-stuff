@@ -161,10 +161,10 @@ onMounted(() => {
   min-height: 100vh;
   background: linear-gradient(
     135deg,
-    #1e1e2e 0%,
-    #181825 100%
+    var(--color-base) 0%,
+    var(--color-crust) 100%
   ); /* Catppuccin Mocha Base to Crust gradient */
-  color: #cdd6f4; /* Catppuccin Mocha Text */
+  color: var(--color-text); /* Catppuccin Mocha Text */
   padding: 32px 0;
 }
 
@@ -183,31 +183,31 @@ onMounted(() => {
 }
 
 .header-icon {
-  color: #f9e2af; /* Catppuccin Mocha Yellow */
+  color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   margin-bottom: 16px;
 }
 
 .page-title {
   font-size: 3rem;
   font-weight: bold;
-  color: #f9e2af; /* Catppuccin Mocha Yellow */
+  color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   margin-bottom: 8px;
-  text-shadow: 0 2px 8px rgba(249, 226, 175, 0.3); /* Subtle glow effect */
+  text-shadow: 0 2px 8px var(--color-yellow-30); /* Subtle glow effect */
 }
 
 .page-subtitle {
   font-size: 1.2rem;
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
   margin: 0;
 }
 
 /* About section cards with glassmorphism effect */
 .about-section {
-  background: rgba(49, 50, 68, 0.4); /* Semi-transparent Surface0 */
+  background: var(--color-surface-0-40); /* Semi-transparent Surface0 */
   border-radius: 16px;
   padding: 32px;
   margin-bottom: 32px;
-  border: 1px solid rgba(203, 166, 247, 0.2); /* Subtle Mauve border */
+  border: 1px solid var(--color-mauve-20); /* Subtle Mauve border */
   backdrop-filter: blur(10px); /* Glassmorphism blur effect */
 }
 
@@ -218,23 +218,23 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid rgba(203, 166, 247, 0.3); /* Mauve accent line */
+  border-bottom: 2px solid var(--color-mauve-30); /* Mauve accent line */
 }
 
 .section-icon {
-  color: #cba6f7; /* Catppuccin Mocha Mauve */
+  color: var(--color-mauve); /* Catppuccin Mocha Mauve */
   font-size: 28px;
 }
 
 .section-title {
-  color: #cba6f7; /* Catppuccin Mocha Mauve */
+  color: var(--color-mauve); /* Catppuccin Mocha Mauve */
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
 }
 
 .section-text {
-  color: #cdd6f4; /* Catppuccin Mocha Text */
+  color: var(--color-text); /* Catppuccin Mocha Text */
   font-size: 1.1rem;
   line-height: 1.6; /* Improved readability */
   margin: 0;
@@ -256,21 +256,21 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   padding: 24px;
-  background: rgba(30, 30, 46, 0.6); /* Semi-transparent Base */
+  background: var(--color-base-60); /* Semi-transparent Base */
   border-radius: 12px;
-  border: 1px solid rgba(137, 180, 250, 0.2); /* Blue border */
+  border: 1px solid var(--color-blue-20); /* Blue border */
   transition: all 0.3s ease; /* Smooth hover transitions */
 }
 
 .stat-card:hover {
-  background: rgba(30, 30, 46, 0.8); /* Darker on hover */
-  border-color: rgba(137, 180, 250, 0.4); /* Brighter border on hover */
+  background: var(--color-base-80); /* Darker on hover */
+  border-color: var(--color-blue-40); /* Brighter border on hover */
   transform: translateY(-2px); /* Subtle lift effect */
 }
 
 /* Statistics card content styling */
 .stat-icon {
-  color: #89b4fa; /* Catppuccin Mocha Blue */
+  color: var(--color-blue); /* Catppuccin Mocha Blue */
   flex-shrink: 0; /* Prevent icon from shrinking */
 }
 
@@ -281,12 +281,12 @@ onMounted(() => {
 .stat-number {
   font-size: 2rem;
   font-weight: bold;
-  color: #89b4fa; /* Catppuccin Mocha Blue */
+  color: var(--color-blue); /* Catppuccin Mocha Blue */
   margin-bottom: 4px;
 }
 
 .stat-label {
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
   font-size: 0.9rem;
   font-weight: 500;
 }

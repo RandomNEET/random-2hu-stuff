@@ -106,10 +106,10 @@ const openUrl = (url) => {
 
 <style scoped>
 .video-row {
-  background: #313244; /* Catppuccin Mocha Surface0 */
+  background: var(--color-surface-0); /* Catppuccin Mocha Surface0 */
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--color-surface-1);
   transition: all 0.3s ease;
 }
 
@@ -139,8 +139,8 @@ const openUrl = (url) => {
 
 .video-date {
   font-size: 0.9rem;
-  color: #a6adc8; /* Catppuccin Mocha Subtext0 */
-  background: #585b70; /* Catppuccin Mocha Surface2 */
+  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
+  background: var(--color-surface-2); /* Catppuccin Mocha Surface2 */
   padding: 6px 12px;
   border-radius: 8px;
   display: inline-block;
@@ -148,12 +148,12 @@ const openUrl = (url) => {
 
 .video-comment {
   font-size: 0.9rem;
-  color: #f2cdcd; /* Catppuccin Mocha Flamingo */
-  background: rgba(242, 205, 205, 0.15);
+  color: var(--color-flamingo); /* Catppuccin Mocha Flamingo */
+  background: var(--color-flamingo-15);
   padding: 6px 12px;
   border-radius: 8px;
   display: inline-block;
-  border: 1px solid rgba(242, 205, 205, 0.3);
+  border: 1px solid var(--color-flamingo-30);
   font-style: italic;
 }
 
@@ -165,22 +165,22 @@ const openUrl = (url) => {
   transition: all 0.2s ease;
   padding: 6px 12px;
   border-radius: 8px;
-  background: rgba(137, 180, 250, 0.1);
+  background: var(--color-blue-10);
 }
 
 .author-info-small:hover {
-  background: rgba(137, 180, 250, 0.2);
+  background: var(--color-blue-20);
   transform: scale(1.05);
 }
 
 .author-name-small {
-  color: #89b4fa; /* Catppuccin Mocha Blue */
+  color: var(--color-blue); /* Catppuccin Mocha Blue */
   font-size: 0.9rem;
   font-weight: 600;
 }
 
 .author-avatar-small {
-  border: 1px solid #585b70;
+  border: 1px solid var(--color-surface-2);
 }
 
 .video-columns {

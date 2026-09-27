@@ -140,9 +140,9 @@
                 :min="10"
                 :max="searchForm.type === 'videos' ? 500 : 200"
                 :step="10"
-                color="#cba6f7"
-                track-color="#585b70"
-                thumb-color="#cba6f7"
+                color="var(--color-mauve)"
+                track-color="var(--color-surface-2)"
+                thumb-color="var(--color-mauve)"
                 hide-details
                 class="unified-slider"
               />
@@ -233,7 +233,7 @@
         <div class="mobile-search-types">
           <v-btn
             :variant="searchForm.type === 'videos' ? 'flat' : 'outlined'"
-            :color="searchForm.type === 'videos' ? 'primary' : 'default'"
+            :color="searchForm.type === 'videos' ? 'var(--color-mauve)' : 'default'"
             class="mobile-type-btn"
             @click="searchForm.type = 'videos'"
           >
@@ -242,7 +242,7 @@
           </v-btn>
           <v-btn
             :variant="searchForm.type === 'authors' ? 'flat' : 'outlined'"
-            :color="searchForm.type === 'authors' ? 'primary' : 'default'"
+            :color="searchForm.type === 'authors' ? 'var(--color-mauve)' : 'default'"
             class="mobile-type-btn"
             @click="searchForm.type = 'authors'"
           >
@@ -295,13 +295,12 @@
           <!-- Date Range Filter -->
           <div class="mobile-filter-item">
             <label class="mobile-filter-label">时间范围</label>
-            <div class="mobile-date-range">
+            <div class="mobile-date-fields">
               <DateFilterField
                 v-model="searchForm.filters.dateFrom"
                 label="开始日期"
                 class="mobile-date-input"
               />
-              <span class="mobile-date-separator">至</span>
               <DateFilterField
                 v-model="searchForm.filters.dateTo"
                 label="结束日期"
@@ -328,7 +327,7 @@
             v-model="searchForm.filters.includeUnknownDuration"
             label="包含未知时长"
             :disabled="!searchDurationActive"
-            color="primary"
+            color="var(--color-mauve)"
             density="compact"
             hide-details
           />
@@ -345,9 +344,9 @@
               :step="10"
               variant="outlined"
               density="compact"
-              color="#cba6f7"
-              track-color="#585b70"
-              thumb-color="#cba6f7"
+              color="var(--color-mauve)"
+              track-color="var(--color-surface-2)"
+              thumb-color="var(--color-mauve)"
               hide-details
               class="mobile-limit-slider unified-slider"
             />
@@ -366,7 +365,7 @@
           </v-btn>
           <v-btn
             variant="flat"
-            color="primary"
+            color="var(--color-mauve)"
             class="mobile-search-action-btn"
             @click="handleMobileSearch"
             :disabled="!searchDurationValid"
@@ -797,10 +796,10 @@ onBeforeUnmount(() => {
 .app-header {
   background: linear-gradient(
     135deg,
-    #1e1e2e 0%,
-    #313244 100%
+    var(--color-base) 0%,
+    var(--color-surface-0) 100%
   ) !important; /* Catppuccin Mocha gradient */
-  border-bottom: 2px solid #45475a; /* Catppuccin Mocha Surface1 */
+  border-bottom: 2px solid var(--color-surface-1); /* Catppuccin Mocha Surface1 */
   font-family:
     "JetBrains Mono", "JetBrainsMono Nerd Font", monospace !important;
 }
@@ -820,11 +819,11 @@ onBeforeUnmount(() => {
 }
 
 .title-text {
-  color: #f9e2af; /* Catppuccin Mocha Yellow */
+  color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   font-size: 1.5rem;
   font-weight: bold;
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 4px var(--color-black-30);
 }
 
 .search-container {
@@ -844,16 +843,16 @@ onBeforeUnmount(() => {
 
 .mobile-search-btn {
   display: none !important; /* Ensure hidden on desktop; override Vuetify */
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   transition: all 0.2s ease;
-  border: 1px solid #585b70 !important; /* Add border for normal state */
+  border: 1px solid var(--color-surface-2) !important; /* Add border for normal state */
   border-radius: 50% !important; /* Keep shape perfectly circular when shown */
 }
 
 .mobile-search-btn:hover {
-  background-color: rgba(137, 180, 250, 0.1) !important;
-  color: #89b4fa !important;
-  border-color: #89b4fa !important; /* Change border color on hover */
+  background-color: var(--color-blue-10) !important;
+  color: var(--color-blue) !important;
+  border-color: var(--color-blue) !important; /* Change border color on hover */
 }
 
 .desktop-search {
@@ -865,28 +864,28 @@ onBeforeUnmount(() => {
 }
 
 .search-field :deep(.v-field) {
-  background-color: #45475a !important; /* Catppuccin Mocha Surface1 */
+  background-color: var(--color-surface-1) !important; /* Catppuccin Mocha Surface1 */
   border-radius: 12px;
 }
 
 .search-field :deep(.v-field__input) {
-  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
+  color: var(--color-text) !important; /* Catppuccin Mocha Text */
 }
 
 .search-field :deep(.v-field__outline) {
-  border-color: #585b70 !important; /* Catppuccin Mocha Surface2 */
+  border-color: var(--color-surface-2) !important; /* Catppuccin Mocha Surface2 */
 }
 
 .search-field :deep(.v-field--focused .v-field__outline) {
-  border-color: #89b4fa !important; /* Catppuccin Mocha Blue */
+  border-color: var(--color-blue) !important; /* Catppuccin Mocha Blue */
 }
 
 .search-field :deep(.v-field__prepend-inner .v-icon) {
-  color: #a6adc8 !important; /* Catppuccin Mocha Subtext0 */
+  color: var(--color-text-muted) !important; /* Catppuccin Mocha Subtext0 */
 }
 
 .search-field :deep(::placeholder) {
-  color: #6c7086 !important; /* Catppuccin Mocha Overlay0 */
+  color: var(--color-overlay) !important; /* Catppuccin Mocha Overlay0 */
 }
 
 .nav-menu {
@@ -897,9 +896,9 @@ onBeforeUnmount(() => {
 }
 
 .nav-button {
-  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
+  color: var(--color-text) !important; /* Catppuccin Mocha Text */
   transition: all 0.2s ease;
-  border: 1px solid #585b70 !important; /* Add border for normal state */
+  border: 1px solid var(--color-surface-2) !important; /* Add border for normal state */
 }
 
 .nav-button:hover {
@@ -909,8 +908,8 @@ onBeforeUnmount(() => {
     250,
     0.1
   ) !important; /* Catppuccin Mocha Blue with opacity */
-  color: #89b4fa !important; /* Catppuccin Mocha Blue */
-  border-color: #89b4fa !important; /* Change border color on hover */
+  color: var(--color-blue) !important; /* Catppuccin Mocha Blue */
+  border-color: var(--color-blue) !important; /* Change border color on hover */
 }
 
 /* Mobile search popup overlay styles */
@@ -920,7 +919,7 @@ onBeforeUnmount(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: var(--color-black-70);
   z-index: 2000;
   display: flex;
   align-items: flex-start;
@@ -930,14 +929,15 @@ onBeforeUnmount(() => {
 }
 
 .mobile-search-popup {
-  background: #1e1e2e;
-  border-radius: 16px;
+  background: var(--color-base);
+  color: var(--color-text);
+  border-radius: 14px;
   padding: 24px;
   width: 100%;
   max-width: 400px;
   max-height: 90vh;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  border: 1px solid #45475a;
+  box-shadow: 0 12px 36px var(--color-deep-shadow-65);
+  border: 1px solid var(--color-surface-2);
   position: relative;
   overflow-y: auto;
   margin-top: 60px;
@@ -947,17 +947,17 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 16px;
   right: 16px;
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   z-index: 10;
 }
 
 .mobile-close-btn:hover {
-  background-color: rgba(243, 139, 168, 0.1) !important;
-  color: #f38ba8 !important;
+  background-color: var(--color-red-10) !important;
+  color: var(--color-red) !important;
 }
 
 .mobile-search-title {
-  color: #cdd6f4;
+  color: var(--color-yellow);
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 20px;
@@ -982,11 +982,14 @@ onBeforeUnmount(() => {
 }
 
 .mobile-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin-bottom: 24px;
 }
 
 .mobile-filter-title {
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 1.1rem;
   font-weight: 500;
   margin-bottom: 16px;
@@ -994,12 +997,12 @@ onBeforeUnmount(() => {
 }
 
 .mobile-filter-item {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .mobile-filter-label {
   display: block;
-  color: #a6adc8;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   font-weight: 500;
   margin-bottom: 8px;
@@ -1010,21 +1013,39 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.mobile-date-range {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.mobile-search-popup :deep(.v-field) {
+  color: var(--color-text) !important;
+  background: var(--color-surface-0) !important;
+  border-radius: 8px;
+}
+
+.mobile-search-popup :deep(.v-field__input),
+.mobile-search-popup :deep(.v-label),
+.mobile-search-popup :deep(input) {
+  color: var(--color-text) !important;
+}
+
+.mobile-search-popup :deep(.v-field__outline) {
+  color: var(--color-surface-2) !important;
+}
+
+.mobile-search-popup :deep(.v-field--focused .v-field__outline) {
+  color: var(--color-mauve) !important;
+}
+
+.mobile-search-popup :deep(.v-field__append-inner),
+.mobile-search-popup :deep(.v-field__clearable) {
+  color: var(--color-text-muted) !important;
+}
+
+.mobile-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
 }
 
 .mobile-date-input {
-  flex: 1;
-}
-
-.mobile-date-separator {
-  color: #a6adc8;
-  font-size: 0.9rem;
-  font-weight: 500;
-  font-family: "JetBrains Mono", monospace;
+  min-width: 0;
 }
 
 .mobile-limit-container {
@@ -1038,16 +1059,16 @@ onBeforeUnmount(() => {
 }
 
 .mobile-limit-value {
-  color: #cba6f7;
+  color: var(--color-mauve);
   font-size: 0.9rem;
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   min-width: 40px;
   text-align: center;
-  background: rgba(137, 180, 250, 0.1);
+  background: var(--color-mauve-10);
   border-radius: 8px;
   padding: 4px 8px;
-  border: 1px solid rgba(137, 180, 250, 0.2);
+  border: 1px solid var(--color-mauve-20);
 }
 
 .mobile-actions {
@@ -1132,10 +1153,10 @@ onBeforeUnmount(() => {
 
 .search-panel {
   position: fixed;
-  background: #1e1e2e;
-  border: 1px solid #45475a;
+  background: var(--color-base);
+  border: 1px solid var(--color-surface-1);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px var(--color-black-40);
   z-index: 9999;
   padding: 16px;
   max-height: 80vh;
@@ -1145,11 +1166,11 @@ onBeforeUnmount(() => {
 }
 
 .filters-section {
-  background: #313244;
+  background: var(--color-surface-0);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--color-surface-1);
 }
 
 .filter-row {
@@ -1164,28 +1185,28 @@ onBeforeUnmount(() => {
 }
 
 .filter-label {
-  color: #a6adc8 !important;
+  color: var(--color-text-muted) !important;
   font-size: 0.8rem;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .filter-input :deep(.v-field) {
-  background-color: #45475a !important;
+  background-color: var(--color-surface-1) !important;
   border-radius: 6px;
 }
 
 .filter-input :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   font-size: 0.9rem;
 }
 
 .filter-input :deep(.v-field__outline) {
-  border-color: #585b70 !important;
+  border-color: var(--color-surface-2) !important;
 }
 
 .filter-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #89b4fa !important;
+  border-color: var(--color-blue) !important;
 }
 
 .date-range-container {
@@ -1208,36 +1229,36 @@ onBeforeUnmount(() => {
 }
 
 .date-input :deep(.v-field) {
-  background-color: #45475a !important;
+  background-color: var(--color-surface-1) !important;
   border-radius: 6px;
 }
 
 .date-input :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   font-size: 0.9rem;
 }
 
 .date-separator {
-  color: #a6adc8;
+  color: var(--color-text-muted);
   font-size: 0.8rem;
   white-space: nowrap;
 }
 
 .limit-section {
-  background: #313244;
+  background: var(--color-surface-0);
   border-radius: 8px;
   padding: 12px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--color-surface-1);
   margin-bottom: 16px;
 }
 
 .unified-slider :deep(.v-slider-track__background) {
-  background: #585b70 !important;
+  background: var(--color-surface-2) !important;
   opacity: 1;
 }
 
 .unified-slider :deep(.v-slider-thumb__surface) {
-  box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.2);
+  box-shadow: 0 0 0 3px var(--color-mauve-20);
 }
 
 .search-actions {
@@ -1245,7 +1266,7 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #45475a;
+  border-top: 1px solid var(--color-surface-1);
 }
 
 .action-btn {
@@ -1285,18 +1306,18 @@ onBeforeUnmount(() => {
 }
 
 .search-card {
-  background: #1e1e2e !important;
-  border: 1px solid #45475a;
+  background: var(--color-base) !important;
+  border: 1px solid var(--color-surface-1);
   border-radius: 16px;
   overflow: hidden;
 }
 
 .search-title {
-  background: #313244 !important;
-  color: #f9e2af !important;
+  background: var(--color-surface-0) !important;
+  color: var(--color-yellow) !important;
   padding: 20px !important;
   font-weight: 600;
-  border-bottom: 1px solid #45475a;
+  border-bottom: 1px solid var(--color-surface-1);
 }
 
 .search-content {
@@ -1304,20 +1325,20 @@ onBeforeUnmount(() => {
 }
 
 .search-input :deep(.v-field) {
-  background-color: #45475a !important;
+  background-color: var(--color-surface-1) !important;
   border-radius: 12px;
 }
 
 .search-input :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
 }
 
 .search-input :deep(.v-field__outline) {
-  border-color: #585b70 !important;
+  border-color: var(--color-surface-2) !important;
 }
 
 .search-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #89b4fa !important;
+  border-color: var(--color-blue) !important;
 }
 
 .search-type-section {
@@ -1325,7 +1346,7 @@ onBeforeUnmount(() => {
 }
 
 .section-title {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 12px;
@@ -1340,8 +1361,8 @@ onBeforeUnmount(() => {
 .search-type-btn {
   flex: 1;
   height: 40px;
-  color: #a6adc8 !important;
-  background-color: #45475a !important;
+  color: var(--color-text-muted) !important;
+  background-color: var(--color-surface-1) !important;
   border: none !important;
   border-radius: 0 !important;
   font-weight: 500 !important;
@@ -1350,13 +1371,13 @@ onBeforeUnmount(() => {
 }
 
 .search-type-btn:hover {
-  background-color: #585b70 !important;
-  color: #cdd6f4 !important;
+  background-color: var(--color-surface-2) !important;
+  color: var(--color-text) !important;
 }
 
 .search-type-btn.v-btn--selected {
-  background-color: #89b4fa !important;
-  color: #1e1e2e !important;
+  background-color: var(--color-blue) !important;
+  color: var(--color-base) !important;
   font-weight: 600 !important;
 }
 
@@ -1371,11 +1392,11 @@ onBeforeUnmount(() => {
 }
 
 .filters-section {
-  background: #313244;
+  background: var(--color-surface-0);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 24px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--color-surface-1);
 }
 
 .filter-row {
@@ -1385,26 +1406,26 @@ onBeforeUnmount(() => {
 }
 
 .filter-label {
-  color: #a6adc8 !important;
+  color: var(--color-text-muted) !important;
   font-size: 0.9rem;
   font-weight: 500;
 }
 
 .filter-select :deep(.v-field) {
-  background-color: #45475a !important;
+  background-color: var(--color-surface-1) !important;
   border-radius: 8px;
 }
 
 .filter-select :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
 }
 
 .filter-select :deep(.v-field__outline) {
-  border-color: #585b70 !important;
+  border-color: var(--color-surface-2) !important;
 }
 
 .filter-select :deep(.v-field--focused .v-field__outline) {
-  border-color: #89b4fa !important;
+  border-color: var(--color-blue) !important;
 }
 
 .date-range-container {
@@ -1418,36 +1439,36 @@ onBeforeUnmount(() => {
 }
 
 .date-input :deep(.v-field) {
-  background-color: #45475a !important;
+  background-color: var(--color-surface-1) !important;
   border-radius: 8px;
   min-height: 40px !important;
 }
 
 .date-input :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   padding-left: 12px !important;
   padding-right: 40px !important; /* 为日期图标留出空间 */
 }
 
 .date-input :deep(.v-field__outline) {
-  border-color: #585b70 !important;
+  border-color: var(--color-surface-2) !important;
 }
 
 .date-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #89b4fa !important;
+  border-color: var(--color-blue) !important;
 }
 
 .date-separator {
-  color: #a6adc8;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   white-space: nowrap;
 }
 
 .limit-section {
-  background: #313244;
+  background: var(--color-surface-0);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--color-surface-1);
 }
 
 .limit-header {
@@ -1458,16 +1479,16 @@ onBeforeUnmount(() => {
 }
 
 .limit-label {
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
 }
 
 .limit-value {
-  color: #cba6f7;
+  color: var(--color-mauve);
   font-weight: 600;
   font-size: 1rem;
-  background: #45475a;
+  background: var(--color-surface-1);
   padding: 4px 12px;
   border-radius: 16px;
   min-width: 50px;
@@ -1477,7 +1498,7 @@ onBeforeUnmount(() => {
 .search-actions {
   background: transparent !important;
   padding: 16px 24px !important;
-  border-top: 1px solid #45475a;
+  border-top: 1px solid var(--color-surface-1);
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -1492,24 +1513,24 @@ onBeforeUnmount(() => {
 
 .reset-btn {
   background-color: transparent !important;
-  border-color: #585b70 !important;
-  color: #a6adc8 !important;
+  border-color: var(--color-surface-2) !important;
+  color: var(--color-text-muted) !important;
 }
 
 .reset-btn:hover {
-  background-color: #45475a !important;
-  border-color: #6c7086 !important;
+  background-color: var(--color-surface-1) !important;
+  border-color: var(--color-overlay) !important;
 }
 
 .search-btn {
-  background-color: #89b4fa !important;
-  color: #1e1e2e !important;
-  box-shadow: 0 2px 8px rgba(137, 180, 250, 0.3) !important;
+  background-color: var(--color-blue) !important;
+  color: var(--color-base) !important;
+  box-shadow: 0 2px 8px var(--color-blue-30) !important;
 }
 
 .search-btn:hover {
-  background-color: #74c7ec !important;
-  box-shadow: 0 4px 12px rgba(137, 180, 250, 0.4) !important;
+  background-color: var(--color-sapphire) !important;
+  box-shadow: 0 4px 12px var(--color-blue-40) !important;
 }
 
 /* Responsive adjustments for search dialog */

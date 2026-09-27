@@ -3,7 +3,7 @@
   display: flex;
   justify-content: flex-end; /* Align sort controls to the right */
   padding: 16px 24px 0;
-  background-color: #1e1e2e; /* Catppuccin Mocha Base */
+  background-color: var(--color-base); /* Catppuccin Mocha Base */
   box-sizing: border-box;
 }
 
@@ -27,10 +27,10 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px; /* Spacing between sort buttons */
-  background: rgba(30, 30, 46, 0.8); /* Semi-transparent background */
+  background: var(--color-base-80); /* Semi-transparent background */
   padding: 8px;
   border-radius: 12px;
-  border: 1px solid rgba(203, 166, 247, 0.3); /* Subtle theme color border */
+  border: 1px solid var(--color-mauve-30); /* Subtle theme color border */
 }
 
 /* Individual sort button styling */
@@ -41,8 +41,8 @@
     68,
     0.8
   ) !important; /* Catppuccin Mocha Surface0 with transparency */
-  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
-  border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
+  color: var(--color-text) !important; /* Catppuccin Mocha Text */
+  border: 1px solid var(--color-mauve-30) !important; /* Theme color border */
   transition: all 0.3s ease !important; /* Smooth transitions for all properties */
   display: flex !important;
   align-items: center !important; /* Vertically center content */
@@ -59,14 +59,14 @@
     247,
     0.2
   ) !important; /* Light theme color on hover */
-  color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
+  color: var(--color-mauve) !important; /* Catppuccin Mocha Mauve on hover */
 }
 
 /* Active sort button styling */
 .sort-btn.active {
-  background-color: #cba6f7 !important; /* Full theme color for active state */
-  color: #1e1e2e !important; /* Dark text for contrast against active background */
-  border-color: #cba6f7 !important; /* Matching border color */
+  background-color: var(--color-mauve) !important; /* Full theme color for active state */
+  color: var(--color-base) !important; /* Dark text for contrast against active background */
+  border-color: var(--color-mauve) !important; /* Matching border color */
 }
 
 /* Sort button text styling */

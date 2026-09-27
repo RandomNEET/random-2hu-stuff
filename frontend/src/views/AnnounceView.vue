@@ -868,10 +868,10 @@ onUnmounted(() => {
   min-height: 100vh;
   background: linear-gradient(
     135deg,
-    #1e1e2e 0%,
-    #181825 100%
+    var(--color-base) 0%,
+    var(--color-crust) 100%
   ); /* Catppuccin Mocha base colors */
-  color: #cdd6f4; /* Catppuccin text color */
+  color: var(--color-text); /* Catppuccin text color */
   padding: 32px 0;
 }
 
@@ -891,7 +891,7 @@ onUnmounted(() => {
 
 /* Header icon with yellow accent color */
 .header-icon {
-  color: #f9e2af; /* Catppuccin yellow */
+  color: var(--color-yellow); /* Catppuccin yellow */
   margin-bottom: 16px;
 }
 
@@ -899,25 +899,25 @@ onUnmounted(() => {
 .page-title {
   font-size: 3rem;
   font-weight: bold;
-  color: #f9e2af; /* Catppuccin yellow */
+  color: var(--color-yellow); /* Catppuccin yellow */
   margin-bottom: 8px;
-  text-shadow: 0 2px 8px rgba(249, 226, 175, 0.3); /* Subtle glow effect */
+  text-shadow: 0 2px 8px var(--color-yellow-30); /* Subtle glow effect */
 }
 
 /* Subtitle text with muted color */
 .page-subtitle {
   font-size: 1.2rem;
-  color: #a6adc8; /* Catppuccin subtext0 */
+  color: var(--color-text-muted); /* Catppuccin subtext0 */
   margin: 0;
 }
 
 /* Announcement content section with glassmorphism effect */
 .announcement-section {
-  background: rgba(49, 50, 68, 0.4); /* Semi-transparent surface */
+  background: var(--color-surface-0-40); /* Semi-transparent surface */
   border-radius: 16px;
   padding: 32px;
   margin-bottom: 32px;
-  border: 1px solid rgba(203, 166, 247, 0.2); /* Subtle mauve border */
+  border: 1px solid var(--color-mauve-20); /* Subtle mauve border */
   backdrop-filter: blur(10px); /* Glassmorphism blur effect */
 }
 
@@ -928,18 +928,18 @@ onUnmounted(() => {
   gap: 12px;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid rgba(203, 166, 247, 0.3); /* Mauve accent line */
+  border-bottom: 2px solid var(--color-mauve-30); /* Mauve accent line */
 }
 
 /* Section icon styling with mauve color */
 .section-icon {
-  color: #cba6f7; /* Catppuccin mauve */
+  color: var(--color-mauve); /* Catppuccin mauve */
   font-size: 28px;
 }
 
 /* Section title with mauve accent color */
 .section-title {
-  color: #cba6f7; /* Catppuccin mauve */
+  color: var(--color-mauve); /* Catppuccin mauve */
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
@@ -957,21 +957,21 @@ onUnmounted(() => {
   display: flex;
   gap: 24px;
   padding: 20px;
-  background: rgba(30, 30, 46, 0.6); /* Semi-transparent dark background */
+  background: var(--color-base-60); /* Semi-transparent dark background */
   border-radius: 12px;
-  border-left: 4px solid #89b4fa; /* Catppuccin blue accent border */
+  border-left: 4px solid var(--color-blue); /* Catppuccin blue accent border */
   transition: all 0.3s ease; /* Smooth hover transitions */
 }
 
 /* Hover effect for update items - subtle animation */
 .update-item:hover {
-  background: rgba(30, 30, 46, 0.8); /* Darker background on hover */
+  background: var(--color-base-80); /* Darker background on hover */
   transform: translateX(4px); /* Slight slide animation */
 }
 
 /* Date display with blue accent color */
 .update-date {
-  color: #89b4fa; /* Catppuccin blue */
+  color: var(--color-blue); /* Catppuccin blue */
   font-weight: bold;
   font-size: 0.9rem;
   min-width: 80px; /* Fixed width for consistent alignment */
@@ -980,7 +980,7 @@ onUnmounted(() => {
 
 /* Update content section with yellow heading */
 .update-content h3 {
-  color: #f9e2af; /* Catppuccin yellow for emphasis */
+  color: var(--color-yellow); /* Catppuccin yellow for emphasis */
   margin-bottom: 8px;
   font-size: 1.1rem;
 }
@@ -989,7 +989,7 @@ onUnmounted(() => {
 .update-content ul {
   margin: 0;
   padding-left: 20px;
-  color: #cdd6f4; /* Standard text color */
+  color: var(--color-text); /* Standard text color */
 }
 
 /* List items with improved readability */

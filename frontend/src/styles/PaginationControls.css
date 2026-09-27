@@ -15,7 +15,7 @@
   display: flex;
   justify-content: center;
   padding: 24px;
-  background-color: #1e1e2e; /* Catppuccin Mocha Base */
+  background-color: var(--color-base); /* Catppuccin Mocha Base */
 }
 
 /* Pagination wrapper with glassmorphism effect */
@@ -23,10 +23,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(30, 30, 46, 0.8); /* Semi-transparent background */
+  background: var(--color-base-80); /* Semi-transparent background */
   padding: 12px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(203, 166, 247, 0.3); /* Subtle border with theme color */
+  border: 1px solid var(--color-mauve-30); /* Subtle border with theme color */
 }
 
 /* Page numbers container */
@@ -44,8 +44,8 @@
     68,
     0.8
   ) !important; /* Catppuccin Mocha Surface0 with transparency */
-  color: #cdd6f4 !important; /* Catppuccin Mocha Text */
-  border: 1px solid rgba(203, 166, 247, 0.3) !important; /* Theme color border */
+  color: var(--color-text) !important; /* Catppuccin Mocha Text */
+  border: 1px solid var(--color-mauve-30) !important; /* Theme color border */
 }
 
 .nav-button:hover {
@@ -55,7 +55,7 @@
     247,
     0.2
   ) !important; /* Light theme color on hover */
-  color: #cba6f7 !important; /* Catppuccin Mocha Mauve on hover */
+  color: var(--color-mauve) !important; /* Catppuccin Mocha Mauve on hover */
 }
 
 /* Individual page number buttons */
@@ -66,36 +66,36 @@
     68,
     0.8
   ) !important; /* Consistent with nav buttons */
-  color: #cdd6f4 !important;
-  border: 1px solid rgba(203, 166, 247, 0.3) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-mauve-30) !important;
   min-width: 36px !important; /* Ensure minimum touch target size */
   height: 36px !important;
 }
 
 .page-btn:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important;
-  color: #cba6f7 !important;
+  background-color: var(--color-mauve-20) !important;
+  color: var(--color-mauve) !important;
 }
 
 /* Active/current page styling */
 .page-btn.active {
-  background-color: #cba6f7 !important; /* Full theme color for active state */
-  color: #1e1e2e !important; /* Dark text for contrast */
-  border-color: #cba6f7 !important;
+  background-color: var(--color-mauve) !important; /* Full theme color for active state */
+  color: var(--color-base) !important; /* Dark text for contrast */
+  border-color: var(--color-mauve) !important;
 }
 
 /* Ellipsis buttons for page skipping */
 .ellipsis-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important;
-  color: #89b4fa !important; /* Catppuccin Mocha Blue for distinction */
-  border: 1px solid rgba(137, 180, 250, 0.3) !important; /* Blue border to match text */
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-blue) !important; /* Catppuccin Mocha Blue for distinction */
+  border: 1px solid var(--color-blue-30) !important; /* Blue border to match text */
   min-width: 36px !important;
   height: 36px !important;
 }
 
 .ellipsis-btn:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important; /* Blue hover effect */
-  color: #74c7ec !important; /* Catppuccin Mocha Sapphire on hover */
+  background-color: var(--color-blue-20) !important; /* Blue hover effect */
+  color: var(--color-sapphire) !important; /* Catppuccin Mocha Sapphire on hover */
 }
 
 /* Page input section for manual navigation */
@@ -105,18 +105,18 @@
   gap: 8px;
   margin-left: 16px;
   padding-left: 16px;
-  border-left: 1px solid rgba(203, 166, 247, 0.3); /* Visual separator */
+  border-left: 1px solid var(--color-mauve-30); /* Visual separator */
 }
 
 /* Input labels styling */
 .page-input-label {
-  color: #cdd6f4; /* Catppuccin Mocha Text */
+  color: var(--color-text); /* Catppuccin Mocha Text */
   font-size: 0.9rem;
   font-weight: 500;
 }
 
 .page-unit-label {
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -138,18 +138,18 @@
 }
 
 .page-input :deep(.v-field__input) {
-  color: #cdd6f4 !important; /* Theme text color */
+  color: var(--color-text) !important; /* Theme text color */
   text-align: center; /* Center-align page numbers */
   padding: 4px 8px !important;
   min-height: 32px !important;
 }
 
 .page-input :deep(.v-field__outline) {
-  border-color: rgba(203, 166, 247, 0.4) !important; /* Theme border color */
+  border-color: var(--color-mauve-40) !important; /* Theme border color */
 }
 
 .page-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #cba6f7 !important; /* Focused state with full theme color */
+  border-color: var(--color-mauve) !important; /* Focused state with full theme color */
 }
 
 /* Responsive design for pagination */

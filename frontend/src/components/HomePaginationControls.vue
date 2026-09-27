@@ -226,16 +226,16 @@ const pageItems = computed(() => {
   display: flex;
   justify-content: center;
   padding: 24px;
-  background-color: #1e1e2e;
+  background-color: var(--color-base);
 }
 .pagination-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(30, 30, 46, 0.8);
+  background: var(--color-base-80);
   padding: 12px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(203, 166, 247, 0.3);
+  border: 1px solid var(--color-mauve-30);
 }
 .page-numbers {
   display: flex;
@@ -243,40 +243,40 @@ const pageItems = computed(() => {
   gap: 4px;
 }
 .nav-button {
-  background-color: rgba(49, 50, 68, 0.8) !important;
-  color: #cdd6f4 !important;
-  border: 1px solid rgba(203, 166, 247, 0.3) !important;
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-mauve-30) !important;
 }
 .nav-button:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important;
-  color: #cba6f7 !important;
+  background-color: var(--color-mauve-20) !important;
+  color: var(--color-mauve) !important;
 }
 .page-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important;
-  color: #cdd6f4 !important;
-  border: 1px solid rgba(203, 166, 247, 0.3) !important;
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-mauve-30) !important;
   min-width: 36px !important;
   height: 36px !important;
 }
 .page-btn:hover {
-  background-color: rgba(203, 166, 247, 0.2) !important;
-  color: #cba6f7 !important;
+  background-color: var(--color-mauve-20) !important;
+  color: var(--color-mauve) !important;
 }
 .page-btn.active {
-  background-color: #cba6f7 !important;
-  color: #1e1e2e !important;
-  border-color: #cba6f7 !important;
+  background-color: var(--color-mauve) !important;
+  color: var(--color-base) !important;
+  border-color: var(--color-mauve) !important;
 }
 .ellipsis-btn {
-  background-color: rgba(49, 50, 68, 0.8) !important;
-  color: #89b4fa !important;
-  border: 1px solid rgba(137, 180, 250, 0.3) !important;
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-blue) !important;
+  border: 1px solid var(--color-blue-30) !important;
   min-width: 36px !important;
   height: 36px !important;
 }
 .ellipsis-btn:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  color: #74c7ec !important;
+  background-color: var(--color-blue-20) !important;
+  color: var(--color-sapphire) !important;
 }
 .page-input-section {
   display: flex;
@@ -284,15 +284,15 @@ const pageItems = computed(() => {
   gap: 8px;
   margin-left: 16px;
   padding-left: 16px;
-  border-left: 1px solid rgba(203, 166, 247, 0.3);
+  border-left: 1px solid var(--color-mauve-30);
 }
 .page-input-label {
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
 }
 .page-unit-label {
-  color: #cdd6f4;
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -300,20 +300,20 @@ const pageItems = computed(() => {
   width: 60px !important;
 }
 .page-input :deep(.v-field) {
-  background-color: rgba(49, 50, 68, 0.8) !important;
+  background-color: var(--color-surface-0-80) !important;
   border-radius: 8px !important;
 }
 .page-input :deep(.v-field__input) {
-  color: #cdd6f4 !important;
+  color: var(--color-text) !important;
   text-align: center;
   padding: 4px 8px !important;
   min-height: 32px !important;
 }
 .page-input :deep(.v-field__outline) {
-  border-color: rgba(203, 166, 247, 0.4) !important;
+  border-color: var(--color-mauve-40) !important;
 }
 .page-input :deep(.v-field--focused .v-field__outline) {
-  border-color: #cba6f7 !important;
+  border-color: var(--color-mauve) !important;
 }
 @media (max-width: 768px) {
   .pagination-wrapper {

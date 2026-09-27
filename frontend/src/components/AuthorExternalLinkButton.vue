@@ -141,20 +141,20 @@ onBeforeUnmount(() => {
 }
 
 .url-button {
-  background-color: rgba(30, 30, 46, 0.9) !important;
-  color: #89b4fa !important; /* Catppuccin Mocha Blue */
+  background-color: var(--color-base-90) !important;
+  color: var(--color-blue) !important; /* Catppuccin Mocha Blue */
   transition: all 0.3s ease;
   backdrop-filter: blur(12px);
-  border: 2px solid rgba(137, 180, 250, 0.4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-blue-40);
+  box-shadow: 0 2px 8px var(--color-black-30);
 }
 
 .url-button:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  color: #74c7ec !important; /* Catppuccin Mocha Sapphire */
+  background-color: var(--color-blue-20) !important;
+  color: var(--color-sapphire) !important; /* Catppuccin Mocha Sapphire */
   transform: scale(1.15);
-  border-color: rgba(116, 199, 236, 0.6);
-  box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
+  border-color: var(--color-sapphire-60);
+  box-shadow: 0 4px 20px var(--color-blue-50);
 }
 
 .platform-buttons {
@@ -174,44 +174,44 @@ onBeforeUnmount(() => {
 }
 
 .platform-btn {
-  background-color: rgba(30, 30, 46, 0.9) !important;
-  color: #89b4fa !important;
+  background-color: var(--color-base-90) !important;
+  color: var(--color-blue) !important;
   transition: all 0.3s ease;
   backdrop-filter: blur(12px);
-  border: 2px solid rgba(137, 180, 250, 0.4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--color-blue-40);
+  box-shadow: 0 2px 8px var(--color-black-30);
 }
 
 .platform-btn:hover {
-  background-color: rgba(137, 180, 250, 0.2) !important;
-  color: #74c7ec !important;
+  background-color: var(--color-blue-20) !important;
+  color: var(--color-sapphire) !important;
   transform: scale(1.15);
-  border-color: rgba(116, 199, 236, 0.6);
-  box-shadow: 0 4px 20px rgba(137, 180, 250, 0.5);
+  border-color: var(--color-sapphire-60);
+  box-shadow: 0 4px 20px var(--color-blue-50);
 }
 
 .youtube-btn {
-  color: #ff0000 !important;
+  color: var(--color-service-red) !important;
 }
 
 .youtube-btn:hover {
-  color: #ff3333 !important;
+  color: var(--color-service-red-hover) !important;
 }
 
 .nico-btn {
-  color: #ff6b00 !important;
+  color: var(--color-service-orange) !important;
 }
 
 .nico-btn:hover {
-  color: #ff8533 !important;
+  color: var(--color-service-orange-hover) !important;
 }
 
 .twitter-btn {
-  color: #1da1f2 !important;
+  color: var(--color-twitter) !important;
 }
 
 .twitter-btn:hover {
-  color: #4db6f7 !important;
+  color: var(--color-service-blue) !important;
 }
 
 @media (max-width: 480px) {

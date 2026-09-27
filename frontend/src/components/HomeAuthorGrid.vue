@@ -25,7 +25,7 @@ const props = defineProps({
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 24px;
   padding: 24px;
-  background-color: #1e1e2e;
+  background-color: var(--color-base);
   /* Catppuccin Mocha Base */
   justify-content: center;
 }

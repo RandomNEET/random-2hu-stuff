@@ -449,11 +449,11 @@ onUnmounted(() => {
 <style scoped>
 .author-page {
   min-height: 100vh;
-  background-color: #1e1e2e;
+  background-color: var(--color-base);
 }
 .filter-empty {
   padding: 48px 24px;
-  color: #a6adc8;
+  color: var(--color-text-muted);
   text-align: center;
 }
 </style>

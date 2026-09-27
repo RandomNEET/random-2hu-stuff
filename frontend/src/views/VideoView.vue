@@ -563,9 +563,9 @@ onUnmounted(() => {
 .video-list-container {
   max-width: 1200px;
   margin: 20px auto;
-  background: #1e1e2e; /* Catppuccin Mocha Base */
+  background: var(--color-base); /* Catppuccin Mocha Base */
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--color-black-30);
   padding: 0;
   overflow: hidden;
 }
@@ -576,7 +576,7 @@ onUnmounted(() => {
 }
 .filter-empty {
   padding: 48px 24px;
-  color: #a6adc8;
+  color: var(--color-text-muted);
   text-align: center;
 }
 

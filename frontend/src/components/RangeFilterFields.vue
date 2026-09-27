@@ -6,7 +6,7 @@
       :min="0"
       :max="effectiveMax"
       :step="step"
-      color="#cba6f7"
+      color="var(--color-mauve)"
       hide-details
       class="range-slider"
     />
@@ -93,17 +93,17 @@ const updateMax = (value) => emit("update:maxValue", parseDisplayValue(value));
 </script>
 
 <style scoped>
-.range-filter { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: #313244; border: 1px solid #45475a; border-radius: 10px; }
+.range-filter { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--color-surface-0); border: 1px solid var(--color-surface-1); border-radius: 10px; }
 .range-filter-flat { padding: 0; background: transparent; border: 0; border-radius: 0; }
-.range-label { color: #f9e2af; font-size: 0.82rem; font-weight: 600; }
-.range-slider { margin: 0 4px; color: #cba6f7; }
-.range-slider :deep(.v-slider-track__background) { background: #585b70 !important; opacity: 1; }
-.range-slider :deep(.v-slider-thumb__surface) { box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.2); }
+.range-label { color: var(--color-yellow); font-size: 0.82rem; font-weight: 600; }
+.range-slider { margin: 0 4px; color: var(--color-mauve); }
+.range-slider :deep(.v-slider-track__background) { background: var(--color-surface-2) !important; opacity: 1; }
+.range-slider :deep(.v-slider-thumb__surface) { box-shadow: 0 0 0 3px var(--color-mauve-20); }
 .range-inputs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
-.range-inputs > span { color: #a6adc8; }
-.range-inputs :deep(.v-field) { color: #cdd6f4 !important; background: #45475a !important; border-radius: 8px; }
-.range-inputs :deep(.v-field__input), .range-inputs :deep(.v-label), .range-inputs :deep(input) { color: #cdd6f4 !important; }
-.range-inputs :deep(.v-field__outline) { color: #585b70 !important; }
-.range-inputs :deep(.v-field--focused .v-field__outline) { color: #cba6f7 !important; }
-.range-inputs :deep(.v-field__suffix), .range-inputs :deep(.v-field__clearable) { color: #a6adc8 !important; }
+.range-inputs > span { color: var(--color-text-muted); }
+.range-inputs :deep(.v-field) { color: var(--color-text) !important; background: var(--color-surface-1) !important; border-radius: 8px; }
+.range-inputs :deep(.v-field__input), .range-inputs :deep(.v-label), .range-inputs :deep(input) { color: var(--color-text) !important; }
+.range-inputs :deep(.v-field__outline) { color: var(--color-surface-2) !important; }
+.range-inputs :deep(.v-field--focused .v-field__outline) { color: var(--color-mauve) !important; }
+.range-inputs :deep(.v-field__suffix), .range-inputs :deep(.v-field__clearable) { color: var(--color-text-muted) !important; }
 </style>

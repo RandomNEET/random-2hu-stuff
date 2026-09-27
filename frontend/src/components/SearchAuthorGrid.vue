@@ -56,8 +56,8 @@ const getDisplayAvatar = (author) => {
 
 .author-card {
   position: relative;
-  background: #45475a !important; /* Catppuccin Mocha Surface1 */
-  border: 1px solid #585b70; /* Catppuccin Mocha Surface2 */
+  background: var(--color-surface-1) !important; /* Catppuccin Mocha Surface1 */
+  border: 1px solid var(--color-surface-2); /* Catppuccin Mocha Surface2 */
   cursor: pointer;
   transition: all 0.2s ease;
   border-radius: 16px;
@@ -67,9 +67,9 @@ const getDisplayAvatar = (author) => {
 }
 
 .author-card:hover {
-  background: #585b70 !important; /* Catppuccin Mocha Surface2 */
+  background: var(--color-surface-2) !important; /* Catppuccin Mocha Surface2 */
   transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(203, 166, 247, 0.15);
+  box-shadow: 0 8px 25px var(--color-mauve-15);
 }
 
 .author-avatar {
@@ -95,14 +95,14 @@ const getDisplayAvatar = (author) => {
 }
 
 .author-name {
-  color: #f9e2af; /* Catppuccin Mocha Yellow */
+  color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   font-size: 1.1rem;
   font-weight: bold;
   margin-bottom: 8px;
 }
 
 .author-works {
-  color: #cba6f7; /* Catppuccin Mocha Mauve */
+  color: var(--color-mauve); /* Catppuccin Mocha Mauve */
   font-size: 0.9rem;
 }
 

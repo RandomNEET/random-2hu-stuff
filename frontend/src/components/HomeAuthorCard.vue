@@ -60,19 +60,19 @@ const getDisplayAvatar = (author) => {
   text-decoration: none;
   color: inherit;
   display: block;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--color-black-30);
   /* Default background for cards without avatar */
   background: linear-gradient(
     135deg,
-    #1e1e2e 0%,
-    #313244 100%
+    var(--color-base) 0%,
+    var(--color-surface-0) 100%
   ); /* Catppuccin Mocha Base to Surface0 */
 }
 
 .card-item:hover {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 16px 48px rgba(203, 166, 247, 0.4);
-  border-color: rgba(203, 166, 247, 0.6); /* Brighter border on hover */
+  box-shadow: 0 16px 48px var(--color-mauve-40);
+  border-color: var(--color-mauve-60); /* Brighter border on hover */
 }
 
 /* Avatar background */
@@ -99,7 +99,7 @@ const getDisplayAvatar = (author) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(30, 30, 46, 0.4);
+  background: var(--color-base-40);
   /* Adjust transparency to ensure text readability */
   backdrop-filter: blur(4px) saturate(1.2);
   /* Reduce blur intensity */
@@ -125,11 +125,11 @@ const getDisplayAvatar = (author) => {
 .name {
   font-weight: bold;
   font-size: 1.4rem;
-  color: #f9e2af;
+  color: var(--color-yellow);
   /* Catppuccin Mocha Yellow */
   margin-bottom: 12px;
   line-height: 1.2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 2px var(--color-black-60);
   /* Reduce text shadow */
 }
 
@@ -138,7 +138,7 @@ const getDisplayAvatar = (author) => {
   /* Position to bottom-right corner */
   bottom: 12px;
   right: 12px;
-  color: #cba6f7;
+  color: var(--color-mauve);
   /* Catppuccin Mocha Mauve */
   font-size: 0.9rem;
   font-weight: 600;
@@ -148,14 +148,14 @@ const getDisplayAvatar = (author) => {
   gap: 4px;
   padding: 6px 12px;
   border-radius: 8px;
-  background: rgba(203, 166, 247, 0.15);
+  background: var(--color-mauve-15);
   /* Reduce background transparency */
   backdrop-filter: blur(4px);
   /* Reduce blur effect */
-  border: 1px solid rgba(203, 166, 247, 0.3);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-mauve-30);
+  text-shadow: 0 1px 1px var(--color-black-50);
   /* Reduce text shadow */
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px var(--color-black-20);
   /* Reduce shadow */
   z-index: 6;
 }
