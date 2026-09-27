@@ -5,7 +5,9 @@
     var(--color-mauve),
     var(--color-pink)
   ) !important; /* Catppuccin Mocha Mauve to Pink gradient */
-  color: var(--color-base) !important; /* Dark text for contrast against gradient background */
+  color: var(
+    --color-base
+  ) !important; /* Dark text for contrast against gradient background */
   box-shadow: 0 4px 16px var(--color-mauve-30) !important; /* Soft shadow with theme color */
   transition: all 0.3s ease !important; /* Smooth transitions for all properties */
   z-index: 1000 !important; /* High z-index to stay above other content */

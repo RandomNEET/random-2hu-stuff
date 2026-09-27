@@ -79,7 +79,9 @@
 
 /* Active/current page styling */
 .page-btn.active {
-  background-color: var(--color-mauve) !important; /* Full theme color for active state */
+  background-color: var(
+    --color-mauve
+  ) !important; /* Full theme color for active state */
   color: var(--color-base) !important; /* Dark text for contrast */
   border-color: var(--color-mauve) !important;
 }
@@ -87,7 +89,9 @@
 /* Ellipsis buttons for page skipping */
 .ellipsis-btn {
   background-color: var(--color-surface-0-80) !important;
-  color: var(--color-blue) !important; /* Catppuccin Mocha Blue for distinction */
+  color: var(
+    --color-blue
+  ) !important; /* Catppuccin Mocha Blue for distinction */
   border: 1px solid var(--color-blue-30) !important; /* Blue border to match text */
   min-width: 36px !important;
   height: 36px !important;
@@ -95,7 +99,9 @@
 
 .ellipsis-btn:hover {
   background-color: var(--color-blue-20) !important; /* Blue hover effect */
-  color: var(--color-sapphire) !important; /* Catppuccin Mocha Sapphire on hover */
+  color: var(
+    --color-sapphire
+  ) !important; /* Catppuccin Mocha Sapphire on hover */
 }
 
 /* Page input section for manual navigation */
@@ -149,7 +155,9 @@
 }
 
 .page-input :deep(.v-field--focused .v-field__outline) {
-  border-color: var(--color-mauve) !important; /* Focused state with full theme color */
+  border-color: var(
+    --color-mauve
+  ) !important; /* Focused state with full theme color */
 }
 
 /* Responsive design for pagination */

@@ -142,7 +142,11 @@ onUnmounted(() => {
   align-items: center;
   gap: 20px;
   padding: 32px;
-  background: linear-gradient(135deg, var(--color-surface-0) 0%, var(--color-surface-1) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-surface-0) 0%,
+    var(--color-surface-1) 100%
+  );
   border-bottom: 2px solid var(--color-surface-2);
 }
 

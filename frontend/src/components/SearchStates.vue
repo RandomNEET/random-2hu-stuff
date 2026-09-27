@@ -14,7 +14,9 @@
 
     <!-- No results found -->
     <div v-if="showNoResults" class="no-results">
-      <v-icon size="64" color="var(--color-overlay)">mdi-magnify-remove-outline</v-icon>
+      <v-icon size="64" color="var(--color-overlay)"
+        >mdi-magnify-remove-outline</v-icon
+      >
       <h3>未找到相关结果</h3>
       <p>尝试使用不同的关键词进行搜索</p>
       <v-btn color="primary" @click="$router.push('/')" class="back-home-btn">
@@ -80,7 +82,11 @@ const showNoResults = computed(() => {
 }
 
 .back-home-btn {
-  background: linear-gradient(90deg, var(--color-blue), var(--color-sapphire)) !important;
+  background: linear-gradient(
+    90deg,
+    var(--color-blue),
+    var(--color-sapphire)
+  ) !important;
   color: var(--color-base) !important;
   font-weight: 600;
 }

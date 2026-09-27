@@ -65,9 +65,9 @@ column_exists() {
     "SELECT column_name FROM information_schema.columns
      WHERE table_schema = DATABASE()
        AND table_name = '$table'
-       AND column_name = '$column';" \
-    | tail -n +2 \
-    | grep -qx "$column"
+       AND column_name = '$column';" |
+    tail -n +2 |
+    grep -qx "$column"
 }
 
 # dolt table import -r replaces rows but preserves the existing schema.

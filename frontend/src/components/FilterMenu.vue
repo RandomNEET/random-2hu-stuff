@@ -88,9 +88,22 @@
         <div v-if="!valid" class="filter-error">最小值不能大于最大值</div>
       </v-card-text>
       <v-card-actions>
-        <v-btn class="reset-filter-btn" variant="text" :ripple="false" @click="reset">重置</v-btn>
+        <v-btn
+          class="reset-filter-btn"
+          variant="text"
+          :ripple="false"
+          @click="reset"
+          >重置</v-btn
+        >
         <v-spacer />
-        <v-btn class="apply-filter-btn" variant="flat" :ripple="false" :disabled="!valid" @click="apply">应用筛选</v-btn>
+        <v-btn
+          class="apply-filter-btn"
+          variant="flat"
+          :ripple="false"
+          :disabled="!valid"
+          @click="apply"
+          >应用筛选</v-btn
+        >
       </v-card-actions>
     </v-card>
   </v-menu>
@@ -102,7 +115,11 @@ import RangeFilterFields from "./RangeFilterFields.vue";
 import DateFilterField from "./DateFilterField.vue";
 
 const props = defineProps({
-  mode: { type: String, required: true, validator: (v) => ["authors", "videos"].includes(v) },
+  mode: {
+    type: String,
+    required: true,
+    validator: (v) => ["authors", "videos"].includes(v),
+  },
   modelValue: { type: Object, required: true },
   maxWorks: { type: Number, default: 1 },
   maxDuration: { type: Number, default: 1800 },
@@ -122,14 +139,30 @@ const translationOptions = [
 
 const defaults = () =>
   props.mode === "authors"
-    ? { minWorks: null, maxWorks: null, minAverageDuration: null, maxAverageDuration: null, includeUnknownDuration: false }
-    : { minDuration: null, maxDuration: null, translationStatus: "all", dateFrom: "", dateTo: "", includeUnknownDuration: false };
+    ? {
+        minWorks: null,
+        maxWorks: null,
+        minAverageDuration: null,
+        maxAverageDuration: null,
+        includeUnknownDuration: false,
+      }
+    : {
+        minDuration: null,
+        maxDuration: null,
+        translationStatus: "all",
+        dateFrom: "",
+        dateTo: "",
+        includeUnknownDuration: false,
+      };
 const copyIntoDraft = (source) => Object.assign(draft, defaults(), source);
-const handleOpen = (value) => { if (value) copyIntoDraft(props.modelValue); };
+const handleOpen = (value) => {
+  if (value) copyIntoDraft(props.modelValue);
+};
 const validRange = (min, max) => min === null || max === null || min <= max;
 const valid = computed(() =>
   props.mode === "authors"
-    ? validRange(draft.minWorks, draft.maxWorks) && validRange(draft.minAverageDuration, draft.maxAverageDuration)
+    ? validRange(draft.minWorks, draft.maxWorks) &&
+      validRange(draft.minAverageDuration, draft.maxAverageDuration)
     : validRange(draft.minDuration, draft.maxDuration),
 );
 const durationActive = computed(() =>
@@ -143,7 +176,10 @@ const apply = () => {
   emit("apply", filters);
   open.value = false;
 };
-const reset = () => { emit("apply", defaults()); open.value = false; };
+const reset = () => {
+  emit("apply", defaults());
+  open.value = false;
+};
 </script>
 
 <style scoped>
@@ -165,7 +201,12 @@ const reset = () => { emit("apply", defaults()); open.value = false; };
   font-weight: 700;
   border-bottom: 1px solid var(--color-surface-1);
 }
-.filter-content { display: flex; flex-direction: column; gap: 14px; padding: 16px 18px 10px !important; }
+.filter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 10px !important;
+}
 .filter-content :deep(.v-field) {
   color: var(--color-text) !important;
   background: var(--color-surface-0) !important;
@@ -173,24 +214,81 @@ const reset = () => { emit("apply", defaults()); open.value = false; };
 }
 .filter-content :deep(.v-field__input),
 .filter-content :deep(.v-label),
-.filter-content :deep(input) { color: var(--color-text) !important; }
-.filter-content :deep(.v-field__outline) { color: var(--color-surface-2) !important; }
-.filter-content :deep(.v-field--focused .v-field__outline) { color: var(--color-mauve) !important; }
+.filter-content :deep(input) {
+  color: var(--color-text) !important;
+}
+.filter-content :deep(.v-field__outline) {
+  color: var(--color-surface-2) !important;
+}
+.filter-content :deep(.v-field--focused .v-field__outline) {
+  color: var(--color-mauve) !important;
+}
 .filter-content :deep(.v-input__append),
 .filter-content :deep(.v-field__append-inner),
-.filter-content :deep(.v-field__clearable) { color: var(--color-text-muted) !important; }
-.filter-content :deep(.v-switch .v-selection-control__input) { color: var(--color-mauve) !important; }
-.filter-card :deep(.v-card-actions) { padding: 10px 14px 14px; border-top: 1px solid var(--color-surface-1); }
-.filter-card :deep(.v-ripple__container) { display: none !important; }
-.date-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.filter-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-base); color: var(--color-mauve); font-size: 0.7rem !important; }
-.filter-error { color: var(--color-red); font-size: 0.8rem; }
-.reset-filter-btn { color: var(--color-text-muted) !important; }
-.reset-filter-btn:hover { color: var(--color-red) !important; background: var(--color-red-12) !important; }
-.apply-filter-btn { color: var(--color-base) !important; background: var(--color-mauve) !important; font-weight: 700; }
-.apply-filter-btn:hover { background: var(--color-lavender) !important; }
-:global(.filter-select-menu .v-list) { color: var(--color-text); background: var(--color-surface-0); border: 1px solid var(--color-surface-2); }
-:global(.filter-select-menu .v-list-item:hover) { background: var(--color-mauve-14); }
-:global(.filter-select-menu .v-list-item--active) { color: var(--color-mauve); background: var(--color-mauve-20); }
-@media (max-width: 480px) { .date-fields { grid-template-columns: 1fr; } }
+.filter-content :deep(.v-field__clearable) {
+  color: var(--color-text-muted) !important;
+}
+.filter-content :deep(.v-switch .v-selection-control__input) {
+  color: var(--color-mauve) !important;
+}
+.filter-card :deep(.v-card-actions) {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--color-surface-1);
+}
+.filter-card :deep(.v-ripple__container) {
+  display: none !important;
+}
+.date-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.filter-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-base);
+  color: var(--color-mauve);
+  font-size: 0.7rem !important;
+}
+.filter-error {
+  color: var(--color-red);
+  font-size: 0.8rem;
+}
+.reset-filter-btn {
+  color: var(--color-text-muted) !important;
+}
+.reset-filter-btn:hover {
+  color: var(--color-red) !important;
+  background: var(--color-red-12) !important;
+}
+.apply-filter-btn {
+  color: var(--color-base) !important;
+  background: var(--color-mauve) !important;
+  font-weight: 700;
+}
+.apply-filter-btn:hover {
+  background: var(--color-lavender) !important;
+}
+:global(.filter-select-menu .v-list) {
+  color: var(--color-text);
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-surface-2);
+}
+:global(.filter-select-menu .v-list-item:hover) {
+  background: var(--color-mauve-14);
+}
+:global(.filter-select-menu .v-list-item--active) {
+  color: var(--color-mauve);
+  background: var(--color-mauve-20);
+}
+@media (max-width: 480px) {
+  .date-fields {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

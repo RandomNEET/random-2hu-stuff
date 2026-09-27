@@ -89,8 +89,16 @@ const filtersFromQuery = (query) => ({
   includeUnknownDuration: query.includeUnknownDuration === "1",
 });
 const getSavedFilters = () => {
-  const keys = ["minDuration", "maxDuration", "translationStatus", "dateFrom", "dateTo", "includeUnknownDuration"];
-  if (keys.some((key) => route.query[key] !== undefined)) return filtersFromQuery(route.query);
+  const keys = [
+    "minDuration",
+    "maxDuration",
+    "translationStatus",
+    "dateFrom",
+    "dateTo",
+    "includeUnknownDuration",
+  ];
+  if (keys.some((key) => route.query[key] !== undefined))
+    return filtersFromQuery(route.query);
   try {
     const saved = localStorage.getItem("videoList-filterSettings");
     if (saved) return { ...defaultVideoFilters(), ...JSON.parse(saved) };
@@ -100,16 +108,23 @@ const getSavedFilters = () => {
   return defaultVideoFilters();
 };
 const videoFilters = ref(getSavedFilters());
-const resolvedDuration = (video) => video.original_duration ?? video.repost_duration;
+const resolvedDuration = (video) =>
+  video.original_duration ?? video.repost_duration;
 const maxVideoDuration = computed(() =>
-  Math.max(1800, ...originalVideos.value.map((video) => resolvedDuration(video) || 0)),
+  Math.max(
+    1800,
+    ...originalVideos.value.map((video) => resolvedDuration(video) || 0),
+  ),
 );
 const activeFilterCount = computed(() => {
   const f = videoFilters.value;
   const durationActive = f.minDuration !== null || f.maxDuration !== null;
-  return Number(durationActive) +
-    Number(f.translationStatus !== "all") + Number(!!f.dateFrom || !!f.dateTo) +
-    Number(durationActive && f.includeUnknownDuration);
+  return (
+    Number(durationActive) +
+    Number(f.translationStatus !== "all") +
+    Number(!!f.dateFrom || !!f.dateTo) +
+    Number(durationActive && f.includeUnknownDuration)
+  );
 });
 
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
@@ -176,10 +191,14 @@ const updateUrlParams = () => {
   const f = videoFilters.value;
   if (f.minDuration !== null) query.minDuration = String(f.minDuration);
   if (f.maxDuration !== null) query.maxDuration = String(f.maxDuration);
-  if (f.translationStatus !== "all") query.translationStatus = f.translationStatus;
+  if (f.translationStatus !== "all")
+    query.translationStatus = f.translationStatus;
   if (f.dateFrom) query.dateFrom = f.dateFrom;
   if (f.dateTo) query.dateTo = f.dateTo;
-  if ((f.minDuration !== null || f.maxDuration !== null) && f.includeUnknownDuration) {
+  if (
+    (f.minDuration !== null || f.maxDuration !== null) &&
+    f.includeUnknownDuration
+  ) {
     query.includeUnknownDuration = "1";
   }
 
@@ -315,7 +334,11 @@ const sortVideos = (resetPage = true) => {
         if (f.maxDuration !== null && duration > f.maxDuration) return false;
       }
     }
-    if (f.translationStatus !== "all" && String(video.translation_status) !== String(f.translationStatus)) return false;
+    if (
+      f.translationStatus !== "all" &&
+      String(video.translation_status) !== String(f.translationStatus)
+    )
+      return false;
     if (f.dateFrom && (!video.date || video.date < f.dateFrom)) return false;
     if (f.dateTo && (!video.date || video.date > f.dateTo)) return false;
     return true;

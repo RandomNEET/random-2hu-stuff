@@ -25,7 +25,6 @@ from typing import Any, List
 
 import json5
 import requests
-
 from time_range import parse_time_range
 
 
@@ -787,9 +786,7 @@ def main(argv=None):
     print("→ 模式：本地整理" + (" (仅本地)" if check_only else " + 上传"))
     upload_cfg = load_upload_config()
     time_range_str = (
-        args.time_range
-        if args.time_range is not None
-        else get_time_range(upload_cfg)
+        args.time_range if args.time_range is not None else get_time_range(upload_cfg)
     )
     csv_dir_name = upload_cfg.get("csv_dir", "output")
     csv_dir_path = Path(csv_dir_name)

@@ -1200,7 +1200,9 @@ def process_csv(
                             _,
                             original_thumbnail,
                             original_duration,
-                        ) = get_video_metadata(original_url, browser_cookies, cookies_file)
+                        ) = get_video_metadata(
+                            original_url, browser_cookies, cookies_file
+                        )
                     except Exception as e:
                         error_msg = str(e)
                         print(

@@ -106,6 +106,15 @@ const selectDate = (event) => {
 </script>
 
 <style scoped>
-.date-filter-field { position: relative; width: 100%; }
-.native-date-picker { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.date-filter-field {
+  position: relative;
+  width: 100%;
+}
+.native-date-picker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 </style>

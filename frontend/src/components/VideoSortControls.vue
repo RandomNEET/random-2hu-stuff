@@ -57,7 +57,12 @@ const props = defineProps({
   activeFilterCount: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(["update:sortBy", "update:sortOrder", "sort-change", "filter-apply"]);
+const emit = defineEmits([
+  "update:sortBy",
+  "update:sortOrder",
+  "sort-change",
+  "filter-apply",
+]);
 
 const handleSortBy = (type) => {
   let newSortOrder = props.sortOrder;

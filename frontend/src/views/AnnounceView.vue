@@ -16,6 +16,25 @@
 
         <div class="update-timeline">
           <div class="update-item">
+            <div class="update-date">2026.09.27</div>
+            <div class="update-content">
+              <ul>
+                <li>添加作者/视频筛选功能</li>
+                <li>新收录作者1位，视频84个，熟肉81个</li>
+                <li>
+                  本次更新详情:
+                  <a
+                    href="https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/mie4enrkv2ufg9t58omrik40fin8fsg8"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >dolthub</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="update-item">
             <div class="update-date">2026.09.19</div>
             <div class="update-content">
               <ul>

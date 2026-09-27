@@ -233,7 +233,9 @@
         <div class="mobile-search-types">
           <v-btn
             :variant="searchForm.type === 'videos' ? 'flat' : 'outlined'"
-            :color="searchForm.type === 'videos' ? 'var(--color-mauve)' : 'default'"
+            :color="
+              searchForm.type === 'videos' ? 'var(--color-mauve)' : 'default'
+            "
             class="mobile-type-btn"
             @click="searchForm.type = 'videos'"
           >
@@ -242,7 +244,9 @@
           </v-btn>
           <v-btn
             :variant="searchForm.type === 'authors' ? 'flat' : 'outlined'"
-            :color="searchForm.type === 'authors' ? 'var(--color-mauve)' : 'default'"
+            :color="
+              searchForm.type === 'authors' ? 'var(--color-mauve)' : 'default'
+            "
             class="mobile-type-btn"
             @click="searchForm.type = 'authors'"
           >
@@ -379,7 +383,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  watch,
+  nextTick,
+  onBeforeUnmount,
+} from "vue";
 import { useRouter } from "vue-router";
 import { API_URLS } from "@/config/api.js";
 import RangeFilterFields from "./RangeFilterFields.vue";
@@ -415,7 +426,9 @@ const searchDurationActive = computed(
 );
 const searchDurationValid = computed(() => {
   const { minDuration, maxDuration } = searchForm.value.filters;
-  return minDuration === null || maxDuration === null || minDuration <= maxDuration;
+  return (
+    minDuration === null || maxDuration === null || minDuration <= maxDuration
+  );
 });
 
 // Author options for filter (loaded from API)
@@ -586,7 +599,10 @@ const performSearch = () => {
     if (searchForm.value.filters.maxDuration !== null) {
       query.maxDuration = searchForm.value.filters.maxDuration;
     }
-    if (searchDurationActive.value && searchForm.value.filters.includeUnknownDuration) {
+    if (
+      searchDurationActive.value &&
+      searchForm.value.filters.includeUnknownDuration
+    ) {
       query.includeUnknownDuration = "1";
     }
   }
@@ -635,7 +651,10 @@ const handleMobileSearch = () => {
     if (searchForm.value.filters.maxDuration !== null) {
       query.maxDuration = searchForm.value.filters.maxDuration;
     }
-    if (searchDurationActive.value && searchForm.value.filters.includeUnknownDuration) {
+    if (
+      searchDurationActive.value &&
+      searchForm.value.filters.includeUnknownDuration
+    ) {
       query.includeUnknownDuration = "1";
     }
   }
@@ -864,7 +883,9 @@ onBeforeUnmount(() => {
 }
 
 .search-field :deep(.v-field) {
-  background-color: var(--color-surface-1) !important; /* Catppuccin Mocha Surface1 */
+  background-color: var(
+    --color-surface-1
+  ) !important; /* Catppuccin Mocha Surface1 */
   border-radius: 12px;
 }
 
@@ -873,7 +894,9 @@ onBeforeUnmount(() => {
 }
 
 .search-field :deep(.v-field__outline) {
-  border-color: var(--color-surface-2) !important; /* Catppuccin Mocha Surface2 */
+  border-color: var(
+    --color-surface-2
+  ) !important; /* Catppuccin Mocha Surface2 */
 }
 
 .search-field :deep(.v-field--focused .v-field__outline) {

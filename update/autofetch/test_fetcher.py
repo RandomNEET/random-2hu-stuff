@@ -51,9 +51,7 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(
             processor.parse_args(["--time-range", "today"]).time_range, "today"
         )
-        upload_args = upload.parse_args(
-            ["--dry-run", "--time-range", "today"]
-        )
+        upload_args = upload.parse_args(["--dry-run", "--time-range", "today"])
         self.assertTrue(upload_args.dry_run)
         self.assertEqual(upload_args.time_range, "today")
 

@@ -64,8 +64,12 @@
 
 /* Active sort button styling */
 .sort-btn.active {
-  background-color: var(--color-mauve) !important; /* Full theme color for active state */
-  color: var(--color-base) !important; /* Dark text for contrast against active background */
+  background-color: var(
+    --color-mauve
+  ) !important; /* Full theme color for active state */
+  color: var(
+    --color-base
+  ) !important; /* Dark text for contrast against active background */
   border-color: var(--color-mauve) !important; /* Matching border color */
 }
 

@@ -79,9 +79,13 @@ const filtersFromQuery = (query) => ({
   includeUnknownDuration: query.includeUnknownDuration === "1",
 });
 const getSavedFilters = () => {
-  const hasUrlFilters = ["minWorks", "maxWorks", "minAvgDuration", "maxAvgDuration", "includeUnknownDuration"].some(
-    (key) => route.query[key] !== undefined,
-  );
+  const hasUrlFilters = [
+    "minWorks",
+    "maxWorks",
+    "minAvgDuration",
+    "maxAvgDuration",
+    "includeUnknownDuration",
+  ].some((key) => route.query[key] !== undefined);
   if (hasUrlFilters) return filtersFromQuery(route.query);
   try {
     const saved = localStorage.getItem("authorGrid-filterSettings");
@@ -92,15 +96,21 @@ const getSavedFilters = () => {
   return defaultAuthorFilters();
 };
 const authorFilters = ref(getSavedFilters());
-const maxWorks = computed(() => Math.max(1, ...originalAuthors.value.map((a) => a.worksCount || 0)));
+const maxWorks = computed(() =>
+  Math.max(1, ...originalAuthors.value.map((a) => a.worksCount || 0)),
+);
 const maxAverageDuration = computed(() =>
   Math.max(1800, ...originalAuthors.value.map((a) => a.averageDuration || 0)),
 );
 const activeFilterCount = computed(() => {
   const f = authorFilters.value;
-  const durationActive = f.minAverageDuration !== null || f.maxAverageDuration !== null;
-  return Number(f.minWorks !== null || f.maxWorks !== null) +
-    Number(durationActive) + Number(durationActive && f.includeUnknownDuration);
+  const durationActive =
+    f.minAverageDuration !== null || f.maxAverageDuration !== null;
+  return (
+    Number(f.minWorks !== null || f.maxWorks !== null) +
+    Number(durationActive) +
+    Number(durationActive && f.includeUnknownDuration)
+  );
 });
 
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
@@ -170,9 +180,14 @@ const updateUrlParams = () => {
   const f = authorFilters.value;
   if (f.minWorks !== null) query.minWorks = String(f.minWorks);
   if (f.maxWorks !== null) query.maxWorks = String(f.maxWorks);
-  if (f.minAverageDuration !== null) query.minAvgDuration = String(f.minAverageDuration);
-  if (f.maxAverageDuration !== null) query.maxAvgDuration = String(f.maxAverageDuration);
-  if ((f.minAverageDuration !== null || f.maxAverageDuration !== null) && f.includeUnknownDuration) {
+  if (f.minAverageDuration !== null)
+    query.minAvgDuration = String(f.minAverageDuration);
+  if (f.maxAverageDuration !== null)
+    query.maxAvgDuration = String(f.maxAverageDuration);
+  if (
+    (f.minAverageDuration !== null || f.maxAverageDuration !== null) &&
+    f.includeUnknownDuration
+  ) {
     query.includeUnknownDuration = "1";
   }
 
@@ -222,11 +237,22 @@ const sortAuthors = () => {
     if (f.minWorks !== null && author.worksCount < f.minWorks) return false;
     if (f.maxWorks !== null && author.worksCount > f.maxWorks) return false;
     if (durationFilterActive) {
-      if (author.averageDuration === null || author.averageDuration === undefined) {
+      if (
+        author.averageDuration === null ||
+        author.averageDuration === undefined
+      ) {
         return f.includeUnknownDuration;
       }
-      if (f.minAverageDuration !== null && author.averageDuration < f.minAverageDuration) return false;
-      if (f.maxAverageDuration !== null && author.averageDuration > f.maxAverageDuration) return false;
+      if (
+        f.minAverageDuration !== null &&
+        author.averageDuration < f.minAverageDuration
+      )
+        return false;
+      if (
+        f.maxAverageDuration !== null &&
+        author.averageDuration > f.maxAverageDuration
+      )
+        return false;
     }
     return true;
   });

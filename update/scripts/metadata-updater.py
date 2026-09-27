@@ -28,9 +28,6 @@ Optional arguments:
 """
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from http.cookiejar import MozillaCookieJar
 import json
 import os
 import re
@@ -38,6 +35,9 @@ import sqlite3
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -118,9 +118,19 @@ def build_ydl_options(debug=False, browser_cookies=None, cookies_file=None):
                 keyring_profile, container = remainder.split("::", 1)
                 if ":" in keyring_profile:
                     keyring, profile = keyring_profile.split(":", 1)
-                    options["cookiesfrombrowser"] = (browser, keyring, profile, container)
+                    options["cookiesfrombrowser"] = (
+                        browser,
+                        keyring,
+                        profile,
+                        container,
+                    )
                 else:
-                    options["cookiesfrombrowser"] = (browser, keyring_profile, None, container)
+                    options["cookiesfrombrowser"] = (
+                        browser,
+                        keyring_profile,
+                        None,
+                        container,
+                    )
             elif ":" in remainder:
                 keyring, profile = remainder.split(":", 1)
                 options["cookiesfrombrowser"] = (browser, keyring, profile)
@@ -262,9 +272,7 @@ def validate_video_url(url, timeout=10, cookies_file=None):
             # VideoCard.vue treats every non-zero result as unavailable. State
             # files need to be safer: persist content-status codes, but not
             # request blocking/authentication codes such as -352 or -412.
-            if code == -404 or (
-                isinstance(code, int) and 62000 <= code < 63000
-            ):
+            if code == -404 or (isinstance(code, int) and 62000 <= code < 63000):
                 message = BILIBILI_STATUS_MESSAGES.get(
                     code, payload.get("message") or "video is unavailable"
                 )
@@ -294,15 +302,12 @@ def validate_video_url(url, timeout=10, cookies_file=None):
                     raw_duration = video.get("duration")
                     duration = (
                         round(raw_duration)
-                        if isinstance(raw_duration, (int, float))
-                        and raw_duration > 0
+                        if isinstance(raw_duration, (int, float)) and raw_duration > 0
                         else None
                     )
                     if raw_duration == 0:
                         mark_duration_unavailable(url)
-                    cache_prefetched_metadata(
-                        url, video.get("thumbnail_url"), duration
-                    )
+                    cache_prefetched_metadata(url, video.get("thumbnail_url"), duration)
                 return True, ""
             if response.status_code == 404:
                 return False, "FxTwitter reports that the post does not exist"
@@ -326,8 +331,7 @@ def validate_video_url(url, timeout=10, cookies_file=None):
                 return False, f"YouTube returned HTTP {watch_response.status_code}"
             page = watch_response.text.lower()
             playability_match = re.search(
-                r'"playabilitystatus":\{"status":"([^"]+)"'
-                r'(?:,"reason":"([^"]*)")?',
+                r'"playabilitystatus":\{"status":"([^"]+)"' r'(?:,"reason":"([^"]*)")?',
                 page,
             )
             if not playability_match:
@@ -664,9 +668,7 @@ def update_thumbnails(
 
     def fetch_job(url):
         if url_validator is validate_video_url:
-            valid, invalid_reason = url_validator(
-                url, cookies_file=cookies_file
-            )
+            valid, invalid_reason = url_validator(url, cookies_file=cookies_file)
         else:
             valid, invalid_reason = url_validator(url)
         if valid is False:
@@ -767,7 +769,11 @@ def update_thumbnails(
                 assignments = ", ".join(f"{field} = ?" for field in fields)
                 values = list(fields.values())
                 update_details = ", ".join(
-                    f"{field}={value}s" if field.endswith("_duration") else f"{field}={value}"
+                    (
+                        f"{field}={value}s"
+                        if field.endswith("_duration")
+                        else f"{field}={value}"
+                    )
                     for field, value in fields.items()
                 )
                 if dry_run:
@@ -1098,9 +1104,7 @@ def main():
         print(f"State write errors: {stats['state_write_errors']}")
         print(f"Original video thumbnails updated: {stats['original_updated']}")
         print(f"Repost video thumbnails updated: {stats['repost_updated']}")
-        print(
-            f"Original video durations updated: {stats['original_duration_updated']}"
-        )
+        print(f"Original video durations updated: {stats['original_duration_updated']}")
         print(f"Repost video durations updated: {stats['repost_duration_updated']}")
         print(f"Errors: {stats['errors']}")
 
