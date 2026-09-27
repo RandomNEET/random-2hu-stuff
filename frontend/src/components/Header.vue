@@ -585,25 +585,25 @@ const performSearch = () => {
       }
     }
     if (searchForm.value.filters.translationStatus !== "all") {
-      query.translationStatus = searchForm.value.filters.translationStatus;
+      query.status = searchForm.value.filters.translationStatus;
     }
     if (searchForm.value.filters.dateFrom) {
-      query.dateFrom = searchForm.value.filters.dateFrom;
+      query.from = searchForm.value.filters.dateFrom;
     }
     if (searchForm.value.filters.dateTo) {
-      query.dateTo = searchForm.value.filters.dateTo;
+      query.to = searchForm.value.filters.dateTo;
     }
     if (searchForm.value.filters.minDuration !== null) {
-      query.minDuration = searchForm.value.filters.minDuration;
+      query.minDur = searchForm.value.filters.minDuration;
     }
     if (searchForm.value.filters.maxDuration !== null) {
-      query.maxDuration = searchForm.value.filters.maxDuration;
+      query.maxDur = searchForm.value.filters.maxDuration;
     }
     if (
       searchDurationActive.value &&
       searchForm.value.filters.includeUnknownDuration
     ) {
-      query.includeUnknownDuration = "1";
+      query.unknown = "1";
     }
   }
 
@@ -637,25 +637,25 @@ const handleMobileSearch = () => {
       }
     }
     if (searchForm.value.filters.translationStatus !== "all") {
-      query.translationStatus = searchForm.value.filters.translationStatus;
+      query.status = searchForm.value.filters.translationStatus;
     }
     if (searchForm.value.filters.dateFrom) {
-      query.dateFrom = searchForm.value.filters.dateFrom;
+      query.from = searchForm.value.filters.dateFrom;
     }
     if (searchForm.value.filters.dateTo) {
-      query.dateTo = searchForm.value.filters.dateTo;
+      query.to = searchForm.value.filters.dateTo;
     }
     if (searchForm.value.filters.minDuration !== null) {
-      query.minDuration = searchForm.value.filters.minDuration;
+      query.minDur = searchForm.value.filters.minDuration;
     }
     if (searchForm.value.filters.maxDuration !== null) {
-      query.maxDuration = searchForm.value.filters.maxDuration;
+      query.maxDur = searchForm.value.filters.maxDuration;
     }
     if (
       searchDurationActive.value &&
       searchForm.value.filters.includeUnknownDuration
     ) {
-      query.includeUnknownDuration = "1";
+      query.unknown = "1";
     }
   }
 

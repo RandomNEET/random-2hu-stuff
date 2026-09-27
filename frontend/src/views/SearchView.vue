@@ -513,20 +513,29 @@ const searchVideos = async (query) => {
   isSearching.value = true;
 
   try {
+    const queryValue = (shortKey, legacyKey) =>
+      route.query[shortKey] ?? route.query[legacyKey];
+    const status = queryValue("status", "translationStatus");
+    const dateFrom = queryValue("from", "dateFrom");
+    const dateTo = queryValue("to", "dateTo");
+    const minDuration = queryValue("minDur", "minDuration");
+    const maxDuration = queryValue("maxDur", "maxDuration");
+    const includeUnknownDuration =
+      queryValue("unknown", "includeUnknownDuration") === "1";
     const searchParams = new URLSearchParams({
       q: query,
       limit: route.query.limit || "100",
       ...(route.query.type && { type: route.query.type }),
       ...(route.query.author && { author: route.query.author }),
-      ...(route.query.translationStatus &&
-        route.query.translationStatus !== "all" && {
-          translationStatus: route.query.translationStatus,
+      ...(status &&
+        status !== "all" && {
+          translationStatus: status,
         }),
-      ...(route.query.dateFrom && { dateFrom: route.query.dateFrom }),
-      ...(route.query.dateTo && { dateTo: route.query.dateTo }),
-      ...(route.query.minDuration && { minDuration: route.query.minDuration }),
-      ...(route.query.maxDuration && { maxDuration: route.query.maxDuration }),
-      ...(route.query.includeUnknownDuration === "1" && {
+      ...(dateFrom && { dateFrom }),
+      ...(dateTo && { dateTo }),
+      ...(minDuration && { minDuration }),
+      ...(maxDuration && { maxDuration }),
+      ...(includeUnknownDuration && {
         includeUnknownDuration: "1",
       }),
     });

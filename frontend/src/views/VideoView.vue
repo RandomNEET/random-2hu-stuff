@@ -80,16 +80,26 @@ const parseNonNegative = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
+const queryValue = (query, shortKey, legacyKey) =>
+  query[shortKey] ?? query[legacyKey];
 const filtersFromQuery = (query) => ({
-  minDuration: parseNonNegative(query.minDuration),
-  maxDuration: parseNonNegative(query.maxDuration),
-  translationStatus: query.translationStatus || "all",
-  dateFrom: query.dateFrom || "",
-  dateTo: query.dateTo || "",
-  includeUnknownDuration: query.includeUnknownDuration === "1",
+  minDuration: parseNonNegative(queryValue(query, "minDur", "minDuration")),
+  maxDuration: parseNonNegative(queryValue(query, "maxDur", "maxDuration")),
+  translationStatus:
+    queryValue(query, "status", "translationStatus") || "all",
+  dateFrom: queryValue(query, "from", "dateFrom") || "",
+  dateTo: queryValue(query, "to", "dateTo") || "",
+  includeUnknownDuration:
+    queryValue(query, "unknown", "includeUnknownDuration") === "1",
 });
 const getSavedFilters = () => {
   const keys = [
+    "minDur",
+    "maxDur",
+    "status",
+    "from",
+    "to",
+    "unknown",
     "minDuration",
     "maxDuration",
     "translationStatus",
@@ -129,8 +139,8 @@ const activeFilterCount = computed(() => {
 
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
-  const urlSortBy = route.query.sortBy;
-  const urlSortOrder = route.query.sortOrder;
+  const urlSortBy = queryValue(route.query, "sort", "sortBy");
+  const urlSortOrder = queryValue(route.query, "order", "sortOrder");
 
   if (urlSortBy && (urlSortBy === "date" || urlSortBy === "translation")) {
     return {
@@ -184,22 +194,22 @@ const updateUrlParams = () => {
   }
 
   if (sortBy.value !== "translation" || sortOrder.value !== "asc") {
-    query.sortBy = sortBy.value;
-    query.sortOrder = sortOrder.value;
+    query.sort = sortBy.value;
+    query.order = sortOrder.value;
   }
 
   const f = videoFilters.value;
-  if (f.minDuration !== null) query.minDuration = String(f.minDuration);
-  if (f.maxDuration !== null) query.maxDuration = String(f.maxDuration);
+  if (f.minDuration !== null) query.minDur = String(f.minDuration);
+  if (f.maxDuration !== null) query.maxDur = String(f.maxDuration);
   if (f.translationStatus !== "all")
-    query.translationStatus = f.translationStatus;
-  if (f.dateFrom) query.dateFrom = f.dateFrom;
-  if (f.dateTo) query.dateTo = f.dateTo;
+    query.status = f.translationStatus;
+  if (f.dateFrom) query.from = f.dateFrom;
+  if (f.dateTo) query.to = f.dateTo;
   if (
     (f.minDuration !== null || f.maxDuration !== null) &&
     f.includeUnknownDuration
   ) {
-    query.includeUnknownDuration = "1";
+    query.unknown = "1";
   }
 
   router
@@ -515,8 +525,9 @@ watch(
   () => route.query,
   (newQuery) => {
     const urlPage = parseInt(newQuery.page) || 1;
-    const urlSortBy = newQuery.sortBy || "translation";
-    const urlSortOrder = newQuery.sortOrder || "asc";
+    const urlSortBy =
+      queryValue(newQuery, "sort", "sortBy") || "translation";
+    const urlSortOrder = queryValue(newQuery, "order", "sortOrder") || "asc";
     const nextFilters = filtersFromQuery(newQuery);
 
     const pageChanged = urlPage !== currentPage.value;

@@ -71,15 +71,27 @@ const parseNonNegative = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
+const queryValue = (query, shortKey, legacyKey) =>
+  query[shortKey] ?? query[legacyKey];
 const filtersFromQuery = (query) => ({
-  minWorks: parseNonNegative(query.minWorks),
-  maxWorks: parseNonNegative(query.maxWorks),
-  minAverageDuration: parseNonNegative(query.minAvgDuration),
-  maxAverageDuration: parseNonNegative(query.maxAvgDuration),
-  includeUnknownDuration: query.includeUnknownDuration === "1",
+  minWorks: parseNonNegative(queryValue(query, "minW", "minWorks")),
+  maxWorks: parseNonNegative(queryValue(query, "maxW", "maxWorks")),
+  minAverageDuration: parseNonNegative(
+    queryValue(query, "minDur", "minAvgDuration"),
+  ),
+  maxAverageDuration: parseNonNegative(
+    queryValue(query, "maxDur", "maxAvgDuration"),
+  ),
+  includeUnknownDuration:
+    queryValue(query, "unknown", "includeUnknownDuration") === "1",
 });
 const getSavedFilters = () => {
   const hasUrlFilters = [
+    "minW",
+    "maxW",
+    "minDur",
+    "maxDur",
+    "unknown",
     "minWorks",
     "maxWorks",
     "minAvgDuration",
@@ -116,8 +128,8 @@ const activeFilterCount = computed(() => {
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
   // First try to get from URL query parameters
-  const urlSortBy = route.query.sortBy;
-  const urlSortOrder = route.query.sortOrder;
+  const urlSortBy = queryValue(route.query, "sort", "sortBy");
+  const urlSortOrder = queryValue(route.query, "order", "sortOrder");
 
   if (urlSortBy && ["name", "worksCount", "lastUpdate"].includes(urlSortBy)) {
     return {
@@ -173,22 +185,22 @@ const updateUrlParams = () => {
 
   // Only add sort params if not default (name, asc)
   if (sortBy.value !== "name" || sortOrder.value !== "asc") {
-    query.sortBy = sortBy.value;
-    query.sortOrder = sortOrder.value;
+    query.sort = sortBy.value;
+    query.order = sortOrder.value;
   }
 
   const f = authorFilters.value;
-  if (f.minWorks !== null) query.minWorks = String(f.minWorks);
-  if (f.maxWorks !== null) query.maxWorks = String(f.maxWorks);
+  if (f.minWorks !== null) query.minW = String(f.minWorks);
+  if (f.maxWorks !== null) query.maxW = String(f.maxWorks);
   if (f.minAverageDuration !== null)
-    query.minAvgDuration = String(f.minAverageDuration);
+    query.minDur = String(f.minAverageDuration);
   if (f.maxAverageDuration !== null)
-    query.maxAvgDuration = String(f.maxAverageDuration);
+    query.maxDur = String(f.maxAverageDuration);
   if (
     (f.minAverageDuration !== null || f.maxAverageDuration !== null) &&
     f.includeUnknownDuration
   ) {
-    query.includeUnknownDuration = "1";
+    query.unknown = "1";
   }
 
   // Use router.replace to avoid adding to history
@@ -405,8 +417,8 @@ watch(
   (newQuery, oldQuery) => {
     // Avoid infinite loop: only update if URL actually changed from external source
     const urlPage = parseInt(newQuery.page) || 1;
-    const urlSortBy = newQuery.sortBy || "name";
-    const urlSortOrder = newQuery.sortOrder || "asc";
+    const urlSortBy = queryValue(newQuery, "sort", "sortBy") || "name";
+    const urlSortOrder = queryValue(newQuery, "order", "sortOrder") || "asc";
     const nextFilters = filtersFromQuery(newQuery);
 
     // Check if URL is different from current state (external change)
