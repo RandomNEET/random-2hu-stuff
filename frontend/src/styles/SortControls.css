@@ -4,11 +4,28 @@
   justify-content: flex-end; /* Align sort controls to the right */
   padding: 16px 24px 0;
   background-color: #1e1e2e; /* Catppuccin Mocha Base */
+  box-sizing: border-box;
+}
+
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .sort-controls {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 1600px) {
+  .sort-controls {
+    max-width: 2200px;
+    margin: 0 auto;
+  }
 }
 
 /* Sort buttons container with glassmorphism effect */
 .sort-buttons {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px; /* Spacing between sort buttons */
   background: rgba(30, 30, 46, 0.8); /* Semi-transparent background */
   padding: 8px;

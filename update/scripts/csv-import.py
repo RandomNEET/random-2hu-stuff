@@ -164,7 +164,7 @@ def get_twitter_avatar(screen_name):
 def get_video_metadata(url, browser_cookies=None, cookies_file=None):
     """Get video metadata from URL"""
     if not url or url.strip() == "" or url == "未转载":
-        return None, None, None
+        return None, None, None, None, None
 
     try:
         options = {
@@ -302,7 +302,31 @@ def get_video_metadata(url, browser_cookies=None, cookies_file=None):
                 if avatar:
                     author_info["avatar"] = avatar
 
-            return title, formatted_date, author_info
+            raw_duration = info.get("duration")
+            duration = None
+            if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
+                duration = round(raw_duration)
+
+            thumbnail = info.get("thumbnail")
+            if not thumbnail:
+                thumbnails = info.get("thumbnails") or []
+                if thumbnails:
+                    thumbnail = max(
+                        thumbnails,
+                        key=lambda item: (
+                            item.get("preference") or 0,
+                            item.get("width") or 0,
+                            item.get("height") or 0,
+                        ),
+                    ).get("url")
+            if (
+                thumbnail
+                and "hdslb.com" in thumbnail
+                and thumbnail.startswith("http://")
+            ):
+                thumbnail = thumbnail.replace("http://", "https://")
+
+            return title, formatted_date, author_info, thumbnail, duration
 
     except Exception as e:
         print(f"Failed to get video metadata {url}: {e}")
@@ -652,6 +676,10 @@ def insert_video_wrapper(
     date_str,
     repost_name,
     repost_url,
+    original_thumbnail,
+    original_duration,
+    repost_thumbnail,
+    repost_duration,
     translation_status,
     comment=None,
     supplementary_note=None,
@@ -770,16 +798,25 @@ def insert_video_wrapper(
                 cursor.execute(
                     """
                     UPDATE videos SET
-                    author = ?, original_name = ?, date = ?,
-                    repost_name = ?, repost_url = ?, translation_status = ?, comment = ?
+                    author = ?, original_name = ?,
+                    original_thumbnail = COALESCE(?, original_thumbnail),
+                    original_duration = COALESCE(?, original_duration), date = ?,
+                    repost_name = ?, repost_url = ?,
+                    repost_thumbnail = COALESCE(?, repost_thumbnail),
+                    repost_duration = COALESCE(?, repost_duration),
+                    translation_status = ?, comment = ?
                     WHERE id = ?
                 """,
                     (
                         author_id,
                         title,
+                        original_thumbnail,
+                        original_duration,
                         date_str,
                         repost_name,
                         repost_url,
+                        repost_thumbnail,
+                        repost_duration,
                         translation_status,
                         comment,
                         target[0],
@@ -792,16 +829,22 @@ def insert_video_wrapper(
                 cursor.execute(
                     """
                     INSERT INTO videos
-                    (author, original_name, original_url, date, repost_name, repost_url, translation_status, comment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (author, original_name, original_url, original_thumbnail,
+                     original_duration, date, repost_name, repost_url,
+                     repost_thumbnail, repost_duration, translation_status, comment)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         author_id,
                         title,
                         original_url,
+                        original_thumbnail,
+                        original_duration,
                         date_str,
                         repost_name,
                         repost_url,
+                        repost_thumbnail,
+                        repost_duration,
                         translation_status,
                         comment,
                     ),
@@ -813,16 +856,22 @@ def insert_video_wrapper(
         cursor.execute(
             """
             INSERT INTO videos 
-            (author, original_name, original_url, date, repost_name, repost_url, translation_status, comment)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (author, original_name, original_url, original_thumbnail,
+             original_duration, date, repost_name, repost_url,
+             repost_thumbnail, repost_duration, translation_status, comment)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 author_id,
                 title,
                 original_url,
+                original_thumbnail,
+                original_duration,
                 date_str,
                 repost_name,
                 repost_url,
+                repost_thumbnail,
+                repost_duration,
                 translation_status,
                 comment,
             ),
@@ -879,6 +928,10 @@ def insert_video(
     date,
     repost_name,
     repost_url,
+    original_thumbnail,
+    original_duration,
+    repost_thumbnail,
+    repost_duration,
     translation_status,
     comment,
 ):
@@ -886,16 +939,22 @@ def insert_video(
     cursor.execute(
         """
         INSERT INTO videos 
-        (author, original_name, original_url, date, repost_name, repost_url, translation_status, comment)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (author, original_name, original_url, original_thumbnail,
+         original_duration, date, repost_name, repost_url,
+         repost_thumbnail, repost_duration, translation_status, comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             author_id,
             title,
             url,
+            original_thumbnail,
+            original_duration,
             date,
             repost_name,
             repost_url,
+            repost_thumbnail,
+            repost_duration,
             translation_status,
             comment,
         ),
@@ -1056,7 +1115,7 @@ def process_csv(
                             print(
                                 f"First time encountering author '{csv_author}', getting metadata: {original_url}"
                             )
-                            _, _, author_info = get_video_metadata(
+                            _, _, author_info, _, _ = get_video_metadata(
                                 original_url, browser_cookies, cookies_file
                             )
                         except Exception as e:
@@ -1120,6 +1179,10 @@ def process_csv(
                 # Get video metadata
                 title = None
                 date_str = None
+                original_thumbnail = None
+                original_duration = None
+                repost_thumbnail = None
+                repost_duration = None
                 video_error_occurred = False
 
                 if skip_metadata or not original_url or not original_url.strip():
@@ -1131,9 +1194,13 @@ def process_csv(
                         )
                 else:
                     try:
-                        title, date_str, _ = get_video_metadata(
-                            original_url, browser_cookies, cookies_file
-                        )
+                        (
+                            title,
+                            date_str,
+                            _,
+                            original_thumbnail,
+                            original_duration,
+                        ) = get_video_metadata(original_url, browser_cookies, cookies_file)
                     except Exception as e:
                         error_msg = str(e)
                         print(
@@ -1149,6 +1216,21 @@ def process_csv(
                         title = None
                         date_str = None
                         video_error_occurred = True
+
+                if not skip_metadata and repost_url and repost_url.strip():
+                    try:
+                        _, _, _, repost_thumbnail, repost_duration = get_video_metadata(
+                            repost_url, browser_cookies, cookies_file
+                        )
+                    except Exception as e:
+                        error_msg = str(e)
+                        print(
+                            f"Line {line_num} failed to get repost metadata: {error_msg}"
+                        )
+                        write_error_to_csv(
+                            error_file, line_num, original_line, error_msg
+                        )
+                        stats["errors"] += 1
 
                 # Process translation status
                 try:
@@ -1168,6 +1250,10 @@ def process_csv(
                         date_str,
                         repost_name,
                         repost_url,
+                        original_thumbnail,
+                        original_duration,
+                        repost_thumbnail,
+                        repost_duration,
                         translation_status_int,
                         comment,
                         supplementary_note,
@@ -1222,7 +1308,7 @@ def process_csv(
 
 def main():
     _default_db = str(
-        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
+        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent)))
         / "backend"
         / "random-2hu-stuff.db"
     )

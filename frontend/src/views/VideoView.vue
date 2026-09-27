@@ -7,7 +7,11 @@
     <VideoSortControls
       v-model:sort-by="sortBy"
       v-model:sort-order="sortOrder"
+      :filters="videoFilters"
+      :max-duration="maxVideoDuration"
+      :active-filter-count="activeFilterCount"
       @sort-change="handleSortChange"
+      @filter-apply="handleFilterApply"
     />
 
     <!-- Video list -->
@@ -17,6 +21,9 @@
         :key="`group-${group.id}`"
         :group="group"
       />
+      <div v-if="showFilterEmpty" class="filter-empty">
+        没有符合当前筛选条件的视频
+      </div>
     </div>
 
     <!-- Pagination -->
@@ -51,11 +58,59 @@ const videos = ref([]);
 const originalVideos = ref([]);
 const groupedVideos = ref([]);
 const author = ref(null);
+const dataLoaded = ref(false);
+const showFilterEmpty = ref(false);
+let filterEmptyTimer;
 
 // Pagination related
 const currentPage = ref(1);
 const pageInput = ref("");
 const itemsPerPage = 20;
+
+const defaultVideoFilters = () => ({
+  minDuration: null,
+  maxDuration: null,
+  translationStatus: "all",
+  dateFrom: "",
+  dateTo: "",
+  includeUnknownDuration: false,
+});
+const parseNonNegative = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+const filtersFromQuery = (query) => ({
+  minDuration: parseNonNegative(query.minDuration),
+  maxDuration: parseNonNegative(query.maxDuration),
+  translationStatus: query.translationStatus || "all",
+  dateFrom: query.dateFrom || "",
+  dateTo: query.dateTo || "",
+  includeUnknownDuration: query.includeUnknownDuration === "1",
+});
+const getSavedFilters = () => {
+  const keys = ["minDuration", "maxDuration", "translationStatus", "dateFrom", "dateTo", "includeUnknownDuration"];
+  if (keys.some((key) => route.query[key] !== undefined)) return filtersFromQuery(route.query);
+  try {
+    const saved = localStorage.getItem("videoList-filterSettings");
+    if (saved) return { ...defaultVideoFilters(), ...JSON.parse(saved) };
+  } catch (error) {
+    console.warn("Failed to parse saved video filters:", error);
+  }
+  return defaultVideoFilters();
+};
+const videoFilters = ref(getSavedFilters());
+const resolvedDuration = (video) => video.original_duration ?? video.repost_duration;
+const maxVideoDuration = computed(() =>
+  Math.max(1800, ...originalVideos.value.map((video) => resolvedDuration(video) || 0)),
+);
+const activeFilterCount = computed(() => {
+  const f = videoFilters.value;
+  const durationActive = f.minDuration !== null || f.maxDuration !== null;
+  return Number(durationActive) +
+    Number(f.translationStatus !== "all") + Number(!!f.dateFrom || !!f.dateTo) +
+    Number(durationActive && f.includeUnknownDuration);
+});
 
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
@@ -118,6 +173,16 @@ const updateUrlParams = () => {
     query.sortOrder = sortOrder.value;
   }
 
+  const f = videoFilters.value;
+  if (f.minDuration !== null) query.minDuration = String(f.minDuration);
+  if (f.maxDuration !== null) query.maxDuration = String(f.maxDuration);
+  if (f.translationStatus !== "all") query.translationStatus = f.translationStatus;
+  if (f.dateFrom) query.dateFrom = f.dateFrom;
+  if (f.dateTo) query.dateTo = f.dateTo;
+  if ((f.minDuration !== null || f.maxDuration !== null) && f.includeUnknownDuration) {
+    query.includeUnknownDuration = "1";
+  }
+
   router
     .replace({
       path: route.path,
@@ -131,6 +196,12 @@ const handleSortChange = ({ sortBy: newSortBy, sortOrder: newSortOrder }) => {
   sortBy.value = newSortBy;
   sortOrder.value = newSortOrder;
   saveSortSettings();
+  sortVideos(true);
+};
+
+const handleFilterApply = (filters) => {
+  videoFilters.value = filters;
+  localStorage.setItem("videoList-filterSettings", JSON.stringify(filters));
   sortVideos(true);
 };
 
@@ -232,7 +303,24 @@ const compareVideoTitles = (titleA, titleB) => {
 };
 
 const sortVideos = (resetPage = true) => {
-  const sorted = [...originalVideos.value].sort((a, b) => {
+  const f = videoFilters.value;
+  const durationFilterActive = f.minDuration !== null || f.maxDuration !== null;
+  const filtered = originalVideos.value.filter((video) => {
+    const duration = resolvedDuration(video);
+    if (durationFilterActive) {
+      if (duration === null || duration === undefined) {
+        if (!f.includeUnknownDuration) return false;
+      } else {
+        if (f.minDuration !== null && duration < f.minDuration) return false;
+        if (f.maxDuration !== null && duration > f.maxDuration) return false;
+      }
+    }
+    if (f.translationStatus !== "all" && String(video.translation_status) !== String(f.translationStatus)) return false;
+    if (f.dateFrom && (!video.date || video.date < f.dateFrom)) return false;
+    if (f.dateTo && (!video.date || video.date > f.dateTo)) return false;
+    return true;
+  });
+  const sorted = [...filtered].sort((a, b) => {
     if (sortBy.value === "date") {
       const dateA = a.date ? new Date(a.date) : null;
       const dateB = b.date ? new Date(b.date) : null;
@@ -362,6 +450,17 @@ const groupVideosByName = (videoList) => {
   return groups;
 };
 
+const scheduleFilterEmpty = () => {
+  clearTimeout(filterEmptyTimer);
+  showFilterEmpty.value = false;
+  if (!dataLoaded.value || groupedVideos.value.length > 0) return;
+  filterEmptyTimer = setTimeout(() => {
+    showFilterEmpty.value = true;
+  }, 1500);
+};
+
+watch(() => groupedVideos.value.length, scheduleFilterEmpty);
+
 // Pagination related computed properties
 const totalPages = computed(() =>
   Math.ceil(groupedVideos.value.length / itemsPerPage),
@@ -395,6 +494,7 @@ watch(
     const urlPage = parseInt(newQuery.page) || 1;
     const urlSortBy = newQuery.sortBy || "translation";
     const urlSortOrder = newQuery.sortOrder || "asc";
+    const nextFilters = filtersFromQuery(newQuery);
 
     const pageChanged = urlPage !== currentPage.value;
     const sortChanged =
@@ -407,8 +507,9 @@ watch(
     if (sortChanged) {
       sortBy.value = urlSortBy;
       sortOrder.value = urlSortOrder;
-      sortVideos(false);
     }
+    videoFilters.value = nextFilters;
+    sortVideos(false);
   },
 );
 
@@ -442,11 +543,19 @@ onMounted(async () => {
     originalVideos.value = videoData;
 
     sortVideos(false);
+    dataLoaded.value = true;
+    scheduleFilterEmpty();
   } catch (e) {
     videos.value = [];
     originalVideos.value = [];
+    dataLoaded.value = true;
+    scheduleFilterEmpty();
     console.error(e);
   }
+});
+
+onUnmounted(() => {
+  clearTimeout(filterEmptyTimer);
 });
 </script>
 
@@ -464,6 +573,11 @@ onMounted(async () => {
 /* Video list */
 .videos-grid {
   padding: 24px;
+}
+.filter-empty {
+  padding: 48px 24px;
+  color: #a6adc8;
+  text-align: center;
 }
 
 /* Responsive design */

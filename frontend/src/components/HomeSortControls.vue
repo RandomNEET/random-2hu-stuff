@@ -39,11 +39,22 @@
           {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
         </v-icon>
       </v-btn>
+
+      <FilterMenu
+        mode="authors"
+        :model-value="filters"
+        :max-works="maxWorks"
+        :max-duration="maxDuration"
+        :active-count="activeFilterCount"
+        @apply="$emit('filter-apply', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
+import FilterMenu from "./FilterMenu.vue";
+
 const props = defineProps({
   sortBy: {
     type: String,
@@ -53,9 +64,13 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  filters: { type: Object, required: true },
+  maxWorks: { type: Number, default: 1 },
+  maxDuration: { type: Number, default: 1800 },
+  activeFilterCount: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(["update:sortBy", "update:sortOrder", "sort-change"]);
+const emit = defineEmits(["update:sortBy", "update:sortOrder", "sort-change", "filter-apply"]);
 
 const handleSortBy = (field) => {
   let newSortOrder = props.sortOrder;

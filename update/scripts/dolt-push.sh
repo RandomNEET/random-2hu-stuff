@@ -59,6 +59,33 @@ EOF
 echo "==> 导入到 Dolt 仓库 $DOLT_DIR ..."
 cd "$DOLT_DIR"
 
+column_exists() {
+  local table=$1 column=$2
+  dolt sql -r csv -q \
+    "SELECT column_name FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+       AND table_name = '$table'
+       AND column_name = '$column';" \
+    | tail -n +2 \
+    | grep -qx "$column"
+}
+
+# dolt table import -r replaces rows but preserves the existing schema.
+# Migrate columns added to SQLite before importing, otherwise Dolt silently
+# omits their CSV values.
+if dolt ls | grep -q "^[[:space:]]*videos[[:space:]]*$"; then
+  if ! column_exists videos original_duration; then
+    echo "  添加 videos.original_duration ..."
+    dolt sql -q \
+      "ALTER TABLE videos ADD COLUMN original_duration INT AFTER original_thumbnail;"
+  fi
+  if ! column_exists videos repost_duration; then
+    echo "  添加 videos.repost_duration ..."
+    dolt sql -q \
+      "ALTER TABLE videos ADD COLUMN repost_duration INT AFTER repost_thumbnail;"
+  fi
+fi
+
 # 表存在则 replace (-r)，否则 create (-c)
 dolt_import() {
   local table=$1 file=$2

@@ -27,6 +27,7 @@
           name: video.original_name,
           url: video.original_url,
           thumbnail: video.original_thumbnail,
+          duration: video.original_duration,
         }"
         column-type="original"
         :comment="video.comment"
@@ -37,6 +38,7 @@
           name: video.repost_name,
           url: video.repost_url,
           thumbnail: video.repost_thumbnail,
+          duration: video.repost_duration,
           translationStatus: video.translation_status,
         }"
         column-type="repost"

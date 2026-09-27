@@ -524,6 +524,11 @@ const searchVideos = async (query) => {
         }),
       ...(route.query.dateFrom && { dateFrom: route.query.dateFrom }),
       ...(route.query.dateTo && { dateTo: route.query.dateTo }),
+      ...(route.query.minDuration && { minDuration: route.query.minDuration }),
+      ...(route.query.maxDuration && { maxDuration: route.query.maxDuration }),
+      ...(route.query.includeUnknownDuration === "1" && {
+        includeUnknownDuration: "1",
+      }),
     });
 
     const searchType = route.query.type || "videos";
@@ -672,9 +677,19 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
   margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+.section-header :deep(.sort-controls) {
+  margin: 0 0 0 auto;
+  max-width: none;
+}
+
+.section-header .section-title {
+  margin-bottom: 0;
 }
 
 .section-title {

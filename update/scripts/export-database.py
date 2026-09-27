@@ -18,10 +18,12 @@ def export_full_combined_to_csv(db_path, output_csv):
             v.original_name,
             v.original_url,
             v.original_thumbnail,
+            v.original_duration,
             v.date,
             v.repost_name,
             v.repost_url,
             v.repost_thumbnail,
+            v.repost_duration,
             v.translation_status,
             v.comment AS video_comment,
             a.id AS author_db_id,
@@ -66,7 +68,7 @@ def export_full_combined_to_csv(db_path, output_csv):
 
 if __name__ == "__main__":
     _project_root = Path(
-        os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent))
+        os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent))
     )
     out_file = (
         sys.argv[1]

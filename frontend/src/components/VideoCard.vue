@@ -51,6 +51,9 @@
           @load="handleThumbnailLoad"
           @error="handleThumbnailError"
         />
+        <span v-if="formattedDuration" class="video-duration">
+          {{ formattedDuration }}
+        </span>
       </div>
 
       <component
@@ -204,8 +207,32 @@ const effectiveVideo = computed(() => ({
   name: isOriginalDeleted.value ? "" : props.video.name,
   url: isOriginalDeleted.value ? null : props.video.url,
   thumbnail: props.video.thumbnail,
+  duration: props.video.duration,
   translationStatus: props.video.translationStatus,
 }));
+
+const formattedDuration = computed(() => {
+  if (
+    effectiveVideo.value.duration === null ||
+    effectiveVideo.value.duration === undefined ||
+    effectiveVideo.value.duration === ""
+  ) {
+    return "";
+  }
+  const value = Number(effectiveVideo.value.duration);
+  if (!Number.isFinite(value) || value < 0) return "";
+
+  const totalSeconds = Math.round(value);
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${totalMinutes}:${String(seconds).padStart(2, "0")}`;
+});
 
 const handleClick = () => {
   if (props.video.url && !isOriginalDeleted.value) {
@@ -428,6 +455,22 @@ const handleThumbnailError = (event) => {
   position: absolute;
   top: 0;
   left: 0;
+}
+
+.video-duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(17, 17, 27, 0.82);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .clickable-column:hover .video-thumbnail img {

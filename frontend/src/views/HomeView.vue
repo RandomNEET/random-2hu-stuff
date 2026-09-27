@@ -4,11 +4,19 @@
     <HomeSortControls
       v-model:sort-by="sortBy"
       v-model:sort-order="sortOrder"
+      :filters="authorFilters"
+      :max-works="maxWorks"
+      :max-duration="maxAverageDuration"
+      :active-filter-count="activeFilterCount"
       @sort-change="handleSortChange"
+      @filter-apply="handleFilterApply"
     />
 
     <!-- Author grid -->
     <HomeAuthorGrid :authors="paginatedAuthors" />
+    <div v-if="showFilterEmpty" class="filter-empty">
+      没有符合当前筛选条件的作者
+    </div>
 
     <!-- Pagination controls -->
     <HomePaginationControls
@@ -43,10 +51,57 @@ const router = useRouter();
 
 const authors = ref([]);
 const originalAuthors = ref([]); // Store original data
+const dataLoaded = ref(false);
+const showFilterEmpty = ref(false);
+let filterEmptyTimer;
 const currentPage = ref(1);
 const pageInput = ref("");
 const windowWidth = ref(window.innerWidth);
 const cardsPerRow = ref(4); // Number of cards per row
+
+const defaultAuthorFilters = () => ({
+  minWorks: null,
+  maxWorks: null,
+  minAverageDuration: null,
+  maxAverageDuration: null,
+  includeUnknownDuration: false,
+});
+const parseNonNegative = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+const filtersFromQuery = (query) => ({
+  minWorks: parseNonNegative(query.minWorks),
+  maxWorks: parseNonNegative(query.maxWorks),
+  minAverageDuration: parseNonNegative(query.minAvgDuration),
+  maxAverageDuration: parseNonNegative(query.maxAvgDuration),
+  includeUnknownDuration: query.includeUnknownDuration === "1",
+});
+const getSavedFilters = () => {
+  const hasUrlFilters = ["minWorks", "maxWorks", "minAvgDuration", "maxAvgDuration", "includeUnknownDuration"].some(
+    (key) => route.query[key] !== undefined,
+  );
+  if (hasUrlFilters) return filtersFromQuery(route.query);
+  try {
+    const saved = localStorage.getItem("authorGrid-filterSettings");
+    if (saved) return { ...defaultAuthorFilters(), ...JSON.parse(saved) };
+  } catch (error) {
+    console.warn("Failed to parse saved author filters:", error);
+  }
+  return defaultAuthorFilters();
+};
+const authorFilters = ref(getSavedFilters());
+const maxWorks = computed(() => Math.max(1, ...originalAuthors.value.map((a) => a.worksCount || 0)));
+const maxAverageDuration = computed(() =>
+  Math.max(1800, ...originalAuthors.value.map((a) => a.averageDuration || 0)),
+);
+const activeFilterCount = computed(() => {
+  const f = authorFilters.value;
+  const durationActive = f.minAverageDuration !== null || f.maxAverageDuration !== null;
+  return Number(f.minWorks !== null || f.maxWorks !== null) +
+    Number(durationActive) + Number(durationActive && f.includeUnknownDuration);
+});
 
 // Load sort settings from URL query parameters first, then localStorage, finally use defaults
 const getSavedSortSettings = () => {
@@ -112,6 +167,15 @@ const updateUrlParams = () => {
     query.sortOrder = sortOrder.value;
   }
 
+  const f = authorFilters.value;
+  if (f.minWorks !== null) query.minWorks = String(f.minWorks);
+  if (f.maxWorks !== null) query.maxWorks = String(f.maxWorks);
+  if (f.minAverageDuration !== null) query.minAvgDuration = String(f.minAverageDuration);
+  if (f.maxAverageDuration !== null) query.maxAvgDuration = String(f.maxAverageDuration);
+  if ((f.minAverageDuration !== null || f.maxAverageDuration !== null) && f.includeUnknownDuration) {
+    query.includeUnknownDuration = "1";
+  }
+
   // Use router.replace to avoid adding to history
   router
     .replace({
@@ -137,13 +201,36 @@ const handleSortChange = ({ sortBy: newSortBy, sortOrder: newSortOrder }) => {
   updateUrlParams();
 };
 
+const handleFilterApply = (filters) => {
+  authorFilters.value = filters;
+  localStorage.setItem("authorGrid-filterSettings", JSON.stringify(filters));
+  currentPage.value = 1;
+  sortAuthors();
+  updateUrlParams();
+};
+
 // Helper function to get display name based on priority
 const getDisplayName = (author) => {
   return author.yt_name || author.nico_name || author.twitter_name || "Unknown";
 };
 
 const sortAuthors = () => {
-  const sorted = [...originalAuthors.value].sort((a, b) => {
+  const f = authorFilters.value;
+  const durationFilterActive =
+    f.minAverageDuration !== null || f.maxAverageDuration !== null;
+  const filtered = originalAuthors.value.filter((author) => {
+    if (f.minWorks !== null && author.worksCount < f.minWorks) return false;
+    if (f.maxWorks !== null && author.worksCount > f.maxWorks) return false;
+    if (durationFilterActive) {
+      if (author.averageDuration === null || author.averageDuration === undefined) {
+        return f.includeUnknownDuration;
+      }
+      if (f.minAverageDuration !== null && author.averageDuration < f.minAverageDuration) return false;
+      if (f.maxAverageDuration !== null && author.averageDuration > f.maxAverageDuration) return false;
+    }
+    return true;
+  });
+  const sorted = [...filtered].sort((a, b) => {
     let comparison = 0;
 
     switch (sortBy.value) {
@@ -174,6 +261,17 @@ const sortAuthors = () => {
 
   authors.value = sorted;
 };
+
+const scheduleFilterEmpty = () => {
+  clearTimeout(filterEmptyTimer);
+  showFilterEmpty.value = false;
+  if (!dataLoaded.value || authors.value.length > 0) return;
+  filterEmptyTimer = setTimeout(() => {
+    showFilterEmpty.value = true;
+  }, 1500);
+};
+
+watch(() => authors.value.length, scheduleFilterEmpty);
 
 // Dynamically calculate cards per row - precisely match CSS Grid layout
 const calculateCardsPerRow = () => {
@@ -283,6 +381,7 @@ watch(
     const urlPage = parseInt(newQuery.page) || 1;
     const urlSortBy = newQuery.sortBy || "name";
     const urlSortOrder = newQuery.sortOrder || "asc";
+    const nextFilters = filtersFromQuery(newQuery);
 
     // Check if URL is different from current state (external change)
     const pageChanged = urlPage !== currentPage.value;
@@ -296,8 +395,9 @@ watch(
     if (sortChanged) {
       sortBy.value = urlSortBy;
       sortOrder.value = urlSortOrder;
-      sortAuthors();
     }
+    authorFilters.value = nextFilters;
+    sortAuthors();
   },
 );
 
@@ -332,6 +432,8 @@ onMounted(async () => {
 
   // Initial sorting
   sortAuthors();
+  dataLoaded.value = true;
+  scheduleFilterEmpty();
 
   // Update URL to reflect current state
   updateUrlParams();
@@ -340,6 +442,7 @@ onMounted(async () => {
 onUnmounted(() => {
   // Clean up event listeners
   window.removeEventListener("resize", handleResize);
+  clearTimeout(filterEmptyTimer);
 });
 </script>
 
@@ -347,5 +450,10 @@ onUnmounted(() => {
 .author-page {
   min-height: 100vh;
   background-color: #1e1e2e;
+}
+.filter-empty {
+  padding: 48px 24px;
+  color: #a6adc8;
+  text-align: center;
 }
 </style>

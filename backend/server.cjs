@@ -117,6 +117,31 @@ app.get("/api/authors", (req, res) => {
 
   // SQL query to get authors with video count and last update date
   const query = `
+    WITH original_duration_samples AS (
+      SELECT
+        author,
+        CASE
+          WHEN MAX(original_duration) IS NOT NULL THEN MAX(original_duration)
+          ELSE MAX(repost_duration)
+        END AS duration
+      FROM videos
+      WHERE original_url IS NOT NULL AND TRIM(original_url) != ''
+      GROUP BY author, original_url
+    ),
+    unlinked_duration_samples AS (
+      SELECT author, COALESCE(original_duration, repost_duration) AS duration
+      FROM videos
+      WHERE original_url IS NULL OR TRIM(original_url) = ''
+    ),
+    duration_stats AS (
+      SELECT author, AVG(duration) AS averageDuration, COUNT(duration) AS durationKnownCount
+      FROM (
+        SELECT * FROM original_duration_samples
+        UNION ALL
+        SELECT * FROM unlinked_duration_samples
+      )
+      GROUP BY author
+    )
     SELECT 
       a.id, 
       a.yt_name,
@@ -130,9 +155,12 @@ app.get("/api/authors", (req, res) => {
       a.twitter_avatar,
       a.comment,
       COUNT(v.id) as worksCount,
-      MAX(v.date) as lastUpdate
+      MAX(v.date) as lastUpdate,
+      ds.averageDuration,
+      COALESCE(ds.durationKnownCount, 0) as durationKnownCount
     FROM authors a
     LEFT JOIN videos v ON a.id = v.author
+    LEFT JOIN duration_stats ds ON a.id = ds.author
     GROUP BY a.id, a.yt_name, a.yt_url, a.yt_avatar, a.nico_name, a.nico_url, a.nico_avatar, a.twitter_name, a.twitter_url, a.twitter_avatar, a.comment
     ORDER BY COALESCE(a.yt_name, a.nico_name, a.twitter_name) ASC
   `;
@@ -161,7 +189,7 @@ app.get("/api/author/:id/videos", (req, res) => {
 
   // Query to get all videos for the specified author, ordered chronologically
   db.all(
-    `SELECT id, original_name, original_url, original_thumbnail, date, repost_name, repost_url, repost_thumbnail, translation_status, comment 
+    `SELECT id, original_name, original_url, original_thumbnail, original_duration, date, repost_name, repost_url, repost_thumbnail, repost_duration, translation_status, comment
      FROM videos 
      WHERE author = ? 
      ORDER BY date ASC, id ASC`,
@@ -176,11 +204,20 @@ app.get("/api/author/:id/videos", (req, res) => {
 
 // Helper function to parse and validate search filters
 function parseSearchFilters(query) {
+  const parseOptionalNonNegative = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  };
+
   return {
     author: query.author ? parseInt(query.author) : "all",
     dateFrom: query.dateFrom || null,
     dateTo: query.dateTo || null,
     translationStatus: query.translationStatus || "all",
+    minDuration: parseOptionalNonNegative(query.minDuration),
+    maxDuration: parseOptionalNonNegative(query.maxDuration),
+    includeUnknownDuration: query.includeUnknownDuration === "1",
     limit: Math.min(parseInt(query.limit) || 100, 500),
   };
 }
@@ -200,8 +237,9 @@ function refreshSearchCache(callback) {
 
   // Load videos for search
   const videoQuery = `
-    SELECT v.id, v.original_name, v.original_url, v.original_thumbnail, 
-           v.date, v.repost_name, v.repost_url, v.repost_thumbnail, 
+    SELECT v.id, v.original_name, v.original_url, v.original_thumbnail,
+           v.original_duration, v.date, v.repost_name, v.repost_url,
+           v.repost_thumbnail, v.repost_duration,
            v.translation_status, v.comment, v.author,
            a.id as author_id, a.yt_name, a.nico_name, a.twitter_name,
            a.yt_url, a.yt_avatar, a.nico_url, a.nico_avatar, 
@@ -313,6 +351,23 @@ app.get("/api/search/videos", (req, res) => {
       filteredVideos = filteredVideos.filter(
         (v) => v.translation_status === status,
       );
+    }
+
+    // Apply inclusive duration filters. Prefer original duration, then repost.
+    if (filters.minDuration !== null || filters.maxDuration !== null) {
+      filteredVideos = filteredVideos.filter((video) => {
+        const duration = video.original_duration ?? video.repost_duration;
+        if (duration === null || duration === undefined) {
+          return filters.includeUnknownDuration;
+        }
+        if (filters.minDuration !== null && duration < filters.minDuration) {
+          return false;
+        }
+        if (filters.maxDuration !== null && duration > filters.maxDuration) {
+          return false;
+        }
+        return true;
+      });
     }
 
     // Perform fuzzy search on filtered results
@@ -432,7 +487,8 @@ app.get("/api/stats", (req, res) => {
     `SELECT 
       COUNT(DISTINCT a.id) as totalAuthors,
       COUNT(v.id) as totalVideos,
-      COUNT(CASE WHEN v.translation_status IN (1, 2) THEN 1 END) as translatedVideos
+      COUNT(CASE WHEN v.translation_status IN (1, 2) THEN 1 END) as translatedVideos,
+      MAX(COALESCE(v.original_duration, v.repost_duration)) as maxVideoDuration
      FROM authors a
      LEFT JOIN videos v ON a.id = v.author`,
     [],

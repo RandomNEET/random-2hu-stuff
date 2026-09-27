@@ -91,27 +91,42 @@
               <div class="filter-row">
                 <label class="filter-label">时间范围</label>
                 <div class="date-range-container">
-                  <v-text-field
+                  <DateFilterField
                     v-model="searchForm.filters.dateFrom"
-                    type="date"
-                    placeholder="开始日期"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
+                    label="开始日期"
                     class="date-input"
                   />
                   <span class="date-separator">至</span>
-                  <v-text-field
+                  <DateFilterField
                     v-model="searchForm.filters.dateTo"
-                    type="date"
-                    placeholder="结束日期"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
+                    label="结束日期"
                     class="date-input"
                   />
                 </div>
               </div>
+
+              <div class="filter-row duration-filter-row">
+                <RangeFilterFields
+                  label="视频时长"
+                  :min-value="searchForm.filters.minDuration"
+                  :max-value="searchForm.filters.maxDuration"
+                  :slider-max="searchMaxDuration"
+                  :step="60"
+                  :scale="60"
+                  unit="分钟"
+                  flat
+                  @update:min-value="searchForm.filters.minDuration = $event"
+                  @update:max-value="searchForm.filters.maxDuration = $event"
+                />
+              </div>
+              <v-switch
+                v-model="searchForm.filters.includeUnknownDuration"
+                label="包含未知时长"
+                :disabled="!searchDurationActive"
+                color="primary"
+                density="compact"
+                hide-details
+              />
             </div>
 
             <!-- Search Limit -->
@@ -125,10 +140,11 @@
                 :min="10"
                 :max="searchForm.type === 'videos' ? 500 : 200"
                 :step="10"
-                color="#89b4fa"
-                track-color="#45475a"
-                thumb-color="#89b4fa"
+                color="#cba6f7"
+                track-color="#585b70"
+                thumb-color="#cba6f7"
                 hide-details
+                class="unified-slider"
               />
             </div>
 
@@ -148,7 +164,7 @@
                 color="primary"
                 variant="flat"
                 @click="performSearch"
-                :disabled="!searchForm.query.trim()"
+                :disabled="!searchForm.query.trim() || !searchDurationValid"
                 class="action-btn search-btn"
               >
                 搜索
@@ -280,25 +296,42 @@
           <div class="mobile-filter-item">
             <label class="mobile-filter-label">时间范围</label>
             <div class="mobile-date-range">
-              <v-text-field
+              <DateFilterField
                 v-model="searchForm.filters.dateFrom"
-                type="date"
-                variant="outlined"
-                density="compact"
-                hide-details
+                label="开始日期"
                 class="mobile-date-input"
               />
               <span class="mobile-date-separator">至</span>
-              <v-text-field
+              <DateFilterField
                 v-model="searchForm.filters.dateTo"
-                type="date"
-                variant="outlined"
-                density="compact"
-                hide-details
+                label="结束日期"
                 class="mobile-date-input"
               />
             </div>
           </div>
+
+          <div class="mobile-filter-item">
+            <RangeFilterFields
+              label="视频时长"
+              :min-value="searchForm.filters.minDuration"
+              :max-value="searchForm.filters.maxDuration"
+              :slider-max="searchMaxDuration"
+              :step="60"
+              :scale="60"
+              unit="分钟"
+              flat
+              @update:min-value="searchForm.filters.minDuration = $event"
+              @update:max-value="searchForm.filters.maxDuration = $event"
+            />
+          </div>
+          <v-switch
+            v-model="searchForm.filters.includeUnknownDuration"
+            label="包含未知时长"
+            :disabled="!searchDurationActive"
+            color="primary"
+            density="compact"
+            hide-details
+          />
         </div>
 
         <!-- Search Limit (show for both video and author search) -->
@@ -312,8 +345,11 @@
               :step="10"
               variant="outlined"
               density="compact"
+              color="#cba6f7"
+              track-color="#585b70"
+              thumb-color="#cba6f7"
               hide-details
-              class="mobile-limit-slider"
+              class="mobile-limit-slider unified-slider"
             />
             <span class="mobile-limit-value">{{ searchForm.limit }}</span>
           </div>
@@ -333,6 +369,7 @@
             color="primary"
             class="mobile-search-action-btn"
             @click="handleMobileSearch"
+            :disabled="!searchDurationValid"
           >
             搜索
           </v-btn>
@@ -343,9 +380,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { API_URLS } from "@/config/api.js";
+import RangeFilterFields from "./RangeFilterFields.vue";
+import DateFilterField from "./DateFilterField.vue";
 
 const router = useRouter();
 const searchQuery = ref("");
@@ -353,6 +392,7 @@ const showMobileSearch = ref(false);
 const showSearchPanel = ref(false);
 const searchContainer = ref(null);
 const shouldClearOnFocus = ref(false);
+const searchMaxDuration = ref(10800);
 
 // Search form data
 const searchForm = ref({
@@ -364,7 +404,19 @@ const searchForm = ref({
     translationStatus: "all",
     dateFrom: "",
     dateTo: "",
+    minDuration: null,
+    maxDuration: null,
+    includeUnknownDuration: false,
   },
+});
+const searchDurationActive = computed(
+  () =>
+    searchForm.value.filters.minDuration !== null ||
+    searchForm.value.filters.maxDuration !== null,
+);
+const searchDurationValid = computed(() => {
+  const { minDuration, maxDuration } = searchForm.value.filters;
+  return minDuration === null || maxDuration === null || minDuration <= maxDuration;
 });
 
 // Author options for filter (loaded from API)
@@ -392,6 +444,18 @@ const loadAuthors = async () => {
     }));
   } catch (error) {
     console.error("Failed to load authors:", error);
+  }
+};
+
+const loadDurationMaximum = async () => {
+  try {
+    const response = await fetch(API_URLS.STATS);
+    const stats = await response.json();
+    if (Number.isFinite(stats.maxVideoDuration) && stats.maxVideoDuration > 0) {
+      searchMaxDuration.value = Math.max(1800, stats.maxVideoDuration);
+    }
+  } catch (error) {
+    console.error("Failed to load duration maximum:", error);
   }
 };
 
@@ -457,6 +521,9 @@ const resetForm = () => {
     translationStatus: "all",
     dateFrom: "",
     dateTo: "",
+    minDuration: null,
+    maxDuration: null,
+    includeUnknownDuration: false,
   };
 };
 
@@ -479,7 +546,7 @@ const findAuthorIdByName = (authorName) => {
 
 // Perform search with filters
 const performSearch = () => {
-  if (!searchForm.value.query.trim()) return;
+  if (!searchForm.value.query.trim() || !searchDurationValid.value) return;
 
   const query = {
     q: searchForm.value.query.trim(),
@@ -514,6 +581,15 @@ const performSearch = () => {
     if (searchForm.value.filters.dateTo) {
       query.dateTo = searchForm.value.filters.dateTo;
     }
+    if (searchForm.value.filters.minDuration !== null) {
+      query.minDuration = searchForm.value.filters.minDuration;
+    }
+    if (searchForm.value.filters.maxDuration !== null) {
+      query.maxDuration = searchForm.value.filters.maxDuration;
+    }
+    if (searchDurationActive.value && searchForm.value.filters.includeUnknownDuration) {
+      query.includeUnknownDuration = "1";
+    }
   }
 
   console.log("Final search query:", query); // 调试信息
@@ -528,7 +604,7 @@ const performSearch = () => {
 };
 
 const handleMobileSearch = () => {
-  if (!searchForm.value.query.trim()) return;
+  if (!searchForm.value.query.trim() || !searchDurationValid.value) return;
 
   const query = {
     q: searchForm.value.query.trim(),
@@ -554,6 +630,15 @@ const handleMobileSearch = () => {
     if (searchForm.value.filters.dateTo) {
       query.dateTo = searchForm.value.filters.dateTo;
     }
+    if (searchForm.value.filters.minDuration !== null) {
+      query.minDuration = searchForm.value.filters.minDuration;
+    }
+    if (searchForm.value.filters.maxDuration !== null) {
+      query.maxDuration = searchForm.value.filters.maxDuration;
+    }
+    if (searchDurationActive.value && searchForm.value.filters.includeUnknownDuration) {
+      query.includeUnknownDuration = "1";
+    }
   }
 
   // Open search results in a new tab
@@ -575,6 +660,9 @@ const resetMobileSearch = () => {
       translationStatus: "all",
       dateFrom: "",
       dateTo: "",
+      minDuration: null,
+      maxDuration: null,
+      includeUnknownDuration: false,
     },
   };
 };
@@ -676,9 +764,11 @@ watch(showSearchPanel, (newValue) => {
         const rect = searchInput.getBoundingClientRect();
         const panel = searchContainer.value?.querySelector(".search-panel");
         if (panel) {
+          const panelWidth = Math.min(560, window.innerWidth - 40);
+          const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
           panel.style.top = `${rect.bottom + 8}px`;
-          panel.style.left = `${rect.left}px`;
-          panel.style.width = `${Math.max(400, rect.width)}px`;
+          panel.style.left = `${Math.max(20, Math.min(centeredLeft, window.innerWidth - panelWidth - 20))}px`;
+          panel.style.width = `${panelWidth}px`;
         }
       }
       document.addEventListener("click", handleClickOutside);
@@ -691,6 +781,7 @@ watch(showSearchPanel, (newValue) => {
 // Load data on component mount
 onMounted(() => {
   loadAuthors();
+  loadDurationMaximum();
 });
 
 // Cleanup on unmount
@@ -947,7 +1038,7 @@ onBeforeUnmount(() => {
 }
 
 .mobile-limit-value {
-  color: #89b4fa;
+  color: #cba6f7;
   font-size: 0.9rem;
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
@@ -1049,7 +1140,7 @@ onBeforeUnmount(() => {
   padding: 16px;
   max-height: 80vh;
   overflow-y: auto;
-  width: 400px;
+  width: 560px;
   max-width: calc(100vw - 40px);
 }
 
@@ -1105,6 +1196,15 @@ onBeforeUnmount(() => {
 
 .date-input {
   flex: 1;
+  min-width: 0;
+}
+
+.date-range-container :deep(.date-filter-field) {
+  min-width: 0;
+}
+
+.date-range-container :deep(.v-field__input) {
+  min-width: 120px;
 }
 
 .date-input :deep(.v-field) {
@@ -1129,6 +1229,15 @@ onBeforeUnmount(() => {
   padding: 12px;
   border: 1px solid #45475a;
   margin-bottom: 16px;
+}
+
+.unified-slider :deep(.v-slider-track__background) {
+  background: #585b70 !important;
+  opacity: 1;
+}
+
+.unified-slider :deep(.v-slider-thumb__surface) {
+  box-shadow: 0 0 0 3px rgba(203, 166, 247, 0.2);
 }
 
 .search-actions {
@@ -1355,7 +1464,7 @@ onBeforeUnmount(() => {
 }
 
 .limit-value {
-  color: #89b4fa;
+  color: #cba6f7;
   font-weight: 600;
   font-size: 1rem;
   background: #45475a;

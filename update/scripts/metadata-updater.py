@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Video Thumbnail Update Script
+Video Metadata Update Script
 
-Get thumbnails from video links in database and update to database.
+Get thumbnails and durations from video links and update the database.
 
 Usage:
-python3 thumbnail_updater.py
+python3 metadata-updater.py
 
 Optional arguments:
 --db-path: Database path (default: ../backend/random-2hu-stuff.db)
@@ -42,10 +42,10 @@ def create_connection(db_path):
         return None
 
 
-def get_video_thumbnail(url, debug=False, browser_cookies=None, cookies_file=None):
-    """Get video thumbnail from URL"""
+def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None):
+    """Get a video thumbnail and duration in seconds from a URL."""
     if not url or url.strip() == "" or url == "未转载":
-        return None
+        return None, None
 
     try:
         options = {
@@ -148,11 +148,16 @@ def get_video_thumbnail(url, debug=False, browser_cookies=None, cookies_file=Non
             ):
                 thumbnail = thumbnail.replace("http://", "https://")
 
-            return thumbnail
+            raw_duration = info.get("duration")
+            duration = None
+            if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
+                duration = round(raw_duration)
+
+            return thumbnail, duration
 
     except Exception as e:
         if debug:
-            print(f"Failed to get thumbnail {url}: {e}")
+            print(f"Failed to get video metadata {url}: {e}")
         raise e
 
 
@@ -167,14 +172,15 @@ def update_thumbnails(
     browser_cookies=None,
     cookies_file=None,
 ):
-    """Update video thumbnails"""
+    """Update missing video thumbnails and durations."""
     cursor = conn.cursor()
 
     # Build query conditions
     conditions = []
     if update_original and not force:
         conditions.append(
-            "(original_url IS NOT NULL AND original_url != '' AND original_url != '未转载' AND (original_thumbnail IS NULL OR original_thumbnail = ''))"
+            "(original_url IS NOT NULL AND original_url != '' AND original_url != '未转载' AND "
+            "(original_thumbnail IS NULL OR original_thumbnail = '' OR original_duration IS NULL))"
         )
     elif update_original and force:
         conditions.append(
@@ -183,7 +189,8 @@ def update_thumbnails(
 
     if update_repost and not force:
         conditions.append(
-            "(repost_url IS NOT NULL AND repost_url != '' AND repost_url != '未转载' AND (repost_thumbnail IS NULL OR repost_thumbnail = ''))"
+            "(repost_url IS NOT NULL AND repost_url != '' AND repost_url != '未转载' AND "
+            "(repost_thumbnail IS NULL OR repost_thumbnail = '' OR repost_duration IS NULL))"
         )
     elif update_repost and force:
         conditions.append(
@@ -191,7 +198,7 @@ def update_thumbnails(
         )
 
     if not conditions:
-        print("❌ No thumbnail type specified for update")
+        print("❌ No video type specified for update")
         return {"processed": 0, "updated": 0, "errors": 0}
 
     delete_keywords = [
@@ -214,12 +221,17 @@ def update_thumbnails(
     ]
 
     where_clause = " OR ".join(conditions)
-    query = f"SELECT id, original_url, original_thumbnail, repost_url, repost_thumbnail, comment FROM videos WHERE {where_clause}"
+    query = (
+        "SELECT id, original_url, original_thumbnail, original_duration, "
+        "repost_url, repost_thumbnail, repost_duration, comment "
+        f"FROM videos WHERE {where_clause} ORDER BY id"
+    )
 
     if limit:
-        query += f" LIMIT {limit}"
-
-    cursor.execute(query)
+        query += " LIMIT ?"
+        cursor.execute(query, (limit,))
+    else:
+        cursor.execute(query)
     videos = cursor.fetchall()
 
     print(f"Found {len(videos)} videos to process")
@@ -230,6 +242,8 @@ def update_thumbnails(
         "errors": 0,
         "original_updated": 0,
         "repost_updated": 0,
+        "original_duration_updated": 0,
+        "repost_duration_updated": 0,
     }
 
     for video in videos:
@@ -237,8 +251,10 @@ def update_thumbnails(
             video_id,
             original_url,
             original_thumbnail,
+            original_duration,
             repost_url,
             repost_thumbnail,
+            repost_duration,
             comment,
         ) = video
         stats["processed"] += 1
@@ -250,9 +266,9 @@ def update_thumbnails(
         updated_fields = []
         update_params = []
 
-        # Process original video thumbnail
+        # Process original video metadata
         if update_original and original_url and original_url != "未转载":
-            should_update_original = force or not original_thumbnail
+            should_update_original = force or not original_thumbnail or original_duration is None
 
             if should_update_original:
                 if skip_original:
@@ -261,53 +277,67 @@ def update_thumbnails(
                     )
                 else:
                     try:
-                        print(f"  Getting original video thumbnail: {original_url}")
-                        new_thumbnail = get_video_thumbnail(
+                        print(f"  Getting original video metadata: {original_url}")
+                        new_thumbnail, new_duration = get_video_metadata(
                             original_url, debug, browser_cookies, cookies_file
                         )
 
-                        if new_thumbnail:
-                            if not dry_run:
-                                updated_fields.append("original_thumbnail = ?")
-                                update_params.append(new_thumbnail)
-                                stats["original_updated"] += 1
-
+                        if new_thumbnail and (force or not original_thumbnail):
+                            updated_fields.append("original_thumbnail = ?")
+                            update_params.append(new_thumbnail)
+                            stats["original_updated"] += 1
                             print(f"  ✅ Original video thumbnail: {new_thumbnail}")
-                        else:
+                        elif not new_thumbnail and not original_thumbnail:
                             print(f"  ⚠️  Original video thumbnail not obtained")
 
+                        if new_duration is not None and (
+                            force or original_duration is None
+                        ):
+                            updated_fields.append("original_duration = ?")
+                            update_params.append(new_duration)
+                            stats["original_duration_updated"] += 1
+                            print(f"  ✅ Original video duration: {new_duration}s")
+                        elif new_duration is None and original_duration is None:
+                            print(f"  ⚠️  Original video duration not obtained")
+
                     except Exception as e:
-                        print(f"  ❌ Original video thumbnail failed: {e}")
+                        print(f"  ❌ Original video metadata failed: {e}")
                         stats["errors"] += 1
             else:
-                print(f"  ⏭️  Original video already has thumbnail, skipping")
+                print(f"  ⏭️  Original video metadata already complete, skipping")
 
-        # Process repost video thumbnail
+        # Process repost video metadata
         if update_repost and repost_url and repost_url != "未转载":
-            should_update_repost = force or not repost_thumbnail
+            should_update_repost = force or not repost_thumbnail or repost_duration is None
 
             if should_update_repost:
                 try:
-                    print(f"  Getting repost video thumbnail: {repost_url}")
-                    new_thumbnail = get_video_thumbnail(
+                    print(f"  Getting repost video metadata: {repost_url}")
+                    new_thumbnail, new_duration = get_video_metadata(
                         repost_url, debug, browser_cookies, cookies_file
                     )
 
-                    if new_thumbnail:
-                        if not dry_run:
-                            updated_fields.append("repost_thumbnail = ?")
-                            update_params.append(new_thumbnail)
-                            stats["repost_updated"] += 1
-
+                    if new_thumbnail and (force or not repost_thumbnail):
+                        updated_fields.append("repost_thumbnail = ?")
+                        update_params.append(new_thumbnail)
+                        stats["repost_updated"] += 1
                         print(f"  ✅ Repost video thumbnail: {new_thumbnail}")
-                    else:
+                    elif not new_thumbnail and not repost_thumbnail:
                         print(f"  ⚠️  Repost video thumbnail not obtained")
 
+                    if new_duration is not None and (force or repost_duration is None):
+                        updated_fields.append("repost_duration = ?")
+                        update_params.append(new_duration)
+                        stats["repost_duration_updated"] += 1
+                        print(f"  ✅ Repost video duration: {new_duration}s")
+                    elif new_duration is None and repost_duration is None:
+                        print(f"  ⚠️  Repost video duration not obtained")
+
                 except Exception as e:
-                    print(f"  ❌ Repost video thumbnail failed: {e}")
+                    print(f"  ❌ Repost video metadata failed: {e}")
                     stats["errors"] += 1
             else:
-                print(f"  ⏭️  Repost video already has thumbnail, skipping")
+                print(f"  ⏭️  Repost video metadata already complete, skipping")
 
         # Update database
         if updated_fields and not dry_run:
@@ -491,11 +521,13 @@ def convert_http_to_https(conn, debug=False, dry_run=False):
 
 def main():
     _default_db = str(
-        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
+        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent)))
         / "backend"
         / "random-2hu-stuff.db"
     )
-    parser = argparse.ArgumentParser(description="Update video thumbnails in database")
+    parser = argparse.ArgumentParser(
+        description="Update video thumbnails and durations in database"
+    )
     parser.add_argument("--db-path", default=_default_db, help="Database path")
     parser.add_argument(
         "--debug",
@@ -514,28 +546,28 @@ def main():
         "--update-original",
         action="store_true",
         default=True,
-        help="Update original video thumbnails (enabled by default)",
+        help="Update original video metadata (enabled by default)",
     )
     parser.add_argument(
         "--no-update-original",
         dest="update_original",
         action="store_false",
-        help="Do not update original video thumbnails",
+        help="Do not update original video metadata",
     )
     parser.add_argument(
         "--update-repost",
         action="store_true",
         default=True,
-        help="Update repost video thumbnails (enabled by default)",
+        help="Update repost video metadata (enabled by default)",
     )
     parser.add_argument(
         "--no-update-repost",
         dest="update_repost",
         action="store_false",
-        help="Do not update repost video thumbnails",
+        help="Do not update repost video metadata",
     )
     parser.add_argument(
-        "--force", action="store_true", help="Force update existing thumbnails"
+        "--force", action="store_true", help="Force update existing metadata"
     )
     parser.add_argument(
         "--cookies-from-browser",
@@ -571,13 +603,13 @@ def main():
         sys.exit(1)
 
     try:
-        print(f"Starting thumbnail update")
+        print(f"Starting video metadata update")
         print(f"Database: {args.db_path}")
 
         if args.dry_run:
             print("*** DRY RUN mode - Database will not be actually modified ***")
         if args.force:
-            print("*** Force mode - Will update existing thumbnails ***")
+            print("*** Force mode - Will update existing metadata ***")
         if args.cookies_from_browser:
             print(f"*** Using {args.cookies_from_browser} browser cookies ***")
         if args.cookies:
@@ -620,6 +652,10 @@ def main():
         print(f"Records updated: {stats['updated']}")
         print(f"Original video thumbnails updated: {stats['original_updated']}")
         print(f"Repost video thumbnails updated: {stats['repost_updated']}")
+        print(
+            f"Original video durations updated: {stats['original_duration_updated']}"
+        )
+        print(f"Repost video durations updated: {stats['repost_duration_updated']}")
         print(f"Errors: {stats['errors']}")
 
     finally:

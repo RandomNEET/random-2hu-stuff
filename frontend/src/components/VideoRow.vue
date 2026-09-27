@@ -30,6 +30,7 @@
           name: group.videos[0].original_name,
           url: group.videos[0].original_url,
           thumbnail: group.videos[0].original_thumbnail,
+          duration: group.videos[0].original_duration,
         }"
         column-type="original"
         :comment="group.comment"
@@ -40,6 +41,7 @@
           name: group.videos[0].repost_name,
           url: group.videos[0].repost_url,
           thumbnail: group.videos[0].repost_thumbnail,
+          duration: group.videos[0].repost_duration,
           translationStatus: group.videos[0].translation_status,
         }"
         column-type="repost"
@@ -57,6 +59,7 @@
           name: group.displayOriginal.original_name,
           url: group.displayOriginal.original_url,
           thumbnail: group.displayOriginal.original_thumbnail,
+          duration: group.displayOriginal.original_duration,
         }"
         column-type="original"
         :comment="group.comment"
@@ -73,6 +76,7 @@
               name: video.repost_name,
               url: video.repost_url,
               thumbnail: video.repost_thumbnail,
+              duration: video.repost_duration,
               translationStatus: video.translation_status,
             }"
             column-type="repost"
@@ -96,6 +100,7 @@
               name: video.original_name,
               url: video.original_url,
               thumbnail: video.original_thumbnail,
+              duration: video.original_duration,
             }"
             column-type="original"
             :comment="group.comment"
@@ -109,6 +114,7 @@
           name: group.displayRepost.repost_name,
           url: group.displayRepost.repost_url,
           thumbnail: group.displayRepost.repost_thumbnail,
+          duration: group.displayRepost.repost_duration,
           translationStatus: group.displayRepost.translation_status,
         }"
         column-type="repost"
