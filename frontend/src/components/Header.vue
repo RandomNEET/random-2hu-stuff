@@ -113,6 +113,7 @@
                   :slider-max="searchMaxDuration"
                   :step="60"
                   :scale="60"
+                  nonlinear-duration
                   unit="分钟"
                   flat
                   @update:min-value="searchForm.filters.minDuration = $event"
@@ -321,6 +322,7 @@
               :slider-max="searchMaxDuration"
               :step="60"
               :scale="60"
+              nonlinear-duration
               unit="分钟"
               flat
               @update:min-value="searchForm.filters.minDuration = $event"

@@ -42,6 +42,7 @@
             :slider-max="Math.max(maxDuration, 1800)"
             :step="60"
             :scale="60"
+            nonlinear-duration
             unit="分钟"
             @update:min-value="draft.minAverageDuration = $event"
             @update:max-value="draft.maxAverageDuration = $event"
@@ -56,6 +57,7 @@
             :slider-max="Math.max(maxDuration, 1800)"
             :step="60"
             :scale="60"
+            nonlinear-duration
             unit="分钟"
             @update:min-value="draft.minDuration = $event"
             @update:max-value="draft.maxDuration = $event"

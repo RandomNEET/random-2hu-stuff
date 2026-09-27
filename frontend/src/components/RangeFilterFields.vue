@@ -4,8 +4,8 @@
     <v-range-slider
       v-model="sliderValue"
       :min="0"
-      :max="effectiveMax"
-      :step="step"
+      :max="sliderCoordinateMax"
+      :step="sliderCoordinateStep"
       color="var(--color-mauve)"
       hide-details
       class="range-slider"
@@ -54,6 +54,7 @@ const props = defineProps({
   scale: { type: Number, default: 1 },
   unit: { type: String, default: "" },
   flat: { type: Boolean, default: false },
+  nonlinearDuration: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:minValue", "update:maxValue"]);
@@ -67,6 +68,31 @@ const effectiveMax = computed(() => {
   );
   return Math.ceil(rawMax / props.step) * props.step;
 });
+const sliderCoordinateMax = computed(() =>
+  props.nonlinearDuration && effectiveMax.value > 600 ? 100 : effectiveMax.value,
+);
+const sliderCoordinateStep = computed(() =>
+  props.nonlinearDuration && effectiveMax.value > 600 ? 1 : props.step,
+);
+const toSliderPosition = (value) => {
+  if (!props.nonlinearDuration || effectiveMax.value <= 600) {
+    return (value / effectiveMax.value) * sliderCoordinateMax.value;
+  }
+  if (value <= 600) return (value / 600) * 50;
+  return 50 + ((value - 600) / (effectiveMax.value - 600)) * 50;
+};
+const fromSliderPosition = (position) => {
+  if (!props.nonlinearDuration || effectiveMax.value <= 600) {
+    return position / sliderCoordinateMax.value * effectiveMax.value;
+  }
+  if (position <= 50) return (position / 50) * 600;
+  return 600 + ((position - 50) / 50) * (effectiveMax.value - 600);
+};
+const snapValue = (value) =>
+  Math.min(
+    effectiveMax.value,
+    Math.max(0, Math.round(value / props.step) * props.step),
+  );
 const displayMin = computed(() =>
   props.minValue === null ? null : props.minValue / props.scale,
 );
@@ -76,10 +102,13 @@ const displayMax = computed(() =>
 const displayStep = computed(() => props.step / props.scale);
 
 const sliderValue = computed({
-  get: () => [props.minValue ?? 0, props.maxValue ?? effectiveMax.value],
+  get: () => [
+    toSliderPosition(props.minValue ?? 0),
+    toSliderPosition(props.maxValue ?? effectiveMax.value),
+  ],
   set: ([min, max]) => {
-    emit("update:minValue", min);
-    emit("update:maxValue", max);
+    emit("update:minValue", snapValue(fromSliderPosition(min)));
+    emit("update:maxValue", snapValue(fromSliderPosition(max)));
   },
 });
 
