@@ -12,7 +12,11 @@ Optional arguments:
 --debug: Enable debug mode
 --dry-run: Check only, do not actually update
 --limit: Limit the number of records to process
+--from-id: Process videos whose ID is at least this value
+--to-id: Process videos whose ID is at most this value
 --workers: Number of concurrent metadata requests (default: 4)
+--state-file: Invalid-link state file path (default: scripts/state/metadata-updater.json)
+--retry-invalid: Retry URLs previously recorded as invalid
 --update-original: Update original video thumbnails
 --update-repost: Update repost video thumbnails
 --force: Force update existing thumbnails
@@ -25,14 +29,19 @@ Optional arguments:
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from http.cookiejar import MozillaCookieJar
+import json
 import os
+import re
 import sqlite3
 import sys
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
+import requests
 import yt_dlp
 
 
@@ -55,6 +64,33 @@ class YdlLogger:
 
 
 _ydl_local = threading.local()
+
+
+def cache_prefetched_metadata(url, thumbnail, duration):
+    """Keep validation metadata for the extraction step in the same worker."""
+    if not hasattr(_ydl_local, "prefetched_metadata"):
+        _ydl_local.prefetched_metadata = {}
+    _ydl_local.prefetched_metadata[url] = (thumbnail, duration)
+
+
+def mark_duration_unavailable(url):
+    """Mark a URL whose provider explicitly has no usable duration."""
+    if not hasattr(_ydl_local, "duration_unavailable_urls"):
+        _ydl_local.duration_unavailable_urls = set()
+    _ydl_local.duration_unavailable_urls.add(url)
+
+
+def get_requests_cookies(cookies_file):
+    """Load a Netscape cookie file once per worker for validation requests."""
+    if not cookies_file:
+        return None
+    cache = getattr(_ydl_local, "request_cookie_jars", {})
+    if cookies_file not in cache:
+        jar = MozillaCookieJar(cookies_file)
+        jar.load(ignore_discard=True, ignore_expires=True)
+        cache[cookies_file] = jar
+        _ydl_local.request_cookie_jars = cache
+    return cache[cookies_file]
 
 
 def build_ydl_options(debug=False, browser_cookies=None, cookies_file=None):
@@ -137,6 +173,10 @@ def get_video_metadata(url, debug=False, browser_cookies=None, cookies_file=None
     if not url or url.strip() == "" or url == "未转载":
         return None, None
 
+    prefetched = getattr(_ydl_local, "prefetched_metadata", {})
+    if url in prefetched:
+        return prefetched.pop(url)
+
     try:
         ydl = get_worker_ydl(debug, browser_cookies, cookies_file)
         info = ydl.extract_info(url, download=False)
@@ -174,6 +214,200 @@ def is_non_video_url(url):
     return host == "manga.nicovideo.jp"
 
 
+BILIBILI_STATUS_MESSAGES = {
+    62012: "稿件不存在或不可访问（具体原因未知）",
+}
+
+
+def validate_video_url(url, timeout=10, cookies_file=None):
+    """Validate every URL before extraction; None means the result is inconclusive."""
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().split(":", 1)[0]
+    normalized_host = host.removeprefix("www.").removeprefix("m.")
+    headers = {"User-Agent": "Mozilla/5.0 (metadata-updater/1.0)"}
+
+    try:
+        if normalized_host == "bilibili.com":
+            bv_match = re.search(r"/video/(BV[a-zA-Z0-9]+)", parsed.path)
+            av_match = re.search(r"/video/av(\d+)", parsed.path, re.IGNORECASE)
+            if bv_match:
+                params = {"bvid": bv_match.group(1)}
+            elif av_match:
+                params = {"aid": av_match.group(1)}
+            else:
+                return _validate_http_status(url, headers, timeout)
+            response = requests.get(
+                "https://api.bilibili.com/x/web-interface/view",
+                params=params,
+                headers=headers,
+                cookies=get_requests_cookies(cookies_file),
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            code = payload.get("code")
+            if code == 0:
+                data = payload.get("data") or {}
+                raw_duration = data.get("duration")
+                duration = (
+                    round(raw_duration)
+                    if isinstance(raw_duration, (int, float)) and raw_duration >= 0
+                    else None
+                )
+                thumbnail = data.get("pic")
+                if thumbnail and thumbnail.startswith("http://"):
+                    thumbnail = thumbnail.replace("http://", "https://", 1)
+                cache_prefetched_metadata(url, thumbnail, duration)
+                return True, ""
+            # VideoCard.vue treats every non-zero result as unavailable. State
+            # files need to be safer: persist content-status codes, but not
+            # request blocking/authentication codes such as -352 or -412.
+            if code == -404 or (
+                isinstance(code, int) and 62000 <= code < 63000
+            ):
+                message = BILIBILI_STATUS_MESSAGES.get(
+                    code, payload.get("message") or "video is unavailable"
+                )
+                return False, f"Bilibili API code {code}: {message}"
+            return None, ""
+
+        if normalized_host in {"x.com", "twitter.com"} or re.search(
+            r"(?:x|twitter)\.com/[^/]+/status/\d+", url, re.IGNORECASE
+        ):
+            tweet_match = re.search(r"/status/(\d+)", url)
+            if not tweet_match:
+                return None, ""
+            response = requests.get(
+                f"https://api.fxtwitter.com/status/{tweet_match.group(1)}",
+                headers=headers,
+                timeout=timeout,
+            )
+            if response.status_code == 200:
+                payload = response.json()
+                tweet = payload.get("tweet")
+                if not tweet:
+                    return None, ""
+                media = tweet.get("media") or {}
+                videos = media.get("videos") or media.get("all") or []
+                if videos:
+                    video = videos[0]
+                    raw_duration = video.get("duration")
+                    duration = (
+                        round(raw_duration)
+                        if isinstance(raw_duration, (int, float))
+                        and raw_duration > 0
+                        else None
+                    )
+                    if raw_duration == 0:
+                        mark_duration_unavailable(url)
+                    cache_prefetched_metadata(
+                        url, video.get("thumbnail_url"), duration
+                    )
+                return True, ""
+            if response.status_code == 404:
+                return False, "FxTwitter reports that the post does not exist"
+            return None, ""
+
+        if normalized_host in {"youtube.com", "youtu.be"}:
+            video_id = (
+                parsed.path.strip("/")
+                if normalized_host == "youtu.be"
+                else parse_qs(parsed.query).get("v", [""])[0]
+            )
+            if not video_id:
+                return _validate_http_status(url, headers, timeout)
+            watch_response = requests.get(
+                "https://www.youtube.com/watch",
+                params={"v": video_id},
+                headers=headers,
+                timeout=timeout,
+            )
+            if watch_response.status_code in {404, 410}:
+                return False, f"YouTube returned HTTP {watch_response.status_code}"
+            page = watch_response.text.lower()
+            playability_match = re.search(
+                r'"playabilitystatus":\{"status":"([^"]+)"'
+                r'(?:,"reason":"([^"]*)")?',
+                page,
+            )
+            if not playability_match:
+                return None, ""
+            status, reason = playability_match.groups()
+            reason = reason or ""
+            gone_markers = (
+                "video unavailable",
+                "video has been removed",
+                "video is no longer available",
+            )
+            if status in {"error", "unplayable"} and any(
+                marker in reason for marker in gone_markers
+            ):
+                return False, "YouTube reports that the video is unavailable"
+            if status == "login_required" and reason == "private video":
+                return False, "YouTube reports that the video is private"
+            membership_markers = (
+                "members-only",
+                "channel's members",
+                "channel members",
+            )
+            if status in {"login_required", "unplayable"} and any(
+                marker in reason for marker in membership_markers
+            ):
+                return False, "YouTube reports that the video is members-only"
+            if status == "ok":
+                return True, ""
+            return None, ""
+
+        if normalized_host == "nicovideo.jp":
+            video_match = re.search(r"/watch/([a-zA-Z0-9]+)", parsed.path)
+            if not video_match:
+                return _validate_http_status(url, headers, timeout)
+            response = requests.get(
+                f"https://ext.nicovideo.jp/api/getthumbinfo/{video_match.group(1)}",
+                headers=headers,
+                timeout=timeout,
+            )
+            if response.status_code in {404, 410}:
+                return False, f"Niconico returned HTTP {response.status_code}"
+            response.raise_for_status()
+            body = response.text.upper()
+            if 'STATUS="FAIL"' in body and re.search(
+                r"<CODE>\s*(DELETED|NOT_FOUND|NOT_FOUND_OR_DELETED)\s*</CODE>",
+                body,
+            ):
+                return False, "Niconico reports that the video was deleted"
+            if 'STATUS="OK"' in body:
+                return True, ""
+            return None, ""
+
+        return _validate_http_status(url, headers, timeout)
+    except (OSError, requests.RequestException, ValueError):
+        return None, ""
+
+
+def _validate_http_status(url, headers, timeout):
+    """Fallback validation for X, AcFun, and unknown providers."""
+    response = requests.head(
+        url,
+        headers=headers,
+        timeout=timeout,
+        allow_redirects=True,
+    )
+    if response.status_code == 405:
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=timeout,
+            allow_redirects=True,
+            stream=True,
+        )
+    if response.status_code in {404, 410}:
+        return False, f"URL returned HTTP {response.status_code}"
+    if 200 <= response.status_code < 400:
+        return True, ""
+    return None, ""
+
+
 def is_retryable_error(error):
     """Retry transient transport failures, not permanent access/content failures."""
     message = str(error).lower()
@@ -192,11 +426,72 @@ def is_retryable_error(error):
     return not any(marker in message for marker in permanent_markers)
 
 
+def is_stateworthy_metadata_error(url, error):
+    """Accept explicit access/content failures when preflight is blocked."""
+    host = urlparse(url).netloc.lower().split(":", 1)[0]
+    normalized_host = host.removeprefix("www.").removeprefix("m.")
+    message = str(error).lower()
+    if normalized_host in {"youtube.com", "youtu.be"}:
+        return any(
+            marker in message
+            for marker in (
+                "video unavailable",
+                "private video",
+                "members-only",
+                "available to this channel's members",
+            )
+        )
+    if normalized_host in {"x.com", "twitter.com"} or re.search(
+        r"(?:x|twitter)\.com/[^/]+/status/\d+", url, re.IGNORECASE
+    ):
+        return any(
+            marker in message
+            for marker in (
+                "protected tweet",
+                "not authorized to view this protected tweet",
+            )
+        )
+    return False
+
+
+def load_invalid_state(state_file):
+    """Load invalid URL records, tolerating absent or malformed state files."""
+    if not state_file.exists():
+        return {"version": 1, "invalid_urls": {}, "unavailable_duration_urls": {}}
+    try:
+        with state_file.open("r", encoding="utf-8") as handle:
+            state = json.load(handle)
+        if not isinstance(state, dict) or not isinstance(
+            state.get("invalid_urls"), dict
+        ):
+            raise ValueError("invalid state structure")
+        state["version"] = 1
+        if not isinstance(state.get("unavailable_duration_urls", {}), dict):
+            raise ValueError("invalid unavailable-duration state structure")
+        state.setdefault("unavailable_duration_urls", {})
+        return state
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"⚠️  Unable to read invalid-link state {state_file}: {error}")
+        return {"version": 1, "invalid_urls": {}, "unavailable_duration_urls": {}}
+
+
+def save_invalid_state(state_file, state):
+    """Atomically persist invalid URL records."""
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    temporary_file = state_file.with_name(f"{state_file.name}.tmp")
+    with temporary_file.open("w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
+        handle.write("\n")
+    os.replace(temporary_file, state_file)
+
+
 def update_thumbnails(
     conn,
     debug=False,
     dry_run=False,
     limit=None,
+    from_id=None,
+    to_id=None,
     update_original=True,
     update_repost=True,
     force=False,
@@ -204,6 +499,10 @@ def update_thumbnails(
     cookies_file=None,
     workers=4,
     metadata_fetcher=get_video_metadata,
+    url_validator=validate_video_url,
+    invalid_state=None,
+    state_file=None,
+    retry_invalid=False,
 ):
     """Update missing video thumbnails and durations."""
     cursor = conn.cursor()
@@ -234,37 +533,26 @@ def update_thumbnails(
         print("❌ No video type specified for update")
         return {"processed": 0, "updated": 0, "errors": 0}
 
-    delete_keywords = [
-        "已删除",
-        "删除",
-        "已隐藏",
-        "隐藏",
-        "已失效",
-        "失效",
-        "已注销",
-        "注销",
-        "非公开",
-        "地域限制",
-        "区域限制",
-        "版权限制",
-        "专享",
-        "私享",
-        "无法播放",
-        "无补档",
-    ]
+    where_parts = [f"({' OR '.join(conditions)})"]
+    query_params = []
+    if from_id is not None:
+        where_parts.append("id >= ?")
+        query_params.append(from_id)
+    if to_id is not None:
+        where_parts.append("id <= ?")
+        query_params.append(to_id)
 
-    where_clause = " OR ".join(conditions)
+    where_clause = " AND ".join(where_parts)
     query = (
         "SELECT id, original_url, original_thumbnail, original_duration, "
-        "repost_url, repost_thumbnail, repost_duration, comment "
+        "repost_url, repost_thumbnail, repost_duration "
         f"FROM videos WHERE {where_clause} ORDER BY id"
     )
 
-    if limit:
+    if limit is not None:
         query += " LIMIT ?"
-        cursor.execute(query, (limit,))
-    else:
-        cursor.execute(query)
+        query_params.append(limit)
+    cursor.execute(query, query_params)
     videos = cursor.fetchall()
 
     print(f"Found {len(videos)} videos to process")
@@ -282,9 +570,54 @@ def update_thumbnails(
         "skipped_non_video": 0,
         "original_url_tasks": 0,
         "repost_url_tasks": 0,
+        "skipped_invalid": 0,
+        "skipped_unavailable_duration": 0,
+        "new_invalid": 0,
+        "new_unavailable_duration": 0,
+        "state_write_errors": 0,
     }
 
+    if invalid_state is None:
+        invalid_state = {
+            "version": 1,
+            "invalid_urls": {},
+            "unavailable_duration_urls": {},
+        }
+    invalid_urls = invalid_state["invalid_urls"]
+    unavailable_duration_urls = invalid_state.setdefault(
+        "unavailable_duration_urls", {}
+    )
     url_jobs = {}
+
+    def persist_invalid_state():
+        if state_file is None or dry_run:
+            return
+        try:
+            save_invalid_state(state_file, invalid_state)
+        except OSError as error:
+            stats["state_write_errors"] += 1
+            print(f"  ⚠️  Unable to save invalid-link state: {error}")
+
+    def add_url_job(url, reference):
+        clean_url = url.strip()
+        if is_non_video_url(clean_url):
+            stats["skipped_non_video"] += 1
+            return
+        if clean_url in invalid_urls and not retry_invalid:
+            stats["skipped_invalid"] += 1
+            return
+        _, _, old_thumbnail, old_duration = reference
+        if (
+            clean_url in unavailable_duration_urls
+            and old_thumbnail
+            and old_duration is None
+            and not force
+        ):
+            stats["skipped_unavailable_duration"] += 1
+            return
+        url_jobs.setdefault(clean_url, []).append(reference)
+        stats[f"{reference[1]}_url_tasks"] += 1
+
     for video in videos:
         (
             video_id,
@@ -294,36 +627,29 @@ def update_thumbnails(
             repost_url,
             repost_thumbnail,
             repost_duration,
-            comment,
         ) = video
         stats["processed"] += 1
-        skip_original = comment and any(kw in comment for kw in delete_keywords)
-
-        if (
+        original_needs_metadata = (
             update_original
             and original_url
             and original_url != "未转载"
             and (force or not original_thumbnail or original_duration is None)
-            and not skip_original
-        ):
-            clean_url = original_url.strip()
-            if is_non_video_url(clean_url):
-                stats["skipped_non_video"] += 1
-            else:
-                url_jobs.setdefault(clean_url, []).append(
-                    (video_id, "original", original_thumbnail, original_duration)
-                )
-                stats["original_url_tasks"] += 1
+        )
+        if original_needs_metadata:
+            add_url_job(
+                original_url,
+                (video_id, "original", original_thumbnail, original_duration),
+            )
         if (
             update_repost
             and repost_url
             and repost_url != "未转载"
             and (force or not repost_thumbnail or repost_duration is None)
         ):
-            url_jobs.setdefault(repost_url.strip(), []).append(
-                (video_id, "repost", repost_thumbnail, repost_duration)
+            add_url_job(
+                repost_url,
+                (video_id, "repost", repost_thumbnail, repost_duration),
             )
-            stats["repost_url_tasks"] += 1
 
     stats["unique_urls"] = len(url_jobs)
     total_references = stats["original_url_tasks"] + stats["repost_url_tasks"]
@@ -337,17 +663,37 @@ def update_thumbnails(
     )
 
     def fetch_job(url):
+        if url_validator is validate_video_url:
+            valid, invalid_reason = url_validator(
+                url, cookies_file=cookies_file
+            )
+        else:
+            valid, invalid_reason = url_validator(url)
+        if valid is False:
+            return None, None, 0, None, invalid_reason, False
         for attempt in range(2):
             try:
                 thumbnail, duration = metadata_fetcher(
                     url, debug, browser_cookies, cookies_file
                 )
-                return thumbnail, duration, attempt, None
+                unavailable_set = getattr(
+                    _ydl_local, "duration_unavailable_urls", set()
+                )
+                duration_unavailable = url in unavailable_set
+                unavailable_set.discard(url)
+                return (
+                    thumbnail,
+                    duration,
+                    attempt,
+                    None,
+                    None,
+                    duration_unavailable,
+                )
             except Exception as error:
                 if attempt == 0 and is_retryable_error(error):
                     time.sleep(1)
                 else:
-                    return None, None, attempt, error
+                    return None, None, attempt, error, None, False
 
     updated_video_ids = set()
     pending_writes = 0
@@ -358,16 +704,52 @@ def update_thumbnails(
     try:
         for completed_urls, future in enumerate(as_completed(futures), 1):
             url = futures[future]
-            thumbnail, duration, retry_count, error = future.result()
+            (
+                thumbnail,
+                duration,
+                retry_count,
+                error,
+                invalid_reason,
+                duration_unavailable,
+            ) = future.result()
             stats["retries"] += retry_count
             print(f"\n[{completed_urls}/{len(url_jobs)}] {url}")
+
+            if invalid_reason is not None:
+                invalid_urls[url] = {
+                    "reason": invalid_reason,
+                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                }
+                stats["new_invalid"] += 1
+                print(f"  🗃️  Link validation failed: {invalid_reason}")
+                persist_invalid_state()
+                continue
 
             if error is not None:
                 stats["errors"] += 1
                 print(f"  ❌ Metadata failed: {error}")
+                if is_stateworthy_metadata_error(url, error):
+                    invalid_urls[url] = {
+                        "reason": str(error)[:500],
+                        "recorded_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    stats["new_invalid"] += 1
+                    print("  🗃️  Recorded from explicit availability error")
+                    persist_invalid_state()
                 continue
             if retry_count:
                 print("  ✅ Retry succeeded")
+            if retry_invalid and url in invalid_urls:
+                del invalid_urls[url]
+                persist_invalid_state()
+            if duration_unavailable:
+                unavailable_duration_urls[url] = {
+                    "reason": "Provider reports no usable duration",
+                    "recorded_at": datetime.now(timezone.utc).isoformat(),
+                }
+                stats["new_unavailable_duration"] += 1
+                print("  ⏭️  Duration unavailable; future duration checks skipped")
+                persist_invalid_state()
 
             updates_by_video = {}
             for video_id, side, old_thumbnail, old_duration in url_jobs[url]:
@@ -500,82 +882,6 @@ def fix_existing_http_thumbnails(conn, debug=False, dry_run=False):
     return stats
 
 
-def convert_http_to_https(conn, debug=False, dry_run=False):
-    """Convert HTTP links to HTTPS for Bilibili thumbnails in database"""
-    cursor = conn.cursor()
-
-    # Find all records with Bilibili HTTP thumbnail links
-    query = """
-    SELECT id, original_thumbnail, repost_thumbnail 
-    FROM videos 
-    WHERE (original_thumbnail LIKE 'http://i%.hdslb.com%' OR repost_thumbnail LIKE 'http://i%.hdslb.com%')
-    """
-
-    cursor.execute(query)
-    records = cursor.fetchall()
-
-    if not records:
-        print("No HTTP thumbnail links found that need conversion")
-        return {"processed": 0, "updated": 0}
-
-    print(f"Found {len(records)} records need HTTP to HTTPS conversion")
-
-    updated_count = 0
-
-    for record in records:
-        video_id, original_thumbnail, repost_thumbnail = record
-        updated = False
-
-        # Convert original_thumbnail
-        if (
-            original_thumbnail
-            and original_thumbnail.startswith("http://")
-            and "hdslb.com" in original_thumbnail
-        ):
-            new_original = original_thumbnail.replace("http://", "https://")
-            if debug:
-                print(
-                    f"Video {video_id}: Original video thumbnail {original_thumbnail} -> {new_original}"
-                )
-
-            if not dry_run:
-                cursor.execute(
-                    "UPDATE videos SET original_thumbnail = ? WHERE id = ?",
-                    (new_original, video_id),
-                )
-            updated = True
-
-        # Convert repost_thumbnail
-        if (
-            repost_thumbnail
-            and repost_thumbnail.startswith("http://")
-            and "hdslb.com" in repost_thumbnail
-        ):
-            new_repost = repost_thumbnail.replace("http://", "https://")
-            if debug:
-                print(
-                    f"Video {video_id}: Repost video thumbnail {repost_thumbnail} -> {new_repost}"
-                )
-
-            if not dry_run:
-                cursor.execute(
-                    "UPDATE videos SET repost_thumbnail = ? WHERE id = ?",
-                    (new_repost, video_id),
-                )
-            updated = True
-
-        if updated:
-            updated_count += 1
-
-    if not dry_run:
-        conn.commit()
-        print(f"✅ Successfully updated {updated_count} records' thumbnail links")
-    else:
-        print(f"🔍 [Preview mode] Will update {updated_count} records' thumbnail links")
-
-    return {"processed": len(records), "updated": updated_count}
-
-
 def main():
     _default_db = str(
         Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent.parent)))
@@ -600,10 +906,30 @@ def main():
         "--limit", type=int, help="Limit the number of records to process"
     )
     parser.add_argument(
+        "--from-id",
+        type=int,
+        help="Only process videos whose ID is greater than or equal to this value",
+    )
+    parser.add_argument(
+        "--to-id",
+        type=int,
+        help="Only process videos whose ID is less than or equal to this value",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=4,
         help="Number of concurrent metadata requests (default: 4)",
+    )
+    parser.add_argument(
+        "--state-file",
+        type=str,
+        help="Invalid-link state file (default: scripts/state/metadata-updater.json)",
+    )
+    parser.add_argument(
+        "--retry-invalid",
+        action="store_true",
+        help="Retry URLs recorded as invalid and remove them if they succeed",
     )
     parser.add_argument(
         "--update-original",
@@ -656,11 +982,30 @@ def main():
 
     if args.workers < 1:
         parser.error("--workers must be at least 1")
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be at least 1")
+    if args.from_id is not None and args.from_id < 1:
+        parser.error("--from-id must be at least 1")
+    if args.to_id is not None and args.to_id < 1:
+        parser.error("--to-id must be at least 1")
+    if (
+        args.from_id is not None
+        and args.to_id is not None
+        and args.from_id > args.to_id
+    ):
+        parser.error("--from-id cannot be greater than --to-id")
 
     # Check if database file exists
     if not os.path.exists(args.db_path):
         print(f"Error: Database file does not exist: {args.db_path}")
         sys.exit(1)
+
+    state_file = (
+        Path(args.state_file).expanduser()
+        if args.state_file
+        else Path(__file__).parent / "state" / "metadata-updater.json"
+    )
+    invalid_state = load_invalid_state(state_file)
 
     # Connect to database
     conn = create_connection(args.db_path)
@@ -671,6 +1016,12 @@ def main():
     try:
         print(f"Starting video metadata update")
         print(f"Database: {args.db_path}")
+        print(f"Invalid-link state: {state_file}")
+        print(f"Known invalid URLs: {len(invalid_state['invalid_urls'])}")
+        print(
+            "Known unavailable durations: "
+            f"{len(invalid_state['unavailable_duration_urls'])}"
+        )
 
         if args.dry_run:
             print("*** DRY RUN mode - Database will not be actually modified ***")
@@ -682,6 +1033,12 @@ def main():
             print(f"*** Using cookies from file: {args.cookies} ***")
         if args.limit:
             print(f"*** Limiting to {args.limit} records ***")
+        if args.from_id is not None or args.to_id is not None:
+            range_start = args.from_id if args.from_id is not None else "first"
+            range_end = args.to_id if args.to_id is not None else "last"
+            print(f"*** Video ID range: {range_start}–{range_end} ***")
+        if args.retry_invalid:
+            print("*** Retrying URLs previously recorded as invalid ***")
         print(f"*** Concurrent workers: {args.workers} ***")
 
         update_types = []
@@ -706,12 +1063,17 @@ def main():
             debug=args.debug,
             dry_run=args.dry_run,
             limit=args.limit,
+            from_id=args.from_id,
+            to_id=args.to_id,
             update_original=args.update_original,
             update_repost=args.update_repost,
             force=args.force,
             browser_cookies=args.cookies_from_browser,
             cookies_file=args.cookies,
             workers=args.workers,
+            invalid_state=invalid_state,
+            state_file=state_file,
+            retry_invalid=args.retry_invalid,
         )
 
         # Print statistics
@@ -723,6 +1085,17 @@ def main():
         print(f"Unique URLs requested: {stats['unique_urls']}")
         print(f"Requests retried: {stats['retries']}")
         print(f"Non-video URLs skipped: {stats['skipped_non_video']}")
+        print(f"Known invalid URLs skipped: {stats['skipped_invalid']}")
+        print(
+            "Known unavailable durations skipped: "
+            f"{stats['skipped_unavailable_duration']}"
+        )
+        print(f"New invalid URLs recorded: {stats['new_invalid']}")
+        print(
+            "New unavailable durations recorded: "
+            f"{stats['new_unavailable_duration']}"
+        )
+        print(f"State write errors: {stats['state_write_errors']}")
         print(f"Original video thumbnails updated: {stats['original_updated']}")
         print(f"Repost video thumbnails updated: {stats['repost_updated']}")
         print(

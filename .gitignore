@@ -16,6 +16,7 @@ node_modules
 dist
 dist-ssr
 *.local
+update/scripts/state/
 
 .vscode
 .idea
