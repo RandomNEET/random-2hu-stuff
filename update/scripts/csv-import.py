@@ -12,6 +12,7 @@ Optional arguments:
 --db-path: Database path (default: ../backend/random-2hu-stuff.db)
 --dry-run: Check only, do not actually import
 --skip-metadata: Skip metadata retrieval from links, use titles from CSV
+--workers: Number of concurrent metadata requests (default: 4)
 --cookies: Netscape formatted cookie file to read cookies from
 --cookies-from-browser: Extract cookies from specified browser to handle restricted videos
                        Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale, qutebrowser
@@ -30,11 +31,17 @@ import csv
 import os
 import sqlite3
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import yt_dlp
+
+
+_ydl_local = threading.local()
 
 
 def create_connection(db_path):
@@ -140,6 +147,7 @@ def _fxtwitter_request(screen_name):
     return None
 
 
+@lru_cache(maxsize=None)
 def get_twitter_avatar(screen_name):
     """Get Twitter user avatar URL via fxtwitter API (best effort)"""
     if not screen_name:
@@ -161,177 +169,160 @@ def get_twitter_avatar(screen_name):
         return None
 
 
+def build_ydl_options(browser_cookies=None, cookies_file=None):
+    """Build yt-dlp options shared by each worker-local instance."""
+    options = {
+        "quiet": True,
+        "skip_download": True,
+        "extract_flat": False,
+    }
+
+    if cookies_file:
+        options["cookiefile"] = cookies_file
+
+    elif browser_cookies:
+        if "+" in browser_cookies and ":" in browser_cookies:
+            parts = browser_cookies.split("+", 1)
+            browser = parts[0]
+            keyring_profile_container = parts[1]
+            if "::" in keyring_profile_container:
+                keyring_profile, container = keyring_profile_container.split("::", 1)
+                if ":" in keyring_profile:
+                    keyring, profile = keyring_profile.split(":", 1)
+                    options["cookiesfrombrowser"] = (
+                        browser,
+                        keyring,
+                        profile,
+                        container,
+                    )
+                else:
+                    options["cookiesfrombrowser"] = (
+                        browser,
+                        keyring_profile,
+                        None,
+                        container,
+                    )
+            elif ":" in keyring_profile_container:
+                keyring, profile = keyring_profile_container.split(":", 1)
+                options["cookiesfrombrowser"] = (browser, keyring, profile)
+            else:
+                options["cookiesfrombrowser"] = (
+                    browser,
+                    keyring_profile_container,
+                )
+        elif "::" in browser_cookies:
+            browser_profile, container = browser_cookies.split("::", 1)
+            if ":" in browser_profile:
+                browser, profile = browser_profile.split(":", 1)
+                options["cookiesfrombrowser"] = (browser, None, profile, container)
+            else:
+                options["cookiesfrombrowser"] = (
+                    browser_profile,
+                    None,
+                    None,
+                    container,
+                )
+        elif ":" in browser_cookies:
+            browser, profile = browser_cookies.split(":", 1)
+            options["cookiesfrombrowser"] = (browser, None, profile)
+        else:
+            options["cookiesfrombrowser"] = (browser_cookies,)
+
+    return options
+
+
+def get_worker_ydl(browser_cookies=None, cookies_file=None):
+    """Reuse one isolated YoutubeDL instance in each metadata worker."""
+    key = (browser_cookies, cookies_file)
+    if getattr(_ydl_local, "key", None) != key:
+        _ydl_local.ydl = yt_dlp.YoutubeDL(
+            build_ydl_options(browser_cookies, cookies_file)
+        )
+        _ydl_local.key = key
+    return _ydl_local.ydl
+
+
 def get_video_metadata(url, browser_cookies=None, cookies_file=None):
-    """Get video metadata from URL"""
+    """Get video metadata from URL."""
     if not url or url.strip() == "" or url == "未转载":
         return None, None, None, None, None
 
     try:
-        options = {
-            "quiet": False,
-            "skip_download": True,
-            "extract_flat": False,
-        }
+        ydl = get_worker_ydl(browser_cookies, cookies_file)
 
-        # If cookies file is specified, use it
-        if cookies_file:
-            options["cookiefile"] = cookies_file
+        info = ydl.extract_info(url, download=False)
+        title = info.get("title")
+        uploader = info.get("uploader")
+        upload_date = (
+            info.get("upload_date")
+            or info.get("release_date")
+            or info.get("timestamp")
+            or info.get("upload_timestamp")
+        )
 
-        # If cookies are enabled, extract cookies from specified browser
-        elif browser_cookies:
-            # Parse browser cookies parameter
-            # Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]
-            if "+" in browser_cookies and ":" in browser_cookies:
-                # Full format: browser+keyring:profile::container
-                parts = browser_cookies.split("+", 1)
-                browser = parts[0]
-                keyring_profile_container = parts[1]
-
-                if "::" in keyring_profile_container:
-                    keyring_profile, container = keyring_profile_container.split(
-                        "::", 1
+        formatted_date = None
+        if upload_date:
+            try:
+                if isinstance(upload_date, (int, float)):
+                    formatted_date = datetime.fromtimestamp(upload_date).strftime(
+                        "%Y-%m-%d"
                     )
-                    if ":" in keyring_profile:
-                        keyring, profile = keyring_profile.split(":", 1)
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            keyring,
-                            profile,
-                            container,
-                        )
-                    else:
-                        keyring = keyring_profile
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            keyring,
-                            None,
-                            container,
-                        )
                 else:
-                    if ":" in keyring_profile_container:
-                        keyring, profile = keyring_profile_container.split(":", 1)
-                        options["cookiesfrombrowser"] = (browser, keyring, profile)
-                    else:
-                        keyring = keyring_profile_container
-                        options["cookiesfrombrowser"] = (browser, keyring)
-            elif "::" in browser_cookies:
-                # Format: browser::container or browser:profile::container
-                if browser_cookies.count(":") == 2:
-                    browser_profile, container = browser_cookies.split("::", 1)
-                    if ":" in browser_profile:
-                        browser, profile = browser_profile.split(":", 1)
-                        options["cookiesfrombrowser"] = (
-                            browser,
-                            None,
-                            profile,
-                            container,
+                    date_str = str(upload_date)
+                    if len(date_str) == 8 and date_str.isdigit():
+                        formatted_date = (
+                            f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
                         )
                     else:
-                        browser = browser_profile
-                        options["cookiesfrombrowser"] = (browser, None, None, container)
-                else:
-                    browser, container = browser_cookies.split("::", 1)
-                    options["cookiesfrombrowser"] = (browser, None, None, container)
-            elif ":" in browser_cookies:
-                # Format: browser:profile
-                browser, profile = browser_cookies.split(":", 1)
-                options["cookiesfrombrowser"] = (browser, None, profile)
-            else:
-                # Browser name only
-                options["cookiesfrombrowser"] = (browser_cookies,)
+                        formatted_date = date_str
+            except Exception as error:
+                print(f"Date formatting error: {upload_date} -> {error}")
 
-        with yt_dlp.YoutubeDL(options) as ydl:
-            info = ydl.extract_info(url, download=False)
+        author_info = {
+            "name": uploader,
+            "url": None,
+            "avatar": None,
+            "platform": None,
+        }
+        if "youtube.com" in url or "youtu.be" in url:
+            author_info["platform"] = "youtube"
+            author_info["url"] = info.get("uploader_url") or info.get("channel_url")
+        elif "nicovideo.jp" in url:
+            author_info["platform"] = "niconico"
+            uploader_id = info.get("uploader_id")
+            if uploader_id:
+                author_info["url"] = f"https://www.nicovideo.jp/user/{uploader_id}"
+        elif "twitter.com" in url or "x.com" in url:
+            author_info["platform"] = "twitter"
+            uploader_id = info.get("uploader_id")
+            if uploader_id:
+                author_info["url"] = f"https://x.com/{uploader_id}"
+                author_info["avatar"] = get_twitter_avatar(uploader_id)
 
-            title = info.get("title", None)
-            uploader = info.get("uploader", None)
+        raw_duration = info.get("duration")
+        duration = None
+        if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
+            duration = round(raw_duration)
 
-            # Get release date
-            upload_date = (
-                info.get("upload_date")
-                or info.get("release_date")
-                or info.get("timestamp")
-                or info.get("upload_timestamp")
-            )
+        thumbnail = info.get("thumbnail")
+        if not thumbnail:
+            thumbnails = info.get("thumbnails") or []
+            if thumbnails:
+                thumbnail = max(
+                    thumbnails,
+                    key=lambda item: (
+                        item.get("preference") or 0,
+                        item.get("width") or 0,
+                        item.get("height") or 0,
+                    ),
+                ).get("url")
+        if thumbnail and "hdslb.com" in thumbnail and thumbnail.startswith("http://"):
+            thumbnail = thumbnail.replace("http://", "https://")
 
-            formatted_date = None
-            if upload_date:
-                try:
-                    if isinstance(upload_date, (int, float)):
-                        formatted_date = datetime.fromtimestamp(upload_date).strftime(
-                            "%Y-%m-%d"
-                        )
-                    else:
-                        date_str = str(upload_date)
-                        if len(date_str) == 8 and date_str.isdigit():
-                            formatted_date = (
-                                f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                            )
-                        else:
-                            formatted_date = date_str
-                except Exception as e:
-                    print(f"Date formatting error: {upload_date} -> {e}")
+        return title, formatted_date, author_info, thumbnail, duration
 
-            # Get author information with platform identification
-            author_info = {
-                "name": uploader,
-                "url": None,
-                "avatar": None,
-                "platform": None,  # Add platform identification
-            }
-
-            # Build author URL and identify platform
-            if "youtube.com" in url or "youtu.be" in url:
-                author_info["platform"] = "youtube"
-                uploader_url = info.get("uploader_url") or info.get("channel_url")
-                if uploader_url:
-                    author_info["url"] = uploader_url
-
-            elif "nicovideo.jp" in url:
-                author_info["platform"] = "niconico"
-                uploader_id = info.get("uploader_id")
-                if uploader_id:
-                    author_info["url"] = f"https://www.nicovideo.jp/user/{uploader_id}"
-
-            elif "twitter.com" in url or "x.com" in url:
-                author_info["platform"] = "twitter"
-                uploader_id = info.get("uploader_id")
-                if uploader_id:
-                    author_info["url"] = f"https://x.com/{uploader_id}"
-                avatar = get_twitter_avatar(uploader_id)
-                if avatar:
-                    author_info["avatar"] = avatar
-
-            raw_duration = info.get("duration")
-            duration = None
-            if isinstance(raw_duration, (int, float)) and raw_duration >= 0:
-                duration = round(raw_duration)
-
-            thumbnail = info.get("thumbnail")
-            if not thumbnail:
-                thumbnails = info.get("thumbnails") or []
-                if thumbnails:
-                    thumbnail = max(
-                        thumbnails,
-                        key=lambda item: (
-                            item.get("preference") or 0,
-                            item.get("width") or 0,
-                            item.get("height") or 0,
-                        ),
-                    ).get("url")
-            if (
-                thumbnail
-                and "hdslb.com" in thumbnail
-                and thumbnail.startswith("http://")
-            ):
-                thumbnail = thumbnail.replace("http://", "https://")
-
-            return title, formatted_date, author_info, thumbnail, duration
-
-    except Exception as e:
-        print(f"Failed to get video metadata {url}: {e}")
-        # Raise exception for upper-level handling
-        raise e
+    except Exception:
+        raise
 
 
 def get_or_create_author(conn, csv_author_name, author_info):
@@ -410,8 +401,6 @@ def get_or_create_author(conn, csv_author_name, author_info):
                         (avatar, author_id),
                     )
                     print(f"Updated Twitter avatar for author: {csv_author_name}")
-
-            conn.commit()
 
         return author_id
 
@@ -508,8 +497,6 @@ def get_or_create_author(conn, csv_author_name, author_info):
                     updated = True
                     print(f"Updated empty author names to: {csv_author_name}")
 
-            if updated:
-                conn.commit()
             return author_id
 
     # Step 3: Create new author
@@ -570,7 +557,6 @@ def get_or_create_author(conn, csv_author_name, author_info):
             twitter_avatar,
         ),
     )
-    conn.commit()
     author_id = cursor.lastrowid
 
     # Show which fields were populated
@@ -822,7 +808,6 @@ def insert_video_wrapper(
                         target[0],
                     ),
                 )
-                conn.commit()
                 print(f"✅ Overwritten existing record (ID: {target[0]})")
                 return "updated"
             if choice == "3":
@@ -849,7 +834,6 @@ def insert_video_wrapper(
                         comment,
                     ),
                 )
-                conn.commit()
                 print("➕ Force added as new record")
                 return "inserted"
         # Insert new video
@@ -876,8 +860,6 @@ def insert_video_wrapper(
                 comment,
             ),
         )
-
-        conn.commit()
 
         print(f"➕ Inserted new video: {title or 'No title'}")
         if repost_name:
@@ -1026,6 +1008,103 @@ def write_error_to_csv(error_file, line_num, line_content, error_msg):
         writer.writerow([line_num, line_content, error_msg])
 
 
+def read_csv_rows(input_file):
+    """Parse and normalize input rows before any network or database work."""
+    rows = []
+    with open(input_file, "r", encoding="utf-8-sig", newline="") as source:
+        for line_num, line in enumerate(source, 1):
+            original_line = line.rstrip("\r\n")
+            if not original_line.strip():
+                continue
+            parts = next(csv.reader([original_line]))
+            if len(parts) < 2:
+                print(f"Skipping line {line_num}: Incorrect format")
+                continue
+            parts.extend([""] * (7 - len(parts)))
+            csv_author = clean_author_name(parts[0])
+            if not csv_author:
+                print(f"Skipping line {line_num}: Author name is empty")
+                continue
+            original_url = clean_bilibili_url(parts[1].strip())
+            repost_url = clean_bilibili_url(parts[3].strip()) or None
+            rows.append(
+                {
+                    "line_num": line_num,
+                    "original_line": original_line,
+                    "author": csv_author,
+                    "original_url": original_url,
+                    "repost_name": parts[2].strip() or None,
+                    "repost_url": repost_url,
+                    "translation_status": parts[4].strip(),
+                    "comment": parts[5].strip() or None,
+                    "supplementary_note": parts[6].strip() or None,
+                }
+            )
+    return rows
+
+
+def prefetch_metadata(
+    rows,
+    workers,
+    browser_cookies=None,
+    cookies_file=None,
+    metadata_fetcher=None,
+):
+    """Fetch every unique original/repost URL once and return cached outcomes."""
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+    metadata_fetcher = metadata_fetcher or get_video_metadata
+    urls = []
+    references = 0
+    seen = set()
+    for row in rows:
+        for url in (row["original_url"], row["repost_url"]):
+            if not url or url == "未转载":
+                continue
+            references += 1
+            if url not in seen:
+                seen.add(url)
+                urls.append(url)
+
+    print(
+        f"Fetching {len(urls)} unique URLs with {workers} workers "
+        f"({references - len(urls)} duplicate references reused)"
+    )
+    if not urls:
+        return {}
+
+    def fetch_job(url):
+        try:
+            return metadata_fetcher(url, browser_cookies, cookies_file), None
+        except Exception as error:
+            return None, error
+
+    results = {}
+    executor = ThreadPoolExecutor(max_workers=workers)
+    futures = {executor.submit(fetch_job, url): url for url in urls}
+    interrupted = False
+    try:
+        for completed, future in enumerate(as_completed(futures), 1):
+            url = futures[future]
+            metadata, error = future.result()
+            results[url] = (metadata, error)
+            print(f"[{completed}/{len(urls)}] {url}")
+            if error is None:
+                title = metadata[0] or "No title"
+                print(f"  ✅ {title}")
+            else:
+                print(f"  ❌ Metadata failed: {error}")
+    except KeyboardInterrupt:
+        interrupted = True
+        print("\nInterrupted; cancelling pending metadata requests...")
+        for future in futures:
+            future.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=not interrupted, cancel_futures=True)
+    return results
+
+
 def process_csv(
     input_file,
     conn,
@@ -1033,8 +1112,10 @@ def process_csv(
     skip_metadata=False,
     browser_cookies=None,
     cookies_file=None,
+    workers=4,
+    metadata_fetcher=None,
 ):
-    """Process CSV file"""
+    """Process a CSV with concurrent metadata fetching and ordered DB writes."""
     stats = {
         "total_rows": 0,
         "processed_rows": 0,
@@ -1045,266 +1126,173 @@ def process_csv(
         "errors": 0,
         "cancelled": 0,
     }
-
-    # Error file path
-    error_file = input_file.replace(".csv", "_errors.csv")
-
-    author_cache = {}  # Cache author info to avoid repeated metadata retrieval
-    author_id_cache = {}  # Cache author IDs to avoid repeated database queries
+    error_file = str(Path(input_file).with_suffix("")) + "_errors.csv"
+    error_rows = set()
+    reported_metadata_errors = set()
+    author_cache = {}
+    author_id_cache = {}
+    pending_writes = 0
 
     try:
-        with open(input_file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-
-        for line_num, line in enumerate(lines, 1):
-            original_line = line.strip()
-            if not original_line:
-                continue
-
-            stats["total_rows"] += 1
-
-            # 解析CSV行
-            try:
-                parts = original_line.split(",")
-                if len(parts) < 2:
-                    print(f"Skipping line {line_num}: Incorrect format")
-                    continue
-
-                csv_author = clean_author_name(parts[0].strip())
-                original_url = parts[1].strip()
-                repost_name = (
-                    parts[2].strip() if len(parts) > 2 and parts[2].strip() else None
-                )
-                repost_url = (
-                    parts[3].strip() if len(parts) > 3 and parts[3].strip() else None
-                )
-                translation_status = parts[4].strip() if len(parts) > 4 else ""
-                comment = (
-                    parts[5].strip() if len(parts) > 5 and parts[5].strip() else None
-                )  # Notes (for database)
-                supplementary_note = (
-                    parts[6].strip() if len(parts) > 6 and parts[6].strip() else None
-                )  # For display only
-
-                # Clean Bilibili links
-                original_url = clean_bilibili_url(original_url)
-                if repost_url:
-                    repost_url = clean_bilibili_url(repost_url)
-
-                # Skip invalid lines - only require author name, other fields can be empty
-                if not csv_author:
-                    print(f"Skipping line {line_num}: Author name is empty")
-                    continue
-
-                print(f"\nProcessing line {line_num}: {csv_author}")
-                if repost_name:
-                    print(f"  Repost title: {repost_name}")
-                if repost_url:
-                    print(f"  Repost link: {repost_url}")
-                if comment:
-                    print(f"  Notes: {comment}")
-                print(f"  Original video link: {original_url}")
-
-                # Get or use cached author information
-                author_info = None
-                error_occurred = False
-
-                if csv_author not in author_cache:
-                    if not skip_metadata and original_url and original_url.strip():
-                        try:
-                            print(
-                                f"First time encountering author '{csv_author}', getting metadata: {original_url}"
-                            )
-                            _, _, author_info, _, _ = get_video_metadata(
-                                original_url, browser_cookies, cookies_file
-                            )
-                        except Exception as e:
-                            error_msg = str(e)
-                            print(
-                                f"Line {line_num} failed to get metadata: {error_msg}"
-                            )
-
-                            # Record error to CSV file
-                            write_error_to_csv(
-                                error_file, line_num, original_line, error_msg
-                            )
-
-                            # Check if it's a geo restriction error
-                            if (
-                                "geo restriction" in error_msg.lower()
-                                or "not available from your location"
-                                in error_msg.lower()
-                            ):
-                                print(
-                                    f"  Geo restriction error, but continue processing this line"
-                                )
-
-                            stats["errors"] += 1
-                            # Don't set error_occurred = True, continue processing this line
-                    else:
-                        if not original_url:
-                            print(
-                                f"Author '{csv_author}' has no original video link, skipping metadata retrieval"
-                            )
-
-                    # Store author info in cache, even None should be cached to avoid repeated attempts
-                    author_cache[csv_author] = author_info
-                else:
-                    author_info = author_cache[csv_author]
-                    print(f"Using cached author info: {csv_author}")
-
-                # Only skip when author metadata retrieval failed and there's no original video link
-                # If there's repost info, process even if original video info retrieval failed
-
-                # Get or create author (use cache to avoid repeated database queries)
-                if not dry_run:
-                    if csv_author in author_id_cache:
-                        author_id = author_id_cache[csv_author]
-                        print(f"Using cached author ID: {csv_author} (ID: {author_id})")
-                    else:
-                        author_id = get_or_create_author(conn, csv_author, author_info)
-                        author_id_cache[csv_author] = author_id
-                else:
-                    # Dry-run mode: simulate author creation and show details
-                    if csv_author in author_id_cache:
-                        author_display_name = author_id_cache[csv_author]
-                        print(f"[DRY RUN] Using cached author: {author_display_name}")
-                    else:
-                        author_display_name = simulate_author_creation(
-                            csv_author, author_info
-                        )
-                        author_id_cache[csv_author] = author_display_name
-                    author_id = 1  # Mock ID
-
-                # Get video metadata
-                title = None
-                date_str = None
-                original_thumbnail = None
-                original_duration = None
-                repost_thumbnail = None
-                repost_duration = None
-                video_error_occurred = False
-
-                if skip_metadata or not original_url or not original_url.strip():
-                    title = repost_name  # Use repost title as title, if none then None
-                    date_str = None
-                    if not original_url:
-                        print(
-                            f"  Original video link is empty, using repost title: {title}"
-                        )
-                else:
-                    try:
-                        (
-                            title,
-                            date_str,
-                            _,
-                            original_thumbnail,
-                            original_duration,
-                        ) = get_video_metadata(
-                            original_url, browser_cookies, cookies_file
-                        )
-                    except Exception as e:
-                        error_msg = str(e)
-                        print(
-                            f"Line {line_num} failed to get video metadata: {error_msg}"
-                        )
-
-                        # Record error to CSV file
-                        write_error_to_csv(
-                            error_file, line_num, original_line, error_msg
-                        )
-
-                        # Set to empty values
-                        title = None
-                        date_str = None
-                        video_error_occurred = True
-
-                if not skip_metadata and repost_url and repost_url.strip():
-                    try:
-                        _, _, _, repost_thumbnail, repost_duration = get_video_metadata(
-                            repost_url, browser_cookies, cookies_file
-                        )
-                    except Exception as e:
-                        error_msg = str(e)
-                        print(
-                            f"Line {line_num} failed to get repost metadata: {error_msg}"
-                        )
-                        write_error_to_csv(
-                            error_file, line_num, original_line, error_msg
-                        )
-                        stats["errors"] += 1
-
-                # Process translation status
-                try:
-                    translation_status_int = (
-                        int(translation_status) if translation_status.isdigit() else 0
-                    )
-                except:
-                    translation_status_int = 0
-
-                # Insert video
-                if not dry_run:
-                    result = insert_video_wrapper(
-                        conn,
-                        author_id,
-                        title,
-                        original_url,
-                        date_str,
-                        repost_name,
-                        repost_url,
-                        original_thumbnail,
-                        original_duration,
-                        repost_thumbnail,
-                        repost_duration,
-                        translation_status_int,
-                        comment,
-                        supplementary_note,
-                    )
-
-                    if result == "inserted":
-                        stats["new_videos"] += 1
-                    elif result == "updated":
-                        stats["updated_videos"] += 1
-                    elif result == "skipped":
-                        stats["skipped_videos"] += 1
-                    elif result == "cancelled":
-                        stats["cancelled"] += 1
-                        print("🛑 Program cancelled by user")
-                        return stats
-                    else:  # error
-                        stats["errors"] += 1
-                else:
-                    print(f"[DRY RUN] Will add video: {title or 'No title'}")
-                    print(
-                        f"  → Assigned to author: {author_id_cache.get(csv_author, csv_author)}"
-                    )
-                    if repost_name:
-                        print(f"  Repost title: {repost_name}")
-                    if repost_url:
-                        print(f"  Repost link: {repost_url}")
-                    if comment:
-                        print(f"  Notes: {comment}")
-                    stats["new_videos"] += 1
-
-                stats["processed_rows"] += 1
-
-            except Exception as e:
-                error_msg = f"Error processing line {line_num}: {e}"
-                print(error_msg)
-                print(f"Line content: {original_line}")
-
-                # Record error to CSV file
-                write_error_to_csv(error_file, line_num, original_line, str(e))
-                stats["errors"] += 1
-
-    except Exception as e:
-        print(f"Error reading CSV file: {e}")
+        rows = read_csv_rows(input_file)
+    except Exception as error:
+        print(f"Error reading CSV file: {error}")
         return stats
 
-    # If there are errors, notify user
-    if stats["errors"] > 0:
-        print(f"\nError records saved to: {error_file}")
+    stats["total_rows"] = len(rows)
+    metadata_results = {}
+    if not skip_metadata:
+        metadata_results = prefetch_metadata(
+            rows,
+            workers,
+            browser_cookies,
+            cookies_file,
+            metadata_fetcher,
+        )
 
+    def record_metadata_error(row, url, label, error):
+        key = (row["line_num"], url)
+        if key in reported_metadata_errors:
+            return
+        reported_metadata_errors.add(key)
+        error_rows.add(row["line_num"])
+        error_msg = str(error)
+        print(f"Line {row['line_num']} failed to get {label} metadata: {error_msg}")
+        write_error_to_csv(
+            error_file,
+            row["line_num"],
+            row["original_line"],
+            error_msg,
+        )
+
+    for row in rows:
+        line_num = row["line_num"]
+        csv_author = row["author"]
+        original_url = row["original_url"]
+        repost_name = row["repost_name"]
+        repost_url = row["repost_url"]
+        print(f"\nProcessing line {line_num}: {csv_author}")
+        print(f"  Original video link: {original_url}")
+        if repost_name:
+            print(f"  Repost title: {repost_name}")
+        if repost_url:
+            print(f"  Repost link: {repost_url}")
+        if row["comment"]:
+            print(f"  Notes: {row['comment']}")
+
+        try:
+            original_metadata, original_error = metadata_results.get(
+                original_url, (None, None)
+            )
+            repost_metadata, repost_error = metadata_results.get(
+                repost_url, (None, None)
+            )
+
+            if csv_author not in author_cache:
+                author_cache[csv_author] = (
+                    original_metadata[2] if original_metadata is not None else None
+                )
+            author_info = author_cache[csv_author]
+
+            if not dry_run:
+                if csv_author in author_id_cache:
+                    author_id = author_id_cache[csv_author]
+                    print(f"Using cached author ID: {csv_author} (ID: {author_id})")
+                else:
+                    author_id = get_or_create_author(conn, csv_author, author_info)
+                    author_id_cache[csv_author] = author_id
+            else:
+                if csv_author not in author_id_cache:
+                    author_id_cache[csv_author] = simulate_author_creation(
+                        csv_author, author_info
+                    )
+                else:
+                    print(f"[DRY RUN] Using cached author: {author_id_cache[csv_author]}")
+                author_id = 1
+
+            title = repost_name if skip_metadata or not original_url else None
+            date_str = None
+            original_thumbnail = None
+            original_duration = None
+            repost_thumbnail = None
+            repost_duration = None
+            if original_metadata is not None:
+                (
+                    title,
+                    date_str,
+                    _,
+                    original_thumbnail,
+                    original_duration,
+                ) = original_metadata
+            elif original_error is not None:
+                record_metadata_error(row, original_url, "original video", original_error)
+            elif not original_url:
+                print(f"  Original video link is empty, using repost title: {title}")
+
+            if repost_metadata is not None:
+                _, _, _, repost_thumbnail, repost_duration = repost_metadata
+            elif repost_error is not None:
+                record_metadata_error(row, repost_url, "repost", repost_error)
+
+            translation_status = row["translation_status"]
+            translation_status_int = (
+                int(translation_status) if translation_status.isdigit() else 0
+            )
+            if not dry_run:
+                result = insert_video_wrapper(
+                    conn,
+                    author_id,
+                    title,
+                    original_url,
+                    date_str,
+                    repost_name,
+                    repost_url,
+                    original_thumbnail,
+                    original_duration,
+                    repost_thumbnail,
+                    repost_duration,
+                    translation_status_int,
+                    row["comment"],
+                    row["supplementary_note"],
+                )
+                if result == "inserted":
+                    stats["new_videos"] += 1
+                elif result == "updated":
+                    stats["updated_videos"] += 1
+                elif result == "skipped":
+                    stats["skipped_videos"] += 1
+                elif result == "cancelled":
+                    stats["cancelled"] += 1
+                    conn.commit()
+                    print("🛑 Program cancelled by user")
+                    stats["errors"] = len(error_rows)
+                    return stats
+                else:
+                    error_rows.add(line_num)
+
+                pending_writes += 1
+                if pending_writes >= 50:
+                    conn.commit()
+                    pending_writes = 0
+            else:
+                print(f"[DRY RUN] Will add video: {title or 'No title'}")
+                print(f"  → Assigned to author: {author_id_cache[csv_author]}")
+                stats["new_videos"] += 1
+
+            stats["processed_rows"] += 1
+        except Exception as error:
+            print(f"Error processing line {line_num}: {error}")
+            print(f"Line content: {row['original_line']}")
+            write_error_to_csv(
+                error_file, line_num, row["original_line"], str(error)
+            )
+            error_rows.add(line_num)
+
+    if pending_writes and not dry_run:
+        conn.commit()
+    stats["errors"] = len(error_rows)
+    if stats["errors"]:
+        print(f"\nError records saved to: {error_file}")
     return stats
 
 
@@ -1328,6 +1316,12 @@ def main():
         help="Skip metadata retrieval from links, use titles from CSV",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of concurrent metadata requests (default: 4)",
+    )
+    parser.add_argument(
         "--cookies",
         type=str,
         help="Netscape formatted file to read cookies from and dump cookie jar in. For qutebrowser, use: ~/.local/share/qutebrowser/cookies",
@@ -1338,6 +1332,9 @@ def main():
         help="Extract cookies from specified browser to handle restricted videos. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Format: BROWSER[+KEYRING][:PROFILE][::CONTAINER]. Supported keyrings: basictext, gnomekeyring, kwallet, kwallet5, kwallet6. Note: qutebrowser not supported, use --cookies instead",
     )
     args = parser.parse_args()
+
+    if args.workers < 1:
+        parser.error("--workers must be at least 1")
 
     # Check if CSV file exists
     if not os.path.exists(args.csv_file):
@@ -1363,6 +1360,8 @@ def main():
             print(
                 "*** Skip metadata mode - Use titles from CSV, do not get release dates ***"
             )
+        else:
+            print(f"*** Concurrent metadata workers: {args.workers} ***")
         if args.cookies:
             print(f"*** Using cookies from file: {args.cookies} ***")
         if args.cookies_from_browser:
@@ -1378,6 +1377,7 @@ def main():
             args.skip_metadata,
             args.cookies_from_browser,
             args.cookies,
+            args.workers,
         )
 
         # Print statistics
@@ -1391,6 +1391,10 @@ def main():
             print(f"User cancelled: {stats['cancelled']}")
         print(f"Error rows: {stats['errors']}")
 
+    except KeyboardInterrupt:
+        conn.commit()
+        print("\nInterrupted; committed completed CSV rows.")
+        raise
     finally:
         conn.close()
 
