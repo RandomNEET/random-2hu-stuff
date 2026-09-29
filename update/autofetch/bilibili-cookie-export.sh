@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---- ssh ----
+# rsshub container
+#
+# podman create --name rsshub \
+#   -p 10120:10120 \
+#   -e PORT=10120 \
+#   --env-file $LOCAL_PATH \
+#   ghcr.io/diygod/rsshub:chromium-bundled
+
 SSH_HOST="voile"
 SSH_USER="howl"
 SSH_PORT="22"
 SSH_KEY="$HOME/.config/sops-nix/secrets/ssh/voile"
 REMOTE_PATH=".vault/rsshub"
+LOCAL_PATH="./bcookies.txt"
+MODE="remote"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COOKIES_FILE="$SCRIPT_DIR/cookies.txt"
@@ -18,8 +27,31 @@ die() {
   exit 1
 }
 
+usage() {
+  echo "Usage: $(basename "$0") [--local|--remote]"
+}
+
+case "${1:-}" in
+"" | --remote) ;;
+--local) MODE="local" ;;
+-h | --help)
+  usage
+  exit 0
+  ;;
+*)
+  usage >&2
+  die "unknown argument: $1"
+  ;;
+esac
+[ "$#" -le 1 ] || {
+  usage >&2
+  die "too many arguments"
+}
+
 [ -f "$COOKIES_FILE" ] || die "cookies.txt not found, run export script first"
-[ -f "$SSH_KEY" ] || die "SSH key not found: $SSH_KEY"
+if [ "$MODE" = "remote" ]; then
+  [ -f "$SSH_KEY" ] || die "SSH key not found: $SSH_KEY"
+fi
 
 # ---- 导出 cookies ----
 echo "Running $DUMP_SCRIPT ..."
@@ -42,9 +74,14 @@ echo "Running $DUMP_SCRIPT ..."
 [ -n "$sessdata" ] || die "SESSDATA not found"
 
 LINE="BILIBILI_COOKIE_${uid:-0}=SESSDATA=${sessdata}"
-echo "Cookie: ${LINE:0:50}..."
 
-# ---- 上传 ----
+# ---- 输出 ----
+if [ "$MODE" = "local" ]; then
+  printf '%s\n' "$LINE" >"$LOCAL_PATH"
+  echo "Saved to $LOCAL_PATH"
+  exit 0
+fi
+
 echo "Uploading to ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH} ..."
 
 printf '%s\n' "$LINE" | ssh \

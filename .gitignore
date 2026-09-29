@@ -35,6 +35,7 @@ update/scripts/state/
 .npm
 
 cookies.txt
+bcookies.txt
 
 __pycache__/
 dolt/

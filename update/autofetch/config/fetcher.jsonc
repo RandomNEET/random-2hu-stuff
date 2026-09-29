@@ -1,6 +1,7 @@
 {
   // ========== RSSHub 基础地址 ==========
-  "baseurl": "https://rsshub.defnothowl.com",
+  // "baseurl": "https://rsshub.defnothowl.com",
+  "baseurl": "http://127.0.0.1:10120",
   // ========== 时间范围 ==========
   // "today" | "all" | "YYYYMMDD" | 数字(最近N个自然日，含今天)
   // 默认检查今天和昨天；已处理的 BV 由状态文件去重
@@ -71,16 +72,20 @@
       "id": "673546651", // 伊hviewer
       "translation_status": 1,
       "tag_keywords": [
-        "东方PROJECT",
         "东方MMD",
         "MMD"
       ]
     },
     {
       "id": "442287844", // ReiKoiLover
+      "translation_status": 1
+    },
+    {
+      "id": "3546811820149089", // 你fvv叔叔
       "translation_status": 1,
       "tag_keywords": [
-        "东方"
+        "东方MMD",
+        "MMD"
       ]
     }
   ]
