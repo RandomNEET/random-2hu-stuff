@@ -25,6 +25,8 @@ Optional arguments:
 --author-id-after: Update all authors with ID greater than specified value
 --update-names: Enable author name update feature
 --update-avatars: Enable avatar update feature
+--update-links: Fill missing platform profile URLs from descriptions and external links
+--dry-run: Preview without writing or creating a backup
 --update-all: Update both author names and avatars (equivalent to --update-names --update-avatars)
 """
 
@@ -36,6 +38,8 @@ import time
 from pathlib import Path
 
 import yt_dlp
+
+from author_links import FIELDS, blank, discover_links
 
 
 def create_connection(db_path):
@@ -318,132 +322,41 @@ def get_author_info_from_url(author_url, debug=False):
 
 
 def get_authors_to_update(
-    conn,
-    force=False,
-    author_id=None,
-    author_name=None,
-    author_id_after=None,
-    update_names=False,
-    update_avatars=False,
+    conn, force=False, author_id=None, author_name=None, author_id_after=None,
+    update_names=False, update_avatars=False, update_links=False,
 ):
-    """Get list of authors that need info update"""
-    cursor = conn.cursor()
-
-    if author_id:
-        # Update author with specified ID
-        cursor.execute(
-            """SELECT id, 
-                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
-                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                          FROM authors WHERE id = ?""",
-            (author_id,),
+    """Select authors independently for missing links and requested metadata."""
+    rows = conn.execute("""SELECT id,
+        COALESCE(yt_name, nico_name, twitter_name),
+        COALESCE(yt_url, nico_url, twitter_url),
+        COALESCE(nico_avatar, yt_avatar, twitter_avatar),
+        yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar,
+        twitter_name, twitter_url, twitter_avatar FROM authors ORDER BY id""").fetchall()
+    selected = []
+    for row in rows:
+        if author_id is not None:
+            if row[0] == author_id:
+                selected.append(row)
+            continue
+        if author_name:
+            if row[1] == author_name:
+                selected.append(row)
+            continue
+        if author_id_after is not None and row[0] <= author_id_after:
+            continue
+        platforms = [row[4:7], row[7:10], row[10:13]]
+        if not any(not blank(url) for name, url, avatar in platforms):
+            continue
+        missing_links = update_links and any(blank(url) for name, url, avatar in platforms)
+        needs_metadata = any(
+            not blank(url) and (
+                (update_names and (force or blank(name)))
+                or (update_avatars and (force or blank(avatar)))
+            ) for name, url, avatar in platforms
         )
-    elif author_name:
-        # Update author with specified name
-        cursor.execute(
-            """SELECT id, 
-                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
-                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                          FROM authors WHERE COALESCE(yt_name, nico_name, twitter_name) = ?""",
-            (author_name,),
-        )
-    elif author_id_after is not None:
-        # Update all authors with ID greater than specified value
-        if force:
-            cursor.execute(
-                """SELECT id, 
-                                     COALESCE(yt_name, nico_name, twitter_name) as name, 
-                                     COALESCE(yt_url, nico_url, twitter_url) as url, 
-                                     COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                                     yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                              FROM authors WHERE id > ? AND (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '') ORDER BY id""",
-                (author_id_after,),
-            )
-        else:
-            # Build query conditions based on update options
-            conditions = [
-                f"id > {author_id_after}",
-                "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '')",
-            ]
-
-            if update_names and update_avatars:
-                # Update authors missing any platform-specific name or avatar
-                conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '' OR twitter_avatar IS NULL OR twitter_avatar = '')))"
-                )
-            elif update_names:
-                # Update authors missing platform-specific names
-                conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '')))"
-                )
-            elif update_avatars:
-                # Update authors missing platform-specific avatars
-                conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
-                )
-            else:
-                # Default behavior: update authors missing platform-specific avatars
-                conditions.append(
-                    "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
-                )
-
-            query = f"""SELECT id, 
-                               COALESCE(yt_name, nico_name, twitter_name) as name, 
-                               COALESCE(yt_url, nico_url, twitter_url) as url, 
-                               COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                               yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                        FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
-            cursor.execute(query)
-    elif force:
-        # Force update all authors with URLs
-        cursor.execute(
-            """SELECT id, 
-                                 COALESCE(yt_name, nico_name, twitter_name) as name, 
-                                 COALESCE(yt_url, nico_url, twitter_url) as url, 
-                                 COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                                 yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                          FROM authors WHERE (yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '') ORDER BY id"""
-        )
-    else:
-        # Build query conditions based on update options
-        conditions = [
-            "(yt_url IS NOT NULL AND yt_url != '' OR nico_url IS NOT NULL AND nico_url != '' OR twitter_url IS NOT NULL AND twitter_url != '')"
-        ]
-
-        if update_names and update_avatars:
-            # Update authors missing any platform-specific name or avatar
-            conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '' OR yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '' OR nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '' OR twitter_avatar IS NULL OR twitter_avatar = '')))"
-            )
-        elif update_names:
-            # Update authors missing platform-specific names
-            conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_name IS NULL OR yt_name = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_name IS NULL OR nico_name = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_name IS NULL OR twitter_name = '')))"
-            )
-        elif update_avatars:
-            # Update authors missing platform-specific avatars
-            conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
-            )
-        else:
-            # Default behavior: update authors missing platform-specific avatars
-            conditions.append(
-                "((yt_url IS NOT NULL AND yt_url != '' AND (yt_avatar IS NULL OR yt_avatar = '')) OR (nico_url IS NOT NULL AND nico_url != '' AND (nico_avatar IS NULL OR nico_avatar = '')) OR (twitter_url IS NOT NULL AND twitter_url != '' AND (twitter_avatar IS NULL OR twitter_avatar = '')))"
-            )
-
-        query = f"""SELECT id, 
-                           COALESCE(yt_name, nico_name, twitter_name) as name, 
-                           COALESCE(yt_url, nico_url, twitter_url) as url, 
-                           COALESCE(nico_avatar, yt_avatar, twitter_avatar) as avatar,
-                           yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar, twitter_name, twitter_url, twitter_avatar 
-                    FROM authors WHERE {' AND '.join(conditions)} ORDER BY id"""
-        cursor.execute(query)
-
-    return cursor.fetchall()
+        if missing_links or needs_metadata:
+            selected.append(row)
+    return selected
 
 
 def update_author_info(
@@ -574,10 +487,12 @@ def process_authors(
     update_names=False,
     update_avatars=False,
     debug=False,
+    update_links=False,
+    dry_run=False,
 ):
     """Process author info updates"""
     # If no update options specified, default to update avatars
-    if not update_names and not update_avatars:
+    if not update_names and not update_avatars and not update_links:
         update_avatars = True
 
     authors = get_authors_to_update(
@@ -588,13 +503,25 @@ def process_authors(
         author_id_after,
         update_names,
         update_avatars,
+        update_links,
     )
 
     if not authors:
         print("No authors found that need updating")
         return
 
+    backup_conn = None
+    if dry_run:
+        backup_conn = conn
+        conn = sqlite3.connect(":memory:")
+        backup_conn.backup(conn)
+    elif update_links:
+        from author_links import backup_database
+        backup_database(conn)
+
     update_type = []
+    if update_links:
+        update_type.append("links")
     if update_names:
         update_type.append("names")
     if update_avatars:
@@ -604,6 +531,7 @@ def process_authors(
 
     stats = {"total": len(authors), "updated": 0, "failed": 0, "skipped": 0}
 
+    link_stats = {"filled": 0, "conflicts": 0, "failed": 0}
     for i, row in enumerate(authors, 1):
         # Unpack the row - now includes all the individual fields
         author_id, name, url, current_avatar = row[0], row[1], row[2], row[3]
@@ -633,16 +561,44 @@ def process_authors(
             f"\n[{i}/{len(authors)}] Processing author: {name or 'Unknown'} (ID: {author_id})"
         )
 
+        links_updated = False
+        if update_links and any(blank(value) for value in (yt_url, nico_url, twitter_url)):
+            existing = dict(zip(FIELDS, (yt_url, nico_url, twitter_url)))
+            found, conflicts, failures = discover_links(existing, _fxtwitter_request)
+            link_stats["conflicts"] += conflicts
+            link_stats["failed"] += failures
+            try:
+                for field, value in found.items():
+                    current = conn.execute(
+                        f"SELECT {field} FROM authors WHERE id = ?", (author_id,)
+                    ).fetchone()
+                    if current is None or not blank(current[0]):
+                        continue
+                    cursor = conn.execute(
+                        f"UPDATE authors SET {field} = ? WHERE id = ? "
+                        f"AND {field} IS ?",
+                        (value, author_id, current[0]),
+                    )
+                    link_stats["filled"] += cursor.rowcount
+                    links_updated = links_updated or bool(cursor.rowcount)
+                conn.commit()
+            except sqlite3.Error:
+                conn.rollback()
+                raise
+            yt_url, nico_url, twitter_url = conn.execute(
+                "SELECT yt_url, nico_url, twitter_url FROM authors WHERE id = ?", (author_id,)
+            ).fetchone()
+
         # Process YouTube URL if exists
         yt_updated = False
-        if yt_url:
+        if not blank(yt_url) and (update_names or update_avatars):
             print(f"  YouTube URL: {yt_url}")
 
             # Check if should skip based on existing data
             skip_yt_name = update_names and yt_name and not force
             skip_yt_avatar = update_avatars and yt_avatar and not force
 
-            if not (skip_yt_name and skip_yt_avatar):
+            if (update_names and not skip_yt_name) or (update_avatars and not skip_yt_avatar):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         yt_url, debug
@@ -686,14 +642,14 @@ def process_authors(
 
         # Process NicoNico URL if exists
         nico_updated = False
-        if nico_url:
+        if not blank(nico_url) and (update_names or update_avatars):
             print(f"  NicoNico URL: {nico_url}")
 
             # Check if should skip based on existing data
             skip_nico_name = update_names and nico_name and not force
             skip_nico_avatar = update_avatars and nico_avatar and not force
 
-            if not (skip_nico_name and skip_nico_avatar):
+            if (update_names and not skip_nico_name) or (update_avatars and not skip_nico_avatar):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         nico_url, debug
@@ -737,14 +693,14 @@ def process_authors(
 
         # Process Twitter URL if exists
         twitter_updated = False
-        if twitter_url:
+        if not blank(twitter_url) and (update_names or update_avatars):
             print(f"  Twitter URL: {twitter_url}")
 
             # Check if should skip based on existing data
             skip_twitter_name = update_names and twitter_name and not force
             skip_twitter_avatar = update_avatars and twitter_avatar and not force
 
-            if not (skip_twitter_name and skip_twitter_avatar):
+            if (update_names and not skip_twitter_name) or (update_avatars and not skip_twitter_avatar):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         twitter_url, debug
@@ -794,9 +750,11 @@ def process_authors(
         if not yt_url and not nico_url and not twitter_url:
             print("  Skipped: No author URLs")
             stats["skipped"] += 1
-        elif yt_updated or nico_updated or twitter_updated:
+        elif links_updated or yt_updated or nico_updated or twitter_updated:
             stats["updated"] += 1
         elif not yt_url and not nico_url and not twitter_url:
+            stats["skipped"] += 1
+        elif update_links and not update_names and not update_avatars:
             stats["skipped"] += 1
         else:
             stats["failed"] += 1
@@ -804,6 +762,12 @@ def process_authors(
         # Add delay to avoid too frequent requests
         if i < len(authors):
             time.sleep(1)
+
+    if dry_run:
+        conn.close()
+        print("Preview only: original database unchanged; no backup created.")
+    if update_links:
+        print(f"Links filled: {link_stats['filled']}; conflicts: {link_stats['conflicts']}; fetch failures: {link_stats['failed']}")
 
     # Print statistics
     print(f"\n=== Processing Complete ===")
@@ -815,7 +779,7 @@ def process_authors(
 
 def main():
     _default_db = str(
-        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).parent.parent)))
+        Path(os.environ.get("PROJECT_ROOT", str(Path(__file__).resolve().parents[2])))
         / "backend"
         / "random-2hu-stuff.db"
     )
@@ -854,6 +818,9 @@ def main():
         help="Update both author names and avatars (equivalent to --update-names --update-avatars)",
     )
 
+    parser.add_argument("--update-links", action="store_true", help="Fill missing platform URLs from profile descriptions and external links")
+    parser.add_argument("--dry-run", action="store_true", help="Preview updates without modifying or backing up the database")
+
     args = parser.parse_args()
 
     # Process update options
@@ -875,7 +842,7 @@ def main():
         print("Starting author info update...")
         if args.force:
             print("*** Force mode - Will update all authors' info ***")
-        if args.author_id:
+        if args.author_id is not None:
             print(f"*** Only update author ID: {args.author_id} ***")
         if args.author_name:
             print(f"*** Only update author: {args.author_name} ***")
@@ -889,8 +856,12 @@ def main():
             print("*** Only update author names ***")
         elif update_avatars:
             print("*** Only update avatars ***")
-        else:
+        elif not args.update_links:
             print("*** Default mode - Only update avatars ***")
+        if args.update_links:
+            print("*** Fill missing author profile links ***")
+        if args.dry_run:
+            print("*** Preview only ***")
 
         # Process author info updates
         process_authors(
@@ -902,6 +873,8 @@ def main():
             update_names,
             update_avatars,
             args.debug,
+            args.update_links,
+            args.dry_run,
         )
 
     finally:

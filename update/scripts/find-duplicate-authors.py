@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
-Find authors that share the same name across different ids, covering:
-  1. Same yt_name among multiple authors
-  2. Same nico_name among multiple authors
-  3. A yt_name of one author matches the nico_name of another author
-Read-only: does not modify the database.
+只读检查疑似重复作者：三个平台的同名、跨平台同名及清理后的相同主页链接。
+相同链接是强线索，同名仅供人工判断；不联网、不合并、不修改数据库或 ID。
+用法: python find-duplicate-authors.py [--db-path PATH]
 """
 
 import os
@@ -37,114 +35,116 @@ _project_root = Path(os.environ.get("PROJECT_ROOT", str(_project_root)))
 DB_PATH = _project_root / "backend" / "random-2hu-stuff.db"
 
 
-def find_same_column_dups(con, column):
-    """Authors sharing the same value in a single column."""
-    rows = con.execute(
-        f"""
-        SELECT {column}, GROUP_CONCAT(id ORDER BY id) AS ids, COUNT(*) AS cnt
-        FROM authors
-        WHERE {column} IS NOT NULL AND {column} != ''
-        GROUP BY {column}
-        HAVING cnt > 1
-        ORDER BY {column}
-        """
-    ).fetchall()
-    return rows
+NAME_COLUMNS = ("yt_name", "nico_name", "twitter_name")
+URL_COLUMNS = ("yt_url", "nico_url", "twitter_url")
 
 
-def find_cross_column_dups(con):
-    """Authors where one's yt_name matches another's nico_name (different ids)."""
-    rows = con.execute(
-        """
-        SELECT a.id AS yt_id, b.id AS nico_id, a.yt_name AS shared_name
-        FROM authors a
-        JOIN authors b ON a.yt_name = b.nico_name AND a.id != b.id
-        WHERE a.yt_name IS NOT NULL AND a.yt_name != ''
-        ORDER BY shared_name, yt_id, nico_id
-        """
-    ).fetchall()
-    # Group by shared_name, collect unique id sets
-    groups = defaultdict(set)
-    for yt_id, nico_id, name in rows:
-        groups[name].add(yt_id)
-        groups[name].add(nico_id)
-    return groups  # {name: {id, ...}}
+def normalized_name(value):
+    """Ignore whitespace noise and Unicode composition, preserving name case."""
+    import unicodedata
+    return " ".join(unicodedata.normalize("NFC", value or "").split())
 
 
-def fetch_authors_by_ids(con, ids):
-    placeholders = ",".join("?" * len(ids))
-    return con.execute(
-        f"SELECT id, yt_name, yt_url, nico_name, nico_url, twitter_name, twitter_url "
-        f"FROM authors WHERE id IN ({placeholders}) ORDER BY id",
-        list(ids),
-    ).fetchall()
+def find_duplicates(con):
+    """Return distinct author pairs with direct evidence; no transitive merging."""
+    from itertools import combinations
+    from author_links import normalize_profile_url
+
+    authors = {}
+    name_index = defaultdict(lambda: defaultdict(set))
+    url_index = defaultdict(lambda: defaultdict(set))
+    canonical_urls = defaultdict(dict)
+    invalid_urls = []
+    columns = ("id",) + NAME_COLUMNS + URL_COLUMNS
+    for values in con.execute(f"SELECT {', '.join(columns)} FROM authors ORDER BY id"):
+        author = dict(zip(columns, values))
+        author_id = author["id"]
+        authors[author_id] = author
+        if author_id == 0:
+            continue
+        for column in NAME_COLUMNS:
+            name = normalized_name(author[column])
+            if name and name != "原作者未知":
+                name_index[name][author_id].add(column)
+        for column in URL_COLUMNS:
+            value = author[column]
+            if not value or not value.strip():
+                continue
+            normalized = normalize_profile_url(value)
+            if normalized is None or normalized[0] != column:
+                invalid_urls.append((author_id, column, value))
+                continue
+            field, url = normalized
+            # Twitter usernames are case-insensitive; preserve YouTube path case.
+            key = url.lower() if field == "twitter_url" else url
+            canonical_urls[author_id][field] = key
+            url_index[(field, key)][author_id].add(column)
+
+    matches = defaultdict(lambda: {"urls": [], "names": [], "conflicts": []})
+    for (column, url), entries in url_index.items():
+        for pair in combinations(sorted(entries), 2):
+            matches[pair]["urls"].append(f"{column}: {url}")
+    for name, entries in name_index.items():
+        for old, new in combinations(sorted(entries), 2):
+            matches[(old, new)]["names"].append(
+                f"{name!r}: {','.join(sorted(entries[old]))} ↔ {','.join(sorted(entries[new]))}"
+            )
+    for (old, new), evidence in matches.items():
+        for column in URL_COLUMNS:
+            a = canonical_urls[old].get(column)
+            b = canonical_urls[new].get(column)
+            if a and b and a != b:
+                evidence["conflicts"].append(f"{column}: {a} ≠ {b}")
+    return authors, dict(matches), invalid_urls
 
 
-def print_author(a):
-    id_, yt_name, yt_url, nico_name, nico_url, tw_name, tw_url = a
-    print(f"    id={id_}")
-    if yt_name:
-        print(f"      yt_name   : {yt_name}")
-    if yt_url:
-        print(f"      yt_url    : {yt_url}")
-    if nico_name:
-        print(f"      nico_name : {nico_name}")
-    if nico_url:
-        print(f"      nico_url  : {nico_url}")
-    if tw_name:
-        print(f"      twitter   : {tw_name}  {tw_url or ''}")
+def print_author(author):
+    print(f"    id={author['id']}")
+    for column in NAME_COLUMNS + URL_COLUMNS:
+        if author[column]:
+            print(f"      {column}: {author[column]}")
+
+
+def report(con):
+    authors, matches, invalid_urls = find_duplicates(con)
+    strong = sum(bool(evidence["urls"]) for evidence in matches.values())
+    print(f"相同主页链接（强线索）: {strong} 对")
+    print(f"仅同名（疑似重复）: {len(matches) - strong} 对")
+    print("同名不能证明是同一作者；不同主页可能是小号，也可能是同名作者。")
+    for pair, evidence in sorted(matches.items(), key=lambda item: (not bool(item[1]["urls"]), item[0])):
+        label = "相同主页链接" if evidence["urls"] else "同名，需人工确认"
+        print(f"\n[{label}] 作者 {pair[0]} / {pair[1]}")
+        for reason in evidence["urls"] + evidence["names"]:
+            print(f"  匹配: {reason}")
+        for conflict in evidence["conflicts"]:
+            print(f"  不同主页: {conflict}")
+        for author_id in pair:
+            print_author(authors[author_id])
+    if invalid_urls:
+        print(f"\n未参与链接匹配的非标准/平台不符链接: {len(invalid_urls)} 条")
+        for author_id, column, url in invalid_urls:
+            print(f"  id={author_id} {column}: {url}")
+    print(f"\n合计: {len(matches)} 对候选重复作者（每对只报告一次）。数据库未修改。")
+    return matches
 
 
 def main():
-    if not DB_PATH.exists():
-        print(f"Error: database not found at {DB_PATH}")
-        return
-
-    con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-
-    yt_dups = find_same_column_dups(con, "yt_name")
-    nico_dups = find_same_column_dups(con, "nico_name")
-    cross_dups = find_cross_column_dups(con)
-
-    # ── 1. yt_name 内部重复 ──────────────────────────────────────
-    print("=" * 60)
-    print(f"1. 重复 yt_name 组: {len(yt_dups)} 个")
-    print("=" * 60)
-    for name, ids_str, cnt in yt_dups:
-        ids = [int(i) for i in ids_str.split(",")]
-        print(f"\n  yt_name: 「{name}」")
-        for a in fetch_authors_by_ids(con, ids):
-            print_author(a)
-
-    # ── 2. nico_name 内部重复 ────────────────────────────────────
-    print()
-    print("=" * 60)
-    print(f"2. 重复 nico_name 组: {len(nico_dups)} 个")
-    print("=" * 60)
-    for name, ids_str, cnt in nico_dups:
-        ids = [int(i) for i in ids_str.split(",")]
-        print(f"\n  nico_name: 「{name}」")
-        for a in fetch_authors_by_ids(con, ids):
-            print_author(a)
-
-    # ── 3. yt_name ↔ nico_name 跨列重复 ─────────────────────────
-    print()
-    print("=" * 60)
-    print(f"3. yt_name 与 nico_name 跨列相同组: {len(cross_dups)} 个")
-    print("=" * 60)
-    for name, ids in sorted(cross_dups.items()):
-        print(f"\n  共同名称: 「{name}」")
-        for a in fetch_authors_by_ids(con, sorted(ids)):
-            print_author(a)
-
-    print()
-    print("=" * 60)
-    print(
-        f"合计: {len(yt_dups)} 组 yt_name 重复 + {len(nico_dups)} 组 nico_name 重复 + {len(cross_dups)} 组跨列重复"
-    )
-
-    con.close()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--db-path", type=Path, default=DB_PATH, help="只读检查的数据库路径")
+    args = parser.parse_args()
+    try:
+        con = sqlite3.connect(args.db_path.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            con.execute("PRAGMA query_only = ON")
+            report(con)
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError) as exc:
+        print(f"检查失败: {exc}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
