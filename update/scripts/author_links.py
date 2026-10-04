@@ -1,28 +1,30 @@
 """Extract and normalize author profile links, without crawling external sites."""
 
 import html
-from datetime import datetime
-from html.parser import HTMLParser
 import json
-from pathlib import Path
 import re
 import sqlite3
+from datetime import datetime
+from html.parser import HTMLParser
+from pathlib import Path
 from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
 import requests
-
 
 FIELDS = ("yt_url", "nico_url", "twitter_url")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 def backup_database(conn):
-    path = next((row[2] for row in conn.execute("PRAGMA database_list")
-                 if row[1] == "main"), "")
+    path = next(
+        (row[2] for row in conn.execute("PRAGMA database_list") if row[1] == "main"), ""
+    )
     if not path:
         raise ValueError("A file-backed database is required for backup")
     path = Path(path)
-    backup = path.with_name(path.name + ".backup-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+    backup = path.with_name(
+        path.name + ".backup-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    )
     with backup.open("xb"):
         pass
     target = sqlite3.connect(backup)
@@ -45,7 +47,11 @@ def normalize_profile_url(value):
     value = html.unescape(value).strip().rstrip(".,;:!?。、、）)]}〉》\"'")
     if value.startswith("//"):
         value = "https:" + value
-    elif re.match(r"(?:www\.|m\.|mobile\.)?(?:youtube\.com|nicovideo\.jp|twitter\.com|x\.com)/", value, re.I):
+    elif re.match(
+        r"(?:www\.|m\.|mobile\.)?(?:youtube\.com|nicovideo\.jp|twitter\.com|x\.com)/",
+        value,
+        re.I,
+    ):
         value = "https://" + value
     try:
         parsed = urlsplit(value)
@@ -59,13 +65,23 @@ def normalize_profile_url(value):
     path = parsed.path.rstrip("/")
     if host in ("youtube.com", "www.youtube.com", "m.youtube.com"):
         parts = path.split("/")[1:]
-        if parts and parts[-1] in ("videos", "shorts", "streams", "featured", "about", "playlists", "community"):
+        if parts and parts[-1] in (
+            "videos",
+            "shorts",
+            "streams",
+            "featured",
+            "about",
+            "playlists",
+            "community",
+        ):
             parts.pop()
         if len(parts) == 1 and re.fullmatch(r"@[^/\s?#]+", parts[0]):
             if re.search(r"[/\s?#]", unquote(parts[0][1:])):
                 return None
         elif len(parts) == 2 and parts[0] in ("channel", "user", "c"):
-            pattern = r"UC[A-Za-z0-9_-]{22}" if parts[0] == "channel" else r"[A-Za-z0-9_.-]+"
+            pattern = (
+                r"UC[A-Za-z0-9_-]{22}" if parts[0] == "channel" else r"[A-Za-z0-9_.-]+"
+            )
             if not re.fullmatch(pattern, parts[1]):
                 return None
         else:
@@ -75,11 +91,30 @@ def normalize_profile_url(value):
         match = re.fullmatch(r"/user/(\d+)(?:/(?:video|videos|mylist|profile))?", path)
         if match:
             return "nico_url", f"https://www.nicovideo.jp/user/{int(match[1])}"
-    if host in ("twitter.com", "www.twitter.com", "mobile.twitter.com", "x.com", "www.x.com", "mobile.x.com"):
+    if host in (
+        "twitter.com",
+        "www.twitter.com",
+        "mobile.twitter.com",
+        "x.com",
+        "www.x.com",
+        "mobile.x.com",
+    ):
         match = re.fullmatch(r"/([A-Za-z0-9_]{1,15})", path)
         if match and match[1].lower() not in {
-            "i", "intent", "search", "share", "home", "explore", "settings",
-            "login", "logout", "signup", "messages", "notifications", "tos", "privacy",
+            "i",
+            "intent",
+            "search",
+            "share",
+            "home",
+            "explore",
+            "settings",
+            "login",
+            "logout",
+            "signup",
+            "messages",
+            "notifications",
+            "tos",
+            "privacy",
         }:
             return "twitter_url", "https://x.com/" + match[1]
     return None
@@ -89,7 +124,10 @@ def unwrap_url(value):
     value = html.unescape(value)
     for _ in range(3):
         parsed = urlsplit(value)
-        if parsed.hostname not in ("www.youtube.com", "youtube.com") or parsed.path != "/redirect":
+        if (
+            parsed.hostname not in ("www.youtube.com", "youtube.com")
+            or parsed.path != "/redirect"
+        ):
             break
         query = parse_qs(parsed.query)
         target = (query.get("q") or query.get("url") or [None])[0]
@@ -98,7 +136,9 @@ def unwrap_url(value):
         value = target
     if urlsplit(value).hostname == "t.co":
         for _ in range(5):
-            response = requests.get(value, headers=HEADERS, timeout=10, allow_redirects=False)
+            response = requests.get(
+                value, headers=HEADERS, timeout=10, allow_redirects=False
+            )
             if response.status_code not in (301, 302, 303, 307, 308):
                 response.raise_for_status()
                 break
@@ -112,7 +152,10 @@ def unwrap_url(value):
 
 
 def text_urls(text):
-    return re.findall(r"(?:https?://|//|(?:www\.)?(?:youtube\.com|nicovideo\.jp|twitter\.com|x\.com)/)[^\s<>\"']+", html.unescape(text))
+    return re.findall(
+        r"(?:https?://|//|(?:www\.)?(?:youtube\.com|nicovideo\.jp|twitter\.com|x\.com)/)[^\s<>\"']+",
+        html.unescape(text),
+    )
 
 
 class ProfileHTML(HTMLParser):
@@ -126,12 +169,17 @@ class ProfileHTML(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag == "meta" and (attrs.get("name") == "description" or attrs.get("property") == "og:description"):
+        if tag == "meta" and (
+            attrs.get("name") == "description"
+            or attrs.get("property") == "og:description"
+        ):
             self.meta.append(attrs.get("content", ""))
         if tag == "script" and attrs.get("id") == "__NEXT_DATA__":
             self.script = ""
         # Older NicoNico user pages expose the profile in this JSON attribute.
-        if attrs.get("id") == "js-initial-userpage-data" and attrs.get("data-initial-data"):
+        if attrs.get("id") == "js-initial-userpage-data" and attrs.get(
+            "data-initial-data"
+        ):
             self.states.append(json.loads(attrs["data-initial-data"]))
 
     def handle_data(self, data):
@@ -161,19 +209,33 @@ def profile_page_urls(page, platform):
     if platform == "yt_url":
         match = re.search(r"(?:var\s+)?ytInitialData\s*=\s*", page)
         if match:
-            state, _ = json.JSONDecoder().raw_decode(page[match.end():])
+            state, _ = json.JSONDecoder().raw_decode(page[match.end() :])
             parser.states.append(state)
-        profile_keys = {"channelMetadataRenderer", "channelAboutFullMetadataRenderer", "aboutChannelViewModel", "channelExternalLinkViewModel"}
-        sections = [value for state in parser.states for node in walk(state)
-                    for key, value in node.items() if key in profile_keys]
+        profile_keys = {
+            "channelMetadataRenderer",
+            "channelAboutFullMetadataRenderer",
+            "aboutChannelViewModel",
+            "channelExternalLinkViewModel",
+        }
+        sections = [
+            value
+            for state in parser.states
+            for node in walk(state)
+            for key, value in node.items()
+            if key in profile_keys
+        ]
     else:
         # Only inspect the owner's profile, excluding recommended users/videos.
         sections = []
         for state in parser.states:
-            for path in (("user",), ("userDetails",), ("data", "user"),
-                         ("props", "pageProps", "user"),
-                         ("props", "pageProps", "userDetails"),
-                         ("props", "pageProps", "initialState", "user")):
+            for path in (
+                ("user",),
+                ("userDetails",),
+                ("data", "user"),
+                ("props", "pageProps", "user"),
+                ("props", "pageProps", "userDetails"),
+                ("props", "pageProps", "initialState", "user"),
+            ):
                 section = state
                 for key in path:
                     section = section.get(key) if isinstance(section, dict) else None
@@ -183,8 +245,17 @@ def profile_page_urls(page, platform):
         for node in walk(section):
             for key, value in node.items():
                 if isinstance(value, str) and key in {
-                    "description", "descriptionText", "content", "text", "url", "href",
-                    "link", "value", "youtube", "twitter", "website",
+                    "description",
+                    "descriptionText",
+                    "content",
+                    "text",
+                    "url",
+                    "href",
+                    "link",
+                    "value",
+                    "youtube",
+                    "twitter",
+                    "website",
                 }:
                     urls.extend(text_urls(value))
     if not parser.meta and not sections:

@@ -42,12 +42,14 @@ URL_COLUMNS = ("yt_url", "nico_url", "twitter_url")
 def normalized_name(value):
     """Ignore whitespace noise and Unicode composition, preserving name case."""
     import unicodedata
+
     return " ".join(unicodedata.normalize("NFC", value or "").split())
 
 
 def find_duplicates(con):
     """Return distinct author pairs with direct evidence; no transitive merging."""
     from itertools import combinations
+
     from author_links import normalize_profile_url
 
     authors = {}
@@ -111,7 +113,9 @@ def report(con):
     print(f"相同主页链接（强线索）: {strong} 对")
     print(f"仅同名（疑似重复）: {len(matches) - strong} 对")
     print("同名不能证明是同一作者；不同主页可能是小号，也可能是同名作者。")
-    for pair, evidence in sorted(matches.items(), key=lambda item: (not bool(item[1]["urls"]), item[0])):
+    for pair, evidence in sorted(
+        matches.items(), key=lambda item: (not bool(item[1]["urls"]), item[0])
+    ):
         label = "相同主页链接" if evidence["urls"] else "同名，需人工确认"
         print(f"\n[{label}] 作者 {pair[0]} / {pair[1]}")
         for reason in evidence["urls"] + evidence["names"]:
@@ -130,8 +134,11 @@ def report(con):
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db-path", type=Path, default=DB_PATH, help="只读检查的数据库路径")
+    parser.add_argument(
+        "--db-path", type=Path, default=DB_PATH, help="只读检查的数据库路径"
+    )
     args = parser.parse_args()
     try:
         con = sqlite3.connect(args.db_path.resolve().as_uri() + "?mode=ro", uri=True)

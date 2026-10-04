@@ -40,7 +40,6 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import yt_dlp
 
-
 _ydl_local = threading.local()
 
 
@@ -1207,7 +1206,9 @@ def process_csv(
                         csv_author, author_info
                     )
                 else:
-                    print(f"[DRY RUN] Using cached author: {author_id_cache[csv_author]}")
+                    print(
+                        f"[DRY RUN] Using cached author: {author_id_cache[csv_author]}"
+                    )
                 author_id = 1
 
             title = repost_name if skip_metadata or not original_url else None
@@ -1225,7 +1226,9 @@ def process_csv(
                     original_duration,
                 ) = original_metadata
             elif original_error is not None:
-                record_metadata_error(row, original_url, "original video", original_error)
+                record_metadata_error(
+                    row, original_url, "original video", original_error
+                )
             elif not original_url:
                 print(f"  Original video link is empty, using repost title: {title}")
 
@@ -1283,9 +1286,7 @@ def process_csv(
         except Exception as error:
             print(f"Error processing line {line_num}: {error}")
             print(f"Line content: {row['original_line']}")
-            write_error_to_csv(
-                error_file, line_num, row["original_line"], str(error)
-            )
+            write_error_to_csv(error_file, line_num, row["original_line"], str(error))
             error_rows.add(line_num)
 
     if pending_writes and not dry_run:

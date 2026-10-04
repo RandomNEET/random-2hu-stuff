@@ -69,7 +69,9 @@ const effectiveMax = computed(() => {
   return Math.ceil(rawMax / props.step) * props.step;
 });
 const sliderCoordinateMax = computed(() =>
-  props.nonlinearDuration && effectiveMax.value > 600 ? 100 : effectiveMax.value,
+  props.nonlinearDuration && effectiveMax.value > 600
+    ? 100
+    : effectiveMax.value,
 );
 const sliderCoordinateStep = computed(() =>
   props.nonlinearDuration && effectiveMax.value > 600 ? 1 : props.step,
@@ -83,7 +85,7 @@ const toSliderPosition = (value) => {
 };
 const fromSliderPosition = (position) => {
   if (!props.nonlinearDuration || effectiveMax.value <= 600) {
-    return position / sliderCoordinateMax.value * effectiveMax.value;
+    return (position / sliderCoordinateMax.value) * effectiveMax.value;
   }
   if (position <= 50) return (position / 50) * 600;
   return 600 + ((position - 50) / 50) * (effectiveMax.value - 600);

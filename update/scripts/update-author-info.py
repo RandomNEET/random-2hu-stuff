@@ -38,7 +38,6 @@ import time
 from pathlib import Path
 
 import yt_dlp
-
 from author_links import FIELDS, blank, discover_links
 
 
@@ -322,16 +321,24 @@ def get_author_info_from_url(author_url, debug=False):
 
 
 def get_authors_to_update(
-    conn, force=False, author_id=None, author_name=None, author_id_after=None,
-    update_names=False, update_avatars=False, update_links=False,
+    conn,
+    force=False,
+    author_id=None,
+    author_name=None,
+    author_id_after=None,
+    update_names=False,
+    update_avatars=False,
+    update_links=False,
 ):
     """Select authors independently for missing links and requested metadata."""
-    rows = conn.execute("""SELECT id,
+    rows = conn.execute(
+        """SELECT id,
         COALESCE(yt_name, nico_name, twitter_name),
         COALESCE(yt_url, nico_url, twitter_url),
         COALESCE(nico_avatar, yt_avatar, twitter_avatar),
         yt_name, yt_url, yt_avatar, nico_name, nico_url, nico_avatar,
-        twitter_name, twitter_url, twitter_avatar FROM authors ORDER BY id""").fetchall()
+        twitter_name, twitter_url, twitter_avatar FROM authors ORDER BY id"""
+    ).fetchall()
     selected = []
     for row in rows:
         if author_id is not None:
@@ -347,12 +354,16 @@ def get_authors_to_update(
         platforms = [row[4:7], row[7:10], row[10:13]]
         if not any(not blank(url) for name, url, avatar in platforms):
             continue
-        missing_links = update_links and any(blank(url) for name, url, avatar in platforms)
+        missing_links = update_links and any(
+            blank(url) for name, url, avatar in platforms
+        )
         needs_metadata = any(
-            not blank(url) and (
+            not blank(url)
+            and (
                 (update_names and (force or blank(name)))
                 or (update_avatars and (force or blank(avatar)))
-            ) for name, url, avatar in platforms
+            )
+            for name, url, avatar in platforms
         )
         if missing_links or needs_metadata:
             selected.append(row)
@@ -517,6 +528,7 @@ def process_authors(
         backup_conn.backup(conn)
     elif update_links:
         from author_links import backup_database
+
         backup_database(conn)
 
     update_type = []
@@ -562,7 +574,9 @@ def process_authors(
         )
 
         links_updated = False
-        if update_links and any(blank(value) for value in (yt_url, nico_url, twitter_url)):
+        if update_links and any(
+            blank(value) for value in (yt_url, nico_url, twitter_url)
+        ):
             existing = dict(zip(FIELDS, (yt_url, nico_url, twitter_url)))
             found, conflicts, failures = discover_links(existing, _fxtwitter_request)
             link_stats["conflicts"] += conflicts
@@ -586,7 +600,8 @@ def process_authors(
                 conn.rollback()
                 raise
             yt_url, nico_url, twitter_url = conn.execute(
-                "SELECT yt_url, nico_url, twitter_url FROM authors WHERE id = ?", (author_id,)
+                "SELECT yt_url, nico_url, twitter_url FROM authors WHERE id = ?",
+                (author_id,),
             ).fetchone()
 
         # Process YouTube URL if exists
@@ -598,7 +613,9 @@ def process_authors(
             skip_yt_name = update_names and yt_name and not force
             skip_yt_avatar = update_avatars and yt_avatar and not force
 
-            if (update_names and not skip_yt_name) or (update_avatars and not skip_yt_avatar):
+            if (update_names and not skip_yt_name) or (
+                update_avatars and not skip_yt_avatar
+            ):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         yt_url, debug
@@ -649,7 +666,9 @@ def process_authors(
             skip_nico_name = update_names and nico_name and not force
             skip_nico_avatar = update_avatars and nico_avatar and not force
 
-            if (update_names and not skip_nico_name) or (update_avatars and not skip_nico_avatar):
+            if (update_names and not skip_nico_name) or (
+                update_avatars and not skip_nico_avatar
+            ):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         nico_url, debug
@@ -700,7 +719,9 @@ def process_authors(
             skip_twitter_name = update_names and twitter_name and not force
             skip_twitter_avatar = update_avatars and twitter_avatar and not force
 
-            if (update_names and not skip_twitter_name) or (update_avatars and not skip_twitter_avatar):
+            if (update_names and not skip_twitter_name) or (
+                update_avatars and not skip_twitter_avatar
+            ):
                 try:
                     fetched_name, fetched_avatar = get_author_info_from_url(
                         twitter_url, debug
@@ -767,7 +788,9 @@ def process_authors(
         conn.close()
         print("Preview only: original database unchanged; no backup created.")
     if update_links:
-        print(f"Links filled: {link_stats['filled']}; conflicts: {link_stats['conflicts']}; fetch failures: {link_stats['failed']}")
+        print(
+            f"Links filled: {link_stats['filled']}; conflicts: {link_stats['conflicts']}; fetch failures: {link_stats['failed']}"
+        )
 
     # Print statistics
     print(f"\n=== Processing Complete ===")
@@ -818,8 +841,16 @@ def main():
         help="Update both author names and avatars (equivalent to --update-names --update-avatars)",
     )
 
-    parser.add_argument("--update-links", action="store_true", help="Fill missing platform URLs from profile descriptions and external links")
-    parser.add_argument("--dry-run", action="store_true", help="Preview updates without modifying or backing up the database")
+    parser.add_argument(
+        "--update-links",
+        action="store_true",
+        help="Fill missing platform URLs from profile descriptions and external links",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview updates without modifying or backing up the database",
+    )
 
     args = parser.parse_args()
 
