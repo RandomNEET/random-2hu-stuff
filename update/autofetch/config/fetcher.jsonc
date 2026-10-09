@@ -95,6 +95,13 @@
         "东方MMD",
         "MMD"
       ]
+    },
+    {
+      "id": "293415192", // Fernweh_0
+      "translation_status": 1,
+      "tag_keywords": [
+        "东方MMD"
+      ]
     }
   ]
 }
