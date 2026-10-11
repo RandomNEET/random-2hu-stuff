@@ -65,6 +65,9 @@ class YdlLogger:
 
 _ydl_local = threading.local()
 
+# Both forms occur in YouTube playability reasons and yt-dlp errors.
+YOUTUBE_UNAVAILABLE_MARKERS = ("video unavailable", "video is unavailable")
+
 
 def cache_prefetched_metadata(url, thumbnail, duration):
     """Keep validation metadata for the extraction step in the same worker."""
@@ -339,7 +342,7 @@ def validate_video_url(url, timeout=10, cookies_file=None):
             status, reason = playability_match.groups()
             reason = reason or ""
             gone_markers = (
-                "video unavailable",
+                *YOUTUBE_UNAVAILABLE_MARKERS,
                 "video has been removed",
                 "video is no longer available",
             )
@@ -417,7 +420,7 @@ def is_retryable_error(error):
     message = str(error).lower()
     permanent_markers = (
         "sign in to confirm your age",
-        "video unavailable",
+        *YOUTUBE_UNAVAILABLE_MARKERS,
         "not available from your location",
         "geo restriction",
         "unsupported url",
@@ -439,7 +442,7 @@ def is_stateworthy_metadata_error(url, error):
         return any(
             marker in message
             for marker in (
-                "video unavailable",
+                *YOUTUBE_UNAVAILABLE_MARKERS,
                 "private video",
                 "members-only",
                 "available to this channel's members",
