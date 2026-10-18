@@ -1,5 +1,9 @@
 <template>
-  <div
+  <component
+    :is="videoHref ? 'a' : 'div'"
+    :href="videoHref"
+    :target="videoHref ? '_blank' : undefined"
+    :rel="videoHref ? 'noopener noreferrer' : undefined"
     class="video-column"
     :class="[
       columnType === 'original' ? 'original-column' : 'repost-column',
@@ -89,7 +93,7 @@
         </span>
       </div>
     </div>
-  </div>
+  </component>
 </template>
 
 <script setup>
@@ -234,8 +238,16 @@ const formattedDuration = computed(() => {
   return `${totalMinutes}:${String(seconds).padStart(2, "0")}`;
 });
 
-const handleClick = () => {
-  if (props.video.url && !isOriginalDeleted.value) {
+const videoHref = computed(() => {
+  const url = effectiveVideo.value.url;
+  return url ? (url.startsWith("http") ? url : `https://${url}`) : undefined;
+});
+
+const handleClick = (event) => {
+  if (videoHref.value) {
+    // Let the browser handle modified clicks using the native link.
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
     emit("click", props.video.url);
   }
 };
@@ -337,6 +349,9 @@ const handleThumbnailError = (event) => {
 
 <style scoped>
 .video-column {
+  display: block;
+  color: inherit;
+  text-decoration: none;
   background: var(--color-surface-1); /* Catppuccin Mocha Surface1 */
   border-radius: 10px;
   padding: 16px;
