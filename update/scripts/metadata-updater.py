@@ -272,8 +272,8 @@ def validate_video_url(url, timeout=10, cookies_file=None):
                     thumbnail = thumbnail.replace("http://", "https://", 1)
                 cache_prefetched_metadata(url, thumbnail, duration)
                 return True, ""
-            # VideoCard.vue treats every non-zero result as unavailable. State
-            # files need to be safer: persist content-status codes, but not
+            # Frontend useBilibiliAvailability.js treats every non-zero result
+            # as unavailable. State files persist content-status codes, but not
             # request blocking/authentication codes such as -352 or -412.
             if code == -404 or (isinstance(code, int) and 62000 <= code < 63000):
                 message = BILIBILI_STATUS_MESSAGES.get(

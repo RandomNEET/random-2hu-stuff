@@ -1,17 +1,17 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 // Use lazy loading to reduce initial bundle size
-const HomeView = () => import("../views/HomeView.vue");
-const VideoView = () => import("../views/VideoView.vue");
+const AuthorsView = () => import("../views/AuthorsView.vue");
+const AuthorVideosView = () => import("../views/AuthorVideosView.vue");
 const SearchView = () => import("../views/SearchView.vue");
 const AboutView = () => import("../views/AboutView.vue");
-const AnnounceView = () => import("../views/AnnounceView.vue");
+const AnnouncementsView = () => import("../views/AnnouncementsView.vue");
 
 const routes = [
-  { path: "/", component: HomeView },
-  { path: "/author/:id", component: VideoView, props: true },
+  { path: "/", component: AuthorsView },
+  { path: "/author/:id", component: AuthorVideosView, props: true },
   { path: "/search", component: SearchView },
-  { path: "/announce", component: AnnounceView },
+  { path: "/announce", component: AnnouncementsView },
   { path: "/about", component: AboutView },
 ];
 

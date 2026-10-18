@@ -1,0 +1,12 @@
+.mobile-filter-item {
+  margin-bottom: 0;
+}
+
+.mobile-filter-label {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-family: "JetBrains Mono", monospace;
+}

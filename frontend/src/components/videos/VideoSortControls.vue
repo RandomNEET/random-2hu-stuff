@@ -1,0 +1,75 @@
+<template>
+  <div class="sort-controls">
+    <div class="sort-buttons">
+      <v-btn
+        class="sort-btn"
+        :class="{ active: sortBy === 'date' }"
+        @click="handleSortBy('date')"
+        size="small"
+        rounded="lg"
+      >
+        <v-icon size="16">mdi-clock-outline</v-icon>
+        <span>按时间</span>
+        <v-icon size="14" v-if="sortBy === 'date'">
+          {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+        </v-icon>
+      </v-btn>
+
+      <v-btn
+        class="sort-btn"
+        :class="{ active: sortBy === 'translation' }"
+        @click="handleSortBy('translation')"
+        size="small"
+        rounded="lg"
+      >
+        <v-icon size="16">mdi-translate</v-icon>
+        <span>按翻译</span>
+        <v-icon size="14" v-if="sortBy === 'translation'">
+          {{ sortOrder === "asc" ? "mdi-chevron-up" : "mdi-chevron-down" }}
+        </v-icon>
+      </v-btn>
+
+      <ListFilterMenu
+        mode="videos"
+        :model-value="filters"
+        :max-duration="maxDuration"
+        :active-count="activeFilterCount"
+        @apply="$emit('filter-apply', $event)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { useSortControl } from "@/composables/useSortControl.js";
+
+import ListFilterMenu from "@/components/filters/ListFilterMenu.vue";
+
+const props = defineProps({
+  sortBy: {
+    type: String,
+    required: true,
+  },
+  sortOrder: {
+    type: String,
+    required: true,
+  },
+  filters: { type: Object, required: true },
+  maxDuration: { type: Number, default: 1800 },
+  activeFilterCount: { type: Number, default: 0 },
+});
+
+const emit = defineEmits([
+  "update:sortBy",
+  "update:sortOrder",
+  "sort-change",
+  "filter-apply",
+]);
+
+const handleSortBy = useSortControl(props, emit, {});
+</script>
+
+<style scoped>
+/* Import shared sort styles */
+@import "@/styles/SortControls.css";
+</style>

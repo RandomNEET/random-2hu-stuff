@@ -1,0 +1,8 @@
+.unified-slider :deep(.v-slider-track__background) {
+  background: var(--color-surface-2) !important;
+  opacity: 1;
+}
+
+.unified-slider :deep(.v-slider-thumb__surface) {
+  box-shadow: 0 0 0 3px var(--color-mauve-20);
+}

@@ -1,0 +1,381 @@
+<template>
+  <div
+    class="pagination-container desktop-only"
+    :class="{ 'author-pagination': appearance === 'authors' }"
+    v-if="totalPages > 1 && !isMobile"
+  >
+    <div class="pagination-wrapper">
+      <!-- Previous page button -->
+      <v-btn
+        v-if="currentPage > 1"
+        icon
+        size="small"
+        class="nav-button"
+        @click="emit('update:currentPage', currentPage - 1)"
+      >
+        <v-icon>mdi-chevron-left</v-icon>
+      </v-btn>
+
+      <!-- Page number buttons -->
+      <div class="page-numbers">
+        <!-- Dynamic page display -->
+        <template v-for="item in pageItems" :key="item.page || item.type">
+          <!-- Regular page number -->
+          <v-btn
+            v-if="item.type === 'page'"
+            :class="['page-btn', { active: currentPage === item.page }]"
+            @click="emit('update:currentPage', item.page)"
+            size="small"
+            rounded="xl"
+          >
+            {{ item.page }}
+          </v-btn>
+
+          <!-- Ellipsis -->
+          <v-btn
+            v-else-if="item.type === 'ellipsis'"
+            class="ellipsis-btn"
+            @click="emit('jump-to-page', item.targetPage)"
+            size="small"
+            rounded="xl"
+          >
+            ...
+          </v-btn>
+        </template>
+      </div>
+
+      <!-- Next page button -->
+      <v-btn
+        v-if="currentPage < totalPages"
+        icon
+        size="small"
+        class="nav-button"
+        @click="emit('update:currentPage', currentPage + 1)"
+      >
+        <v-icon>mdi-chevron-right</v-icon>
+      </v-btn>
+
+      <!-- Manual page input -->
+      <div class="page-input-section">
+        <span class="page-input-label">跳至</span>
+        <v-text-field
+          :model-value="pageInputValue"
+          @update:model-value="emit('update:pageInput', $event)"
+          type="number"
+          :min="1"
+          :max="totalPages"
+          class="page-input"
+          variant="outlined"
+          density="compact"
+          hide-details
+          @keyup.enter="emit('go-to-page')"
+        ></v-text-field>
+        <span class="page-unit-label">页</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { paginationItems } from "@/utils/pagination.js";
+
+import { computed } from "vue";
+
+const props = defineProps({
+  appearance: {
+    type: String,
+    default: "videos",
+    validator: value => ["authors", "videos"].includes(value),
+  },
+  currentPage: {
+    type: Number,
+    required: true,
+  },
+  totalPages: {
+    type: Number,
+    required: true,
+  },
+  windowWidth: {
+    type: Number,
+    required: true,
+  },
+  pageInputValue: {
+    type: String,
+    default: "",
+  },
+});
+
+const emit = defineEmits([
+  "update:currentPage",
+  "update:pageInput",
+  "jump-to-page",
+  "go-to-page",
+]);
+
+const isMobile = computed(() => props.windowWidth <= 768);
+
+// Get page items array (including page numbers and ellipsis)
+const pageItems = computed(() => paginationItems(props.currentPage, props.totalPages, props.windowWidth));
+</script>
+
+<style scoped>
+
+/* Pagination component styles */
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .desktop-only {
+    display: flex;
+  }
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  background-color: var(--color-base);
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-base-80);
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-mauve-30);
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-button {
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-mauve-30) !important;
+}
+
+.nav-button:hover {
+  background-color: var(--color-mauve-20) !important;
+  color: var(--color-mauve) !important;
+}
+
+.page-btn {
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-mauve-30) !important;
+  min-width: 36px !important;
+  height: 36px !important;
+}
+
+.page-btn:hover {
+  background-color: var(--color-mauve-20) !important;
+  color: var(--color-mauve) !important;
+}
+
+.page-btn.active {
+  background-color: var(--color-mauve) !important;
+  color: var(--color-base) !important;
+  border-color: var(--color-mauve) !important;
+}
+
+.ellipsis-btn {
+  background-color: var(--color-surface-0-80) !important;
+  color: var(--color-blue) !important;
+  border: 1px solid var(--color-blue-30) !important;
+  min-width: 36px !important;
+  height: 36px !important;
+}
+
+.ellipsis-btn:hover {
+  background-color: var(--color-blue-20) !important;
+  color: var(--color-sapphire) !important;
+}
+
+.page-input-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--color-mauve-30);
+}
+
+.page-input-label {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.page-unit-label {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.page-input {
+  width: 60px !important;
+}
+
+.page-input :deep(.v-field) {
+  background-color: var(--color-surface-0-80) !important;
+  border-radius: 8px !important;
+}
+
+.page-input :deep(.v-field__input) {
+  color: var(--color-text) !important;
+  text-align: center;
+  padding: 4px 8px !important;
+  min-height: 32px !important;
+}
+
+.page-input :deep(.v-field__outline) {
+  border-color: var(--color-mauve-40) !important;
+}
+
+.page-input :deep(.v-field--focused .v-field__outline) {
+  border-color: var(--color-mauve) !important;
+}
+
+@media (max-width: 768px) {
+  .pagination-wrapper {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .page-numbers {
+    gap: 2px;
+  }
+
+  .nav-button {
+    min-width: 32px !important;
+    height: 32px !important;
+  }
+
+  .page-btn {
+    min-width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .ellipsis-btn {
+    min-width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .page-input-section {
+    margin-left: 8px;
+    padding-left: 8px;
+    gap: 4px;
+  }
+
+  .page-input-label {
+    font-size: 0.8rem;
+  }
+
+  .page-unit-label {
+    font-size: 0.8rem;
+  }
+
+  .page-input {
+    width: 50px !important;
+  }
+
+  .page-input :deep(.v-field__input) {
+    padding: 2px 4px !important;
+    min-height: 28px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-container {
+    padding: 16px 8px;
+  }
+
+  .pagination-wrapper {
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 8px;
+    gap: 4px;
+    border-radius: 12px;
+  }
+
+  .page-numbers {
+    gap: 0px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .page-input-section {
+    justify-content: center;
+    width: 100px;
+    margin-top: 4px;
+    margin-left: 0;
+    padding-left: 0;
+    gap: 3px;
+    border-left: none;
+  }
+
+  .nav-button {
+    max-width: 28px !important;
+    height: 28px !important;
+  }
+
+  .page-btn {
+    max-width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .ellipsis-btn {
+    max-width: 28px !important;
+    height: 28px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .page-input-section {
+    margin-left: 6px;
+    padding-left: 6px;
+    gap: 3px;
+  }
+
+  .page-input-label {
+    font-size: 0.75rem;
+  }
+
+  .page-unit-label {
+    font-size: 0.75rem;
+  }
+
+  .page-input {
+    width: 45px !important;
+  }
+
+  .page-input :deep(.v-field__input) {
+    padding: 2px 3px !important;
+    min-height: 26px !important;
+    font-size: 0.75rem !important;
+  }
+}
+/* The author directory has a different compact manual-input arrangement. */
+@media (max-width: 480px) {
+  .author-pagination .page-input-section {
+    justify-content: center;
+    width: 100px;
+    margin-top: 4px;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+  }
+}
+</style>

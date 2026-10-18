@@ -5,7 +5,7 @@ Update Log Generator Script
 This script generates update log entries for the announcement page by:
 1. Reading current database statistics (authors, videos, translated videos)
 2. Comparing with the last recorded statistics in content.log
-3. Generating update entry for AnnounceView.vue if there are changes
+3. Prepending an entry to frontend/src/data/announcements.js if there are changes
 4. Updating content.log with new statistics
 
 Usage:
@@ -17,11 +17,13 @@ Options:
 """
 
 import argparse
+import json
 import os
 import re
 import sqlite3
 import subprocess
 import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 
@@ -162,7 +164,7 @@ def get_dolt_commit(dolt_dir):
 
 
 def generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit=None):
-    """Generate the update entry HTML"""
+    """Generate announcement data consumed by AnnouncementsView.vue."""
     today = datetime.now().strftime("%Y.%m.%d")
 
     # Build the content based on what changed
@@ -194,49 +196,52 @@ def generate_update_entry(author_diff, video_diff, translated_diff, dolt_commit=
         else f"https://www.dolthub.com/repositories/{DOLTHUB_REPO}"
     )
 
-    # Generate the HTML structure
-    html = f"""          <div class="update-item">
-            <div class="update-date">{today}</div>
-            <div class="update-content">
-              <ul>
-                <li>{content_items[0]}</li>
-                <li>本次更新详情: <a href="{dolt_url}" target="_blank" rel="noopener noreferrer">dolthub</a></li>
-              </ul>
-            </div>
-          </div>
-
-"""
-
-    return html
+    return {
+        "date": today,
+        "items": [
+            [{"text": content_items[0]}],
+            [
+                {"text": "本次更新详情: "},
+                {"text": "dolthub", "href": dolt_url},
+            ],
+        ],
+    }
 
 
-def update_announcement(vue_file_path, update_entry):
-    """Update the AnnounceView.vue file with the new entry"""
+def update_announcement(data_file_path, update_entry):
+    """Prepend data to the exported array without rewriting existing entries."""
     try:
-        with open(vue_file_path, "r", encoding="utf-8") as f:
+        with open(data_file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Find the position to insert the new update entry
-        # Look for the first existing update-item and insert before it
-        pattern = r'(\s*<div class="update-timeline">\s*\n)'
+        # Existing entries are JavaScript, with optional unquoted object keys.
+        # Insert a JSON-compatible object; do not parse or reformat the module.
+        pattern = r"(?m)^export\s+const\s+announcements\s*=\s*\[\s*\n"
         match = re.search(pattern, content)
 
         if match:
-            # Insert the new entry right after the update-timeline opening tag
             insert_pos = match.end()
-            new_content = content[:insert_pos] + update_entry + content[insert_pos:]
+            serialized_entry = textwrap.indent(
+                json.dumps(update_entry, ensure_ascii=False, indent=2), "  "
+            )
+            new_content = (
+                content[:insert_pos]
+                + serialized_entry
+                + ",\n"
+                + content[insert_pos:]
+            )
 
-            with open(vue_file_path, "w", encoding="utf-8") as f:
+            with open(data_file_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
 
-            print(f"Successfully updated {vue_file_path}")
+            print(f"Successfully updated {data_file_path}")
             return True
         else:
-            print("Could not find insertion point in AnnounceView.vue")
+            print(f"Could not find the announcements export in {data_file_path}")
             return False
 
     except Exception as e:
-        print(f"Error updating AnnounceView.vue: {e}")
+        print(f"Error updating {data_file_path}: {e}")
         return False
 
 
@@ -259,8 +264,8 @@ def main():
     script_dir = str(_script_dir)
     db_path = args.db_path
     content_log_path = os.path.join(script_dir, "content.log")
-    vue_file_path = str(
-        _project_root / "frontend" / "src" / "views" / "AnnounceView.vue"
+    announcement_data_path = str(
+        _project_root / "frontend" / "src" / "data" / "announcements.js"
     )
     dolt_dir = str(_project_root / "dolt")
 
@@ -328,19 +333,18 @@ def main():
             return
 
         print("\nGenerated update entry:")
-        print(update_entry)
+        print(json.dumps(update_entry, ensure_ascii=False, indent=2))
 
         if args.dry_run:
             print("DRY RUN: No files would be modified.")
             return
 
-        # Update AnnounceView.vue
-        if update_announcement(vue_file_path, update_entry):
-            # Update content.log only if vue update was successful
+        # Advance the recorded statistics only after announcement data is saved.
+        if update_announcement(announcement_data_path, update_entry):
             update_content_log(content_log_path, current_stats)
             print("Update log generation completed successfully!")
         else:
-            print("Failed to update AnnounceView.vue")
+            print(f"Failed to update {announcement_data_path}")
             sys.exit(1)
 
     finally:

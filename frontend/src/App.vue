@@ -1,9 +1,9 @@
 <script setup>
-import Header from "./components/Header.vue";
+import AppHeader from "@/components/layout/AppHeader.vue";
 </script>
 <template>
   <v-app>
-    <Header />
+    <AppHeader />
     <v-main>
       <router-view />
     </v-main>
@@ -25,7 +25,7 @@ body,
 
 .v-main {
   background: var(--color-base) !important; /* Catppuccin Mocha Base */
-  padding-top: 70px; /* Header height */
+  padding-top: 70px; /* AppHeader height */
 }
 
 body {

@@ -1,5 +1,15 @@
 {
   "devDependencies": {
     "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "test": "npm --prefix test run test:all",
+    "test:python": "npm --prefix test run test:python",
+    "test:e2e": "npm --prefix test run test:e2e",
+    "test:visual": "npm --prefix test run test:visual",
+    "test:visual:update": "npm --prefix test run test:visual:update",
+    "test:backend": "npm --prefix test run test:backend",
+    "bench:backend": "npm --prefix test run bench:backend",
+    "test:deploy": "npm --prefix test run test:deploy"
   }
 }

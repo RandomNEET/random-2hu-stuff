@@ -1,0 +1,21 @@
+{
+  "name": "random-2hu-stuff-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config vitest.config.js",
+    "test:python": "python -m unittest discover -s update -v",
+    "test:all": "npm test && npm run test:backend && npm run test:python && npm run test:deploy",
+    "test:e2e": "playwright test --config playwright.config.js behavior.spec.js",
+    "test:visual": "playwright test --config playwright.config.js visual.spec.js",
+    "test:visual:update": "playwright test --config playwright.config.js visual.spec.js --update-snapshots",
+    "test:backend": "node --test backend/*.test.cjs",
+    "bench:backend": "node backend/benchmark.cjs",
+    "test:deploy": "python -m unittest discover -s deploy -v"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5",
+    "@playwright/test": "^1.64.1",
+    "vite": "7.0.6"
+  }
+}

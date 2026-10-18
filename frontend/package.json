@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm --prefix ../test test",
+    "test:e2e": "npm --prefix ../test run test:e2e",
+    "test:visual:update": "npm --prefix ../test run test:visual:update",
+    "test:visual": "npm --prefix ../test run test:visual"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",

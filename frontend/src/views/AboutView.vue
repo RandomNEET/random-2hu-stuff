@@ -87,76 +87,17 @@
           <v-icon class="section-icon">mdi-chart-bar</v-icon>
           <h2 class="section-title">数据统计</h2>
         </div>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">
-              <v-icon size="32">mdi-account-group</v-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ totalAuthors }}</div>
-              <div class="stat-label">作者数量</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">
-              <v-icon size="32">mdi-video-box</v-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ totalVideos }}</div>
-              <div class="stat-label">视频总数</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">
-              <v-icon size="32">mdi-translate</v-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-number">{{ translatedVideos }}</div>
-              <div class="stat-label">熟肉总数</div>
-            </div>
-          </div>
-        </div>
+        <SiteStatistics />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { API_URLS } from "@/config/api.js";
-
-// Reactive data for statistics
-const totalAuthors = ref(0);
-const totalVideos = ref(0);
-const translatedVideos = ref(0);
-
-// Fetch statistics data from API
-const fetchStats = async () => {
-  try {
-    // Use stats API to get accurate data
-    const statsRes = await fetch(API_URLS.STATS);
-    const stats = await statsRes.json();
-
-    totalAuthors.value = stats.totalAuthors;
-    totalVideos.value = stats.totalVideos;
-    translatedVideos.value = stats.translatedVideos;
-  } catch (error) {
-    console.error("Failed to fetch statistics:", error);
-    // Set default values on error
-    totalAuthors.value = null;
-    totalVideos.value = null;
-    translatedVideos.value = null;
-  }
-};
-
-// Initialize data on component mount
-onMounted(() => {
-  fetchStats();
-});
+import SiteStatistics from "@/components/about/SiteStatistics.vue";
 </script>
 
 <style scoped>
-/* Main about page container with gradient background */
 .about-page {
   min-height: 100vh;
   background: linear-gradient(
@@ -167,26 +108,20 @@ onMounted(() => {
   color: var(--color-text); /* Catppuccin Mocha Text */
   padding: 32px 0;
 }
-
-/* Content container with responsive width */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
 }
-
-/* Page header section styling */
 .page-header {
   text-align: center;
   margin-bottom: 48px;
   padding: 32px 0;
 }
-
 .header-icon {
   color: var(--color-yellow); /* Catppuccin Mocha Yellow */
   margin-bottom: 16px;
 }
-
 .page-title {
   font-size: 3rem;
   font-weight: bold;
@@ -194,14 +129,11 @@ onMounted(() => {
   margin-bottom: 8px;
   text-shadow: 0 2px 8px var(--color-yellow-30); /* Subtle glow effect */
 }
-
 .page-subtitle {
   font-size: 1.2rem;
   color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
   margin: 0;
 }
-
-/* About section cards with glassmorphism effect */
 .about-section {
   background: var(--color-surface-0-40); /* Semi-transparent Surface0 */
   border-radius: 16px;
@@ -210,8 +142,6 @@ onMounted(() => {
   border: 1px solid var(--color-mauve-20); /* Subtle Mauve border */
   backdrop-filter: blur(10px); /* Glassmorphism blur effect */
 }
-
-/* Section headers with icon and title */
 .section-header {
   display: flex;
   align-items: center;
@@ -220,78 +150,22 @@ onMounted(() => {
   padding-bottom: 16px;
   border-bottom: 2px solid var(--color-mauve-30); /* Mauve accent line */
 }
-
 .section-icon {
   color: var(--color-mauve); /* Catppuccin Mocha Mauve */
   font-size: 28px;
 }
-
 .section-title {
   color: var(--color-mauve); /* Catppuccin Mocha Mauve */
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
 }
-
 .section-text {
   color: var(--color-text); /* Catppuccin Mocha Text */
   font-size: 1.1rem;
   line-height: 1.6; /* Improved readability */
   margin: 0;
 }
-
-/* Statistics grid layout */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(200px, 1fr)
-  ); /* Responsive grid */
-  gap: 24px;
-}
-
-/* Individual statistics cards */
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 24px;
-  background: var(--color-base-60); /* Semi-transparent Base */
-  border-radius: 12px;
-  border: 1px solid var(--color-blue-20); /* Blue border */
-  transition: all 0.3s ease; /* Smooth hover transitions */
-}
-
-.stat-card:hover {
-  background: var(--color-base-80); /* Darker on hover */
-  border-color: var(--color-blue-40); /* Brighter border on hover */
-  transform: translateY(-2px); /* Subtle lift effect */
-}
-
-/* Statistics card content styling */
-.stat-icon {
-  color: var(--color-blue); /* Catppuccin Mocha Blue */
-  flex-shrink: 0; /* Prevent icon from shrinking */
-}
-
-.stat-content {
-  flex: 1; /* Take remaining space */
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: var(--color-blue); /* Catppuccin Mocha Blue */
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  color: var(--color-text-muted); /* Catppuccin Mocha Subtext0 */
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-/* Responsive design for mobile and tablet */
 @media (max-width: 768px) {
   .container {
     padding: 0 16px; /* Reduced padding on mobile */
@@ -304,18 +178,7 @@ onMounted(() => {
   .about-section {
     padding: 20px; /* Reduced section padding */
   }
-
-  .stats-grid {
-    grid-template-columns: 1fr; /* Single column on mobile */
-  }
-
-  .stat-card {
-    justify-content: center; /* Center content on mobile */
-    text-align: center;
-  }
 }
-
-/* Extra small screen optimizations */
 @media (max-width: 480px) {
   .about-page {
     padding: 16px 0; /* Minimal page padding */

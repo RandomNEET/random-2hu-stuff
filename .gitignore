@@ -42,3 +42,9 @@ dolt/
 
 !backend/full-data.csv
 !update/scripts/content.log
+
+# Centralized test artifacts
+/test/results/
+/test/reports/
+/test/.cache/
+/test/**/*-snapshots/
