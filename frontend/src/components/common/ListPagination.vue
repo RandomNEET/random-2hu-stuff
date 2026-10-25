@@ -85,7 +85,7 @@ const props = defineProps({
   appearance: {
     type: String,
     default: "videos",
-    validator: value => ["authors", "videos"].includes(value),
+    validator: (value) => ["authors", "videos"].includes(value),
   },
   currentPage: {
     type: Number,
@@ -115,11 +115,12 @@ const emit = defineEmits([
 const isMobile = computed(() => props.windowWidth <= 768);
 
 // Get page items array (including page numbers and ellipsis)
-const pageItems = computed(() => paginationItems(props.currentPage, props.totalPages, props.windowWidth));
+const pageItems = computed(() =>
+  paginationItems(props.currentPage, props.totalPages, props.windowWidth),
+);
 </script>
 
 <style scoped>
-
 /* Pagination component styles */
 .desktop-only {
   display: none;

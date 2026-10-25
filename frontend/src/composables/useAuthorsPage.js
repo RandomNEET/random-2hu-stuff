@@ -175,7 +175,10 @@ export function useAuthorsPage() {
 
   const sortAuthors = () => {
     authors.value = selectAuthors(
-      originalAuthors.value, authorFilters.value, sortBy.value, sortOrder.value,
+      originalAuthors.value,
+      authorFilters.value,
+      sortBy.value,
+      sortOrder.value,
     );
   };
 

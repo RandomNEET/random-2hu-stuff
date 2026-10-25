@@ -171,7 +171,10 @@ export function useAuthorVideosPage() {
 
   const sortVideos = (resetPage = true) => {
     const sorted = selectAuthorVideos(
-      originalVideos.value, videoFilters.value, sortBy.value, sortOrder.value,
+      originalVideos.value,
+      videoFilters.value,
+      sortBy.value,
+      sortOrder.value,
     );
     videos.value = sorted;
     groupedVideos.value = groupVideosByName(sorted);

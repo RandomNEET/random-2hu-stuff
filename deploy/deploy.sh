@@ -7,7 +7,10 @@ DEPLOY_TARGET="${DEPLOY_TARGET:-/var/www/random-2hu-stuff}"
 PM2_APP_NAME="${PM2_APP_NAME:-r2s-api}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
 MODE="${1:-all}"
-fail() { echo "ERROR: $*" >&2; exit 1; }
+fail() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
 check() {
   [[ $EUID == 0 ]] || fail 'Run as root on the Debian server.'
   # shellcheck disable=SC1091
@@ -32,23 +35,36 @@ health() {
   fail 'Backend health check failed; inspect PM2 logs. Code backup path was printed above.'
 }
 case "$MODE" in
-  all|frontend|backend) ;;
-  status) pm2 describe "$PM2_APP_NAME"; systemctl is-active nginx; curl --max-time 5 -fsS "$HEALTH_URL"; exit ;;
-  *) fail "Usage: $0 [all|frontend|backend|status]. Existing Nginx configuration is preserved." ;;
+all | frontend | backend) ;;
+status)
+  pm2 describe "$PM2_APP_NAME"
+  systemctl is-active nginx
+  curl --max-time 5 -fsS "$HEALTH_URL"
+  exit
+  ;;
+*) fail "Usage: $0 [all|frontend|backend|status]. Existing Nginx configuration is preserved." ;;
 esac
 check
 STAGE=$(mktemp -d)
 trap 'rm -rf -- "$STAGE"' EXIT
 # Finish builds and native dependency installation before changing live files.
 if [[ $MODE != backend ]]; then
-  (cd "$PROJECT_ROOT/frontend"; npm ci --include=dev; npm run build)
+  (
+    cd "$PROJECT_ROOT/frontend"
+    npm ci --include=dev
+    npm run build
+  )
   [[ -f "$PROJECT_ROOT/frontend/dist/index.html" ]] || fail 'Missing built frontend.'
 fi
 if [[ $MODE != frontend ]]; then
   mkdir -p "$STAGE/backend"
   cp "$PROJECT_ROOT/backend/"{server.cjs,package.json,package-lock.json,ecosystem.config.js} "$STAGE/backend/"
   cp -R "$PROJECT_ROOT/backend/src" "$STAGE/backend/"
-  (cd "$STAGE/backend"; npm ci --omit=dev; node -e 'require("sqlite3");require("./src/app.cjs")')
+  (
+    cd "$STAGE/backend"
+    npm ci --omit=dev
+    node -e 'require("sqlite3");require("./src/app.cjs")'
+  )
 fi
 BACKUP="${BACKUP_ROOT:-/var/backups}/random-2hu-stuff-$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$BACKUP"

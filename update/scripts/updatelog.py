@@ -225,10 +225,7 @@ def update_announcement(data_file_path, update_entry):
                 json.dumps(update_entry, ensure_ascii=False, indent=2), "  "
             )
             new_content = (
-                content[:insert_pos]
-                + serialized_entry
-                + ",\n"
-                + content[insert_pos:]
+                content[:insert_pos] + serialized_entry + ",\n" + content[insert_pos:]
             )
 
             with open(data_file_path, "w", encoding="utf-8") as f:

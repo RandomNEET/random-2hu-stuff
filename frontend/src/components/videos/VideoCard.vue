@@ -137,7 +137,7 @@ const {
   isRepostDead,
   needsSpecialAttributes,
   handleThumbnailLoad,
-  handleThumbnailError
+  handleThumbnailError,
 } = useVideoCard(props, emit);
 </script>
 

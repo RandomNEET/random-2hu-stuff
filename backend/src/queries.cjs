@@ -104,4 +104,11 @@ const STATS = `
     JOIN authors a ON a.id = v.author
 `;
 
-module.exports = { AUTHORS, AUTHOR_VIDEOS, SEARCH_VIDEOS, SEARCH_AUTHORS, AUTHORS_LIST, STATS };
+module.exports = {
+  AUTHORS,
+  AUTHOR_VIDEOS,
+  SEARCH_VIDEOS,
+  SEARCH_AUTHORS,
+  AUTHORS_LIST,
+  STATS,
+};

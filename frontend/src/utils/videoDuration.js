@@ -1,9 +1,5 @@
 export const formatVideoDuration = (duration) => {
-  if (
-    duration === null ||
-    duration === undefined ||
-    duration === ""
-  ) {
+  if (duration === null || duration === undefined || duration === "") {
     return "";
   }
   const value = Number(duration);

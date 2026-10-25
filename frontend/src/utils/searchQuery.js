@@ -31,7 +31,8 @@ export const buildSearchQuery = (form, findAuthorIdByName) => {
       query.maxDur = form.filters.maxDuration;
     }
     if (
-      (form.filters.minDuration !== null || form.filters.maxDuration !== null) &&
+      (form.filters.minDuration !== null ||
+        form.filters.maxDuration !== null) &&
       form.filters.includeUnknownDuration
     ) {
       query.unknown = "1";
@@ -43,13 +44,15 @@ export const buildSearchQuery = (form, findAuthorIdByName) => {
 
 // API parameter names differ from the public short URL aliases.
 export const buildSearchParams = (query, routeQuery) => {
-  const value = (shortKey, legacyKey) => routeQuery[shortKey] ?? routeQuery[legacyKey];
+  const value = (shortKey, legacyKey) =>
+    routeQuery[shortKey] ?? routeQuery[legacyKey];
   const status = value("status", "translationStatus");
   const dateFrom = value("from", "dateFrom");
   const dateTo = value("to", "dateTo");
   const minDuration = value("minDur", "minDuration");
   const maxDuration = value("maxDur", "maxDuration");
-  const includeUnknownDuration = value("unknown", "includeUnknownDuration") === "1";
+  const includeUnknownDuration =
+    value("unknown", "includeUnknownDuration") === "1";
   return new URLSearchParams({
     q: query,
     limit: routeQuery.limit || "100",

@@ -4,12 +4,12 @@
 
 ## 阶段和配置
 
-| 阶段 | 实现与配置 |
-| --- | --- |
-| RSS 抓取、标签过滤和去重 | `fetcher.py`、`config/fetcher.jsonc` |
-| 获取简介、提取原链接和作者 | `processor.py`、`config/processor.jsonc` |
-| 本地合并、上传及在线表格整理 | `upload.py`、`config/upload.jsonc` |
-| CLI 时间范围解析 | `time_range.py`，三个主程序共用 |
+| 阶段                         | 实现与配置                               |
+| ---------------------------- | ---------------------------------------- |
+| RSS 抓取、标签过滤和去重     | `fetcher.py`、`config/fetcher.jsonc`     |
+| 获取简介、提取原链接和作者   | `processor.py`、`config/processor.jsonc` |
+| 本地合并、上传及在线表格整理 | `upload.py`、`config/upload.jsonc`       |
+| CLI 时间范围解析             | `time_range.py`，三个主程序共用          |
 
 配置是 JSONC/JSON5，保留注释和人工维护的用户规则。不要为了统一格式丢失关键字顺序或覆盖优先级。
 

@@ -60,8 +60,7 @@ export function useHeaderSearch() {
       const authors = await response.json();
       authorOptions.value = authors.map((author) => ({
         id: author.id,
-        name:
-          getAuthorName(author),
+        name: getAuthorName(author),
       }));
     } catch (error) {
       console.error("Failed to load authors:", error);
@@ -72,7 +71,10 @@ export function useHeaderSearch() {
     try {
       const response = await fetchStatsResponse();
       const stats = await response.json();
-      if (Number.isFinite(stats.maxVideoDuration) && stats.maxVideoDuration > 0) {
+      if (
+        Number.isFinite(stats.maxVideoDuration) &&
+        stats.maxVideoDuration > 0
+      ) {
         searchMaxDuration.value = Math.max(1800, stats.maxVideoDuration);
       }
     } catch (error) {
@@ -114,7 +116,10 @@ export function useHeaderSearch() {
 
   // Close search panel when clicking outside
   const handleClickOutside = (event) => {
-    if (searchContainer.value && !searchContainer.value.contains(event.target)) {
+    if (
+      searchContainer.value &&
+      !searchContainer.value.contains(event.target)
+    ) {
       // Check if clicked element is part of a dropdown menu or overlay
       const isDropdownClick = event.target.closest(
         '.v-overlay, .v-menu, .v-select__content, .v-combobox__content, .v-list, .v-list-item, .v-overlay__content, [role="listbox"], [role="option"]',
@@ -171,10 +176,20 @@ export function useHeaderSearch() {
 
     const query = buildSearchQuery(searchForm.value, findAuthorIdByName);
 
-    if (searchForm.value.type === "videos" && searchForm.value.filters.authorInput) {
+    if (
+      searchForm.value.type === "videos" &&
+      searchForm.value.filters.authorInput
+    ) {
       const authorId = findAuthorIdByName(searchForm.value.filters.authorInput);
-      if (authorId) console.log("Found author ID:", authorId, "for name:", searchForm.value.filters.authorInput);
-      else console.warn("Author not found:", searchForm.value.filters.authorInput);
+      if (authorId)
+        console.log(
+          "Found author ID:",
+          authorId,
+          "for name:",
+          searchForm.value.filters.authorInput,
+        );
+      else
+        console.warn("Author not found:", searchForm.value.filters.authorInput);
     }
 
     console.log("Final search query:", query); // 调试信息

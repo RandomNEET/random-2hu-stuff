@@ -1,7 +1,13 @@
 import { compareAuthorVideoTitles as compareVideoTitles } from "./videoTitles.js";
-const resolvedDuration = video => video.original_duration ?? video.repost_duration;
+const resolvedDuration = (video) =>
+  video.original_duration ?? video.repost_duration;
 
-export const selectAuthorVideos = (items, filters, sortField, sortDirection) => {
+export const selectAuthorVideos = (
+  items,
+  filters,
+  sortField,
+  sortDirection,
+) => {
   const f = filters;
   const durationFilterActive = f.minDuration !== null || f.maxDuration !== null;
   const filtered = items.filter((video) => {

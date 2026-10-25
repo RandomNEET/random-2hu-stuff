@@ -3,7 +3,8 @@ const { openDatabase, createRepository } = require("./src/database.cjs");
 const { createApp } = require("./src/app.cjs");
 
 async function start() {
-  const filename = process.env.DATABASE_PATH || path.join(__dirname, "random-2hu-stuff.db");
+  const filename =
+    process.env.DATABASE_PATH || path.join(__dirname, "random-2hu-stuff.db");
   const db = await openDatabase(filename);
   const service = createApp({ repository: createRepository(db) });
   const port = Number(process.env.PORT || 3000);
