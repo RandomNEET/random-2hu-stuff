@@ -288,3 +288,52 @@ test("desktop and mobile header searches share the same filters across resize", 
     });
   await popup.close();
 });
+
+test("author link results use server identity matching and are not overwritten by the full list", async ({
+  page,
+}) => {
+  let fullListRequests = 0;
+  await page.route("https://**/api/authors", async (route) => {
+    fullListRequests++;
+    return route.fulfill({ json: [] });
+  });
+  await page.route("https://**/api/search/authors?*", async (route) => {
+    return route.fulfill({
+      json: [
+        {
+          id: 1,
+          yt_name: "链接匹配作者",
+          yt_url: "https://youtube.com/@Creator",
+          twitter_url: "https://twitter.com/Creator",
+          worksCount: 10,
+        },
+      ],
+    });
+  });
+  for (const query of [
+    "https://x.com/CREATOR?utm_source=share",
+    "youtube.com/@Creator/videos?si=share",
+  ]) {
+    await page.goto(
+      `/search?${new URLSearchParams({ type: "authors", q: query })}`,
+    );
+    await expect(page.locator(".author-link")).toHaveCount(1);
+    await expect(page.locator(".author-link")).toContainText("链接匹配作者");
+  }
+  // AppHeader itself loads the author list once on each page load.
+  expect(fullListRequests).toBe(2);
+});
+
+test("video link queries preserve the entire query in the API request", async ({
+  page,
+}) => {
+  const query = "https://www.bilibili.com/video/av170001?p=2&t=30";
+  await page.route("https://**/api/search/videos?*", async (route) => {
+    expect(new URL(route.request().url()).searchParams.get("q")).toBe(query);
+    return route.fulfill({ json: [videos[0]] });
+  });
+  await page.goto(
+    `/search?${new URLSearchParams({ q: query, type: "videos" })}`,
+  );
+  await expect(page.locator(".video-row")).toHaveCount(1);
+});

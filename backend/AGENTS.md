@@ -11,6 +11,7 @@
 | `src/database.cjs`       | 只读连接与 Promise 查询封装，创建 repository                    |
 | `src/queries.cjs`        | 作者、视频、搜索快照和统计 SQL                                  |
 | `src/search.cjs`         | query 解析、过滤、完整数据快照与 Fuse 索引复用                  |
+| `src/search-links.cjs` | 视频编号、视频与作者链接规范化及本地身份索引 |
 | `src/search-options.cjs` | Fuse 权重、阈值及翻译状态文案                                   |
 | `src/cache.cjs`          | TTL、LRU、容量预算及并发加载合并                                |
 | `ecosystem.config.js`    | PM2 进程配置，默认名 `r2s-api`                                  |
@@ -30,6 +31,7 @@
 - 路由以 `src/app.cjs` 为准：作者列表、单作者视频、筛选用作者列表、统计、视频及作者搜索，以及 `/health`。前端配置的 `/api/videos` 当前没有对应路由。
 - 搜索无 q 时返回既有 400 JSON；加载失败保留 500 JSON 及搜索错误前缀。`/health` 保持 `status`、`timestamp`、`cacheSize`，不要把它扩展解释成数据库实时探针。
 - 保留 query 的解析边界：时长允许 0，非有限数和负时长无效；未知时长由 `includeUnknownDuration === "1"` 控制。limit 的默认、上限及负数 slice 兼容行为不能在重构中顺带修正。
+- 完整链接与视频编号通过 `search-links.cjs` 精确匹配，AV/BV 本地互通；身份索引在首次链接查询时建立，随完整快照刷新。链接结果继续应用筛选和 limit，按快照顺序返回，分数为 0；普通关键词保持 Fuse 行为。不联网解析短链或推断 YouTube 频道别名。
 - 视频先过滤再模糊搜索，时长用 `original_duration ?? repost_duration`；保留 Fuse 分数、权重、排序、输出字段及未知状态“未知”文案。
 - 响应缓存保存 JSON 字符串，默认 TTL 5 分钟，最多 256 项、32 MiB UTF-8 字节预算；命中不重复序列化。同键并发未命中共享 Promise，失败不得缓存，淘汰同时维护权重。
 - 搜索快照中的视频和作者必须全部加载成功后一起发布；失败清除 refreshing 状态以便重试。快照也有独立的 5 分钟 TTL，不能声称两层缓存等于端到端最多 5 分钟延迟。

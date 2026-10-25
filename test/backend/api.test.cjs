@@ -208,3 +208,26 @@ test("hot response payloads are serialized once and health retains its fields", 
   assert.equal(health.body.cacheSize, 1);
   assert.ok(Number.isFinite(Date.parse(health.body.timestamp)));
 });
+
+test("link searches retain the HTTP contract, encoded query and response cache", async (t) => {
+  const fixture = require("./fixtures/search-links.cjs");
+  const api = await serve(t, {
+    searchVideos: async () => fixture.videos,
+    searchAuthors: async () => fixture.authors,
+  });
+  for (const [kind, query, expected] of [
+    ["videos", "https://nico.ms/sm9?from=share&t=30", [2]],
+    ["videos", "av111298867365120", [6]],
+    ["videos", "https://youtu.be/dQw4w9WgXcQ?si=test", [7]],
+    ["authors", "https://x.com/Creator?utm_source=share", [1]],
+  ]) {
+    const target = `/api/search/${kind}?${new URLSearchParams({ q: query })}`;
+    const result = await api.request(target);
+    assert.equal(result.status, 200);
+    assert.deepEqual(
+      result.body.map((item) => item.id),
+      expected,
+    );
+    assert.deepEqual(await api.request(target), result);
+  }
+});

@@ -21,6 +21,7 @@
 ## 请求、URL 与状态
 
 - 当前 API 基址写死在 `src/config/api.js`，默认指向线上。Vite 启动不会自动使用本地后端；联调时明确请求目标，不假定存在环境变量或代理切换。
+- 作者链接查询直接展示后端身份匹配结果，不能再用名称文本过滤；无关键词时才加载完整作者列表，异步列表请求不得覆盖关键词搜索结果。普通名称查询保留本地过滤与作品数排序。
 - `services/api.js` 返回原始 Response；HTTP 状态、错误与加载状态由调用方处理。维护时保留请求时序、失败处理及已有缓存行为。
 - 保留 `/`、`/author/:id`、`/search`、`/announce`、`/about` 路由。移动页面文件时同步路由、测试和文档。
 - `utils/searchQuery.js` 区分公开 URL 的 `status/from/to/minDur/maxDur/unknown` 与 API 的完整参数名；读取 URL 时短参数通过 `??` 优先于旧别名。不要直接把浏览器 query 当作后端参数。

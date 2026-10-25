@@ -83,3 +83,7 @@ export const isTextMatch = (text, query) => {
 
   return false;
 };
+
+// Link queries are matched by the backend, including platform URL aliases.
+export const isLinkSearch = (query) =>
+  /^(?:https?:\/\/|\/\/|[\w.-]+\.[a-z]{2,}\/)/i.test(query.trim());

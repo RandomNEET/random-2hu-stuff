@@ -1,4 +1,5 @@
 const Fuse = require("fuse.js");
+const { videoKey, authorKey, createLinkIndex } = require("./search-links.cjs");
 const { AsyncLruCache, CACHE_TTL } = require("./cache.cjs");
 const {
   VIDEO_SEARCH_OPTIONS,
@@ -72,6 +73,8 @@ function createSearchService(
         current = {
           videos,
           authors,
+          videoLinks: null,
+          authorLinks: null,
           expiresAt: now() + CACHE_TTL,
           videoFuse: null,
           authorFuse: null,
@@ -124,19 +127,43 @@ function createSearchService(
   return {
     async videos(term, filters) {
       const data = await snapshot();
-      return search(videoIndex(data, filters), term, filters.limit).map(
-        (result) => ({
-          ...result.item,
-          searchScore: result.score,
-          translation_status_text:
-            TRANSLATION_STATUS[result.item.translation_status] || "未知",
-        }),
-      );
+      const key = videoKey(term);
+      if (key)
+        data.videoLinks ??= createLinkIndex(
+          data.videos,
+          ["original_url", "repost_url"],
+          videoKey,
+        );
+      const results = key
+        ? filterVideos(data.videoLinks.get(key) || [], filters)
+            .slice(0, filters.limit)
+            .map((item) => ({ item, score: 0 }))
+        : search(videoIndex(data, filters), term, filters.limit);
+      return results.map((result) => ({
+        ...result.item,
+        searchScore: result.score,
+        translation_status_text:
+          TRANSLATION_STATUS[result.item.translation_status] || "未知",
+      }));
     },
     async authors(term, limit) {
       const data = await snapshot();
-      data.authorFuse ??= new FuseClass(data.authors, AUTHOR_SEARCH_OPTIONS);
-      return search(data.authorFuse, term, limit).map((result) => ({
+      const key = authorKey(term);
+      let results;
+      if (key) {
+        data.authorLinks ??= createLinkIndex(
+          data.authors,
+          ["yt_url", "nico_url", "twitter_url"],
+          authorKey,
+        );
+        results = (data.authorLinks.get(key) || [])
+          .slice(0, limit)
+          .map((item) => ({ item, score: 0 }));
+      } else {
+        data.authorFuse ??= new FuseClass(data.authors, AUTHOR_SEARCH_OPTIONS);
+        results = search(data.authorFuse, term, limit);
+      }
+      return results.map((result) => ({
         ...result.item,
         searchScore: result.score,
         displayName:

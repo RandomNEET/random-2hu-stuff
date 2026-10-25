@@ -4,7 +4,7 @@ import {
   fetchAuthors as fetchAuthorsResponse,
   fetchSearchResults,
 } from "@/services/api.js";
-import { isTextMatch } from "@/utils/searchText.js";
+import { isTextMatch, isLinkSearch } from "@/utils/searchText.js";
 import { groupVideosByName } from "@/utils/videoGroups.js";
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -92,6 +92,7 @@ export function useSearchPage() {
     const query = searchQuery.value;
     return authors.value
       .filter((author) => {
+        if (isLinkSearch(query)) return true;
         const ytName = author.yt_name || "";
         const nicoName = author.nico_name || "";
         const ytUrl = author.yt_url || "";
@@ -101,7 +102,9 @@ export function useSearchPage() {
           isTextMatch(ytName, query) ||
           isTextMatch(nicoName, query) ||
           isTextMatch(ytUrl, query) ||
-          isTextMatch(nicoUrl, query)
+          isTextMatch(nicoUrl, query) ||
+          isTextMatch(author.twitter_name || "", query) ||
+          isTextMatch(author.twitter_url || "", query)
         );
       })
       .sort((a, b) => b.worksCount - a.worksCount);
@@ -111,7 +114,10 @@ export function useSearchPage() {
   const fetchAuthors = async () => {
     try {
       const res = await fetchAuthorsResponse();
-      authors.value = await res.json();
+      const results = await res.json();
+      if (!route.query.q && (route.query.type || "videos") === "authors") {
+        authors.value = results;
+      }
     } catch (error) {
       console.error("获取作者数据失败:", error);
     }
@@ -181,7 +187,7 @@ export function useSearchPage() {
 
   onMounted(() => {
     const searchType = route.query.type || "videos";
-    if (searchType === "authors") {
+    if (searchType === "authors" && !route.query.q) {
       fetchAuthors();
     }
 
@@ -211,7 +217,7 @@ export function useSearchPage() {
       } else {
         searchedVideos.value = [];
         originalSearchedVideos.value = [];
-        if (authors.value.length === 0) {
+        if (authors.value.length === 0 && !route.query.q) {
           fetchAuthors();
         }
       }

@@ -82,3 +82,19 @@ describe("sort control event contracts", () => {
     ]);
   });
 });
+
+describe("link search detection", () => {
+  it("recognizes complete and scheme-less links without treating names as links", async () => {
+    const { isLinkSearch } =
+      await import("../../../frontend/src/utils/searchText.js");
+    for (const query of [
+      " https://x.com/Creator ",
+      "http://youtube.com/@Creator",
+      "//nicovideo.jp/user/1",
+      "youtube.com/@Creator/videos",
+    ])
+      expect(isLinkSearch(query)).toBe(true);
+    for (const query of ["作者", "Creator", "sm9", "av170001", "BV17x411w7KC"])
+      expect(isLinkSearch(query)).toBe(false);
+  });
+});
