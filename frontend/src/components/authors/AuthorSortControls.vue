@@ -79,7 +79,9 @@ const emit = defineEmits([
   "filter-apply",
 ]);
 
-const handleSortBy = useSortControl(props, emit, { defaultOrder: field => field === "name" ? "asc" : "desc" });
+const handleSortBy = useSortControl(props, emit, {
+  defaultOrder: (field) => (field === "name" ? "asc" : "desc"),
+});
 </script>
 
 <style scoped>

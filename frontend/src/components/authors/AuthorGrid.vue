@@ -1,10 +1,6 @@
 <template>
   <div class="card-grid">
-    <AuthorCard
-      v-for="author in authors"
-      :key="author.id"
-      :author="author"
-    />
+    <AuthorCard v-for="author in authors" :key="author.id" :author="author" />
   </div>
 </template>
 

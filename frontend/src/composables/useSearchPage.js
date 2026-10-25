@@ -79,7 +79,9 @@ export function useSearchPage() {
   // Sort search results
   const sortSearchResults = () => {
     searchedVideos.value = selectSearchVideos(
-      originalSearchedVideos.value, sortType.value, sortOrder.value,
+      originalSearchedVideos.value,
+      sortType.value,
+      sortOrder.value,
     );
   };
 

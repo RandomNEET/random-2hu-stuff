@@ -1,19 +1,34 @@
 const sqlite3 = require("../../../backend/node_modules/sqlite3");
 
 function execute(db, sql) {
-  return new Promise((resolve, reject) => db.exec(sql, (error) => error ? reject(error) : resolve()));
+  return new Promise((resolve, reject) =>
+    db.exec(sql, (error) => (error ? reject(error) : resolve())),
+  );
 }
 function all(db, sql, params = []) {
-  return new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows)));
+  return new Promise((resolve, reject) =>
+    db.all(sql, params, (error, rows) =>
+      error ? reject(error) : resolve(rows),
+    ),
+  );
 }
 function close(db) {
-  return new Promise((resolve, reject) => db.close((error) => error ? reject(error) : resolve()));
+  return new Promise((resolve, reject) =>
+    db.close((error) => (error ? reject(error) : resolve())),
+  );
 }
-async function fixtureDatabase(filename = ":memory:", { authors = 6, videos = 90 } = {}) {
+async function fixtureDatabase(
+  filename = ":memory:",
+  { authors = 6, videos = 90 } = {},
+) {
   const db = await new Promise((resolve, reject) => {
-    const connection = new sqlite3.Database(filename, (error) => error ? reject(error) : resolve(connection));
+    const connection = new sqlite3.Database(filename, (error) =>
+      error ? reject(error) : resolve(connection),
+    );
   });
-  await execute(db, `
+  await execute(
+    db,
+    `
     CREATE TABLE authors (
       id INTEGER PRIMARY KEY, yt_name TEXT, yt_url TEXT, yt_avatar TEXT,
       nico_name TEXT, nico_url TEXT, nico_avatar TEXT,
@@ -25,7 +40,8 @@ async function fixtureDatabase(filename = ":memory:", { authors = 6, videos = 90
       repost_url TEXT, repost_thumbnail TEXT, repost_duration INTEGER,
       translation_status INTEGER, comment TEXT
     );
-  `);
+  `,
+  );
   const statements = [];
   for (let id = 1; id <= authors; id++) {
     // Include equal names, empty names, missing platform names and an author with no works.
@@ -34,11 +50,19 @@ async function fixtureDatabase(filename = ":memory:", { authors = 6, videos = 90
       'ニコ ${id}', NULL, NULL, NULL, NULL, NULL, '作者备注');`);
   }
   for (let id = 1; id <= videos; id++) {
-    const author = id % Math.max(1, authors - 1) + 1;
-    const original = id % 8 === 0 ? "NULL" : id % 9 === 0 ? "'  '" : `'original-${Math.floor(id / 3)}'`;
+    const author = (id % Math.max(1, authors - 1)) + 1;
+    const original =
+      id % 8 === 0
+        ? "NULL"
+        : id % 9 === 0
+          ? "'  '"
+          : `'original-${Math.floor(id / 3)}'`;
     const duration = id % 4 === 0 ? "NULL" : id % 7 === 0 ? 0 : id * 5;
     const repostDuration = id % 6 === 0 ? "NULL" : id % 4 === 0 ? 70 : 30;
-    const date = id % 10 === 0 ? "NULL" : `'2026-10-${String(id % 20 + 1).padStart(2, "0")}'`;
+    const date =
+      id % 10 === 0
+        ? "NULL"
+        : `'2026-10-${String((id % 20) + 1).padStart(2, "0")}'`;
     const status = id % 6 === 0 ? "NULL" : id % 6;
     statements.push(`INSERT INTO videos VALUES (${id}, ${author}, '东方 第${id}话', ${original},
       NULL, ${duration}, ${date}, '字幕 ${id}', 'repost-${id}', NULL, ${repostDuration}, ${status}, '動画 test');`);

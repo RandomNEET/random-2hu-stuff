@@ -6,18 +6,18 @@
 
 这是东方视频作者及原视频、转载视频的索引站。前端负责作者浏览、视频分组、搜索筛选和公告展示，后端提供只读查询；数据采集、导入及维护由独立 Python 和 Shell 工具完成。
 
-| 路径 | 实际职责与入口 |
-| --- | --- |
-| `frontend/src/` | Vue 3 Composition API、JavaScript、Vuetify；`main.js` 启动，`router/index.js` 定义路由，Vite 构建 |
-| `frontend/src/views/`、`components/` | 页面与展示组件；页面状态在 `composables/`，纯数据处理在 `utils/` |
-| `frontend/src/services/api.js`、`config/api.js` | fetch 请求封装与 API 地址；服务层返回原始 Response |
-| `backend/server.cjs` | Node CommonJS 服务入口；连接 SQLite 后启动 Express，处理退出 |
-| `backend/src/` | `app.cjs` 定义路由，`database.cjs` 封装只读连接，`queries.cjs` 定义 SQL，`search.cjs` 与 `search-options.cjs` 管理 Fuse 搜索，`cache.cjs` 管理缓存 |
-| `update/scripts/` | CSV 导入、作者和视频元数据维护、查重、导出、公告生成与上传 |
-| `update/autofetch/` | `fetcher.py` 抓取 RSS，`processor.py` 处理视频信息，`upload.py` 整理及上传表格；配置在 `config/*.jsonc` |
-| `deploy/` | Debian 代码部署、数据库获取和替换、Nginx 配置；直接阅读对应脚本确认参数及前置条件 |
-| `test/` | 前后端、更新工具及部署测试，测试依赖、夹具、配置和本地产物；操作说明见 [测试文档](test/README.md) |
-| `flake.nix` | Nix 开发环境与格式化工具配置；开发 shell 设置 `PROJECT_ROOT` |
+| 路径                                            | 实际职责与入口                                                                                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/`                                 | Vue 3 Composition API、JavaScript、Vuetify；`main.js` 启动，`router/index.js` 定义路由，Vite 构建                                                  |
+| `frontend/src/views/`、`components/`            | 页面与展示组件；页面状态在 `composables/`，纯数据处理在 `utils/`                                                                                   |
+| `frontend/src/services/api.js`、`config/api.js` | fetch 请求封装与 API 地址；服务层返回原始 Response                                                                                                 |
+| `backend/server.cjs`                            | Node CommonJS 服务入口；连接 SQLite 后启动 Express，处理退出                                                                                       |
+| `backend/src/`                                  | `app.cjs` 定义路由，`database.cjs` 封装只读连接，`queries.cjs` 定义 SQL，`search.cjs` 与 `search-options.cjs` 管理 Fuse 搜索，`cache.cjs` 管理缓存 |
+| `update/scripts/`                               | CSV 导入、作者和视频元数据维护、查重、导出、公告生成与上传                                                                                         |
+| `update/autofetch/`                             | `fetcher.py` 抓取 RSS，`processor.py` 处理视频信息，`upload.py` 整理及上传表格；配置在 `config/*.jsonc`                                            |
+| `deploy/`                                       | Debian 代码部署、数据库获取和替换、Nginx 配置；直接阅读对应脚本确认参数及前置条件                                                                  |
+| `test/`                                         | 前后端、更新工具及部署测试，测试依赖、夹具、配置和本地产物；操作说明见 [测试文档](test/README.md)                                                  |
+| `flake.nix`                                     | Nix 开发环境与格式化工具配置；开发 shell 设置 `PROJECT_ROOT`                                                                                       |
 
 收录规则、表格列含义和人工维护流程见 [数据维护说明](update/readme.md)，工具边界见 [更新指南](update/AGENTS.md)、[脚本指南](update/scripts/AGENTS.md) 和 [自动抓取指南](update/autofetch/AGENTS.md)。实现调整不得自行改写这些业务规则。
 
@@ -74,17 +74,17 @@ node backend/server.cjs
 
 以下命令均从仓库根目录运行，依赖需预先安装：
 
-| 改动范围 | 验证入口 |
-| --- | --- |
-| 前端纯逻辑、composables | `npm --prefix test test` |
-| 前端生产构建 | `npm --prefix frontend run build` |
-| 后端查询、API、搜索或缓存 | `npm run test:backend` |
-| 后端性能相关改动 | `npm run bench:backend`，使用合成内存数据并核对结果一致性 |
-| 更新工具 | `npm run test:python`，或选择 `test/update/` 中相关 unittest |
-| 部署、上传或 Nginx 配置 | `npm run test:deploy` |
-| 用户交互或组件边界 | `npm run test:e2e` |
-| 布局、样式或 DOM | `npm run test:visual` |
-| 综合回归 | `npm test`，包括前端单元、后端、更新工具 Python 和部署测试 |
+| 改动范围                  | 验证入口                                                     |
+| ------------------------- | ------------------------------------------------------------ |
+| 前端纯逻辑、composables   | `npm --prefix test test`                                     |
+| 前端生产构建              | `npm --prefix frontend run build`                            |
+| 后端查询、API、搜索或缓存 | `npm run test:backend`                                       |
+| 后端性能相关改动          | `npm run bench:backend`，使用合成内存数据并核对结果一致性    |
+| 更新工具                  | `npm run test:python`，或选择 `test/update/` 中相关 unittest |
+| 部署、上传或 Nginx 配置   | `npm run test:deploy`                                        |
+| 用户交互或组件边界        | `npm run test:e2e`                                           |
+| 布局、样式或 DOM          | `npm run test:visual`                                        |
+| 综合回归                  | `npm test`，包括前端单元、后端、更新工具 Python 和部署测试   |
 
 - 测试实现、夹具、配置及测试专用依赖统一放在 `test/`；不要散落回生产目录。根目录和前端的测试命令可作为转发入口。
 - 后端测试使用内存或临时数据库，接口测试需要本地临时端口；部署测试使用临时目录和模拟服务命令，需要 rsync。Nginx 集成测试可用 `NGINX_BIN` 指定二进制，缺少时会跳过；报告时区分通过与跳过。

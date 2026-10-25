@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="mobile-search-overlay"
-    @click="showMobileSearch = false"
-  >
+  <div class="mobile-search-overlay" @click="showMobileSearch = false">
     <div class="mobile-search-popup" @click.stop>
       <!-- Close button -->
       <v-btn icon class="mobile-close-btn" @click="showMobileSearch = false">
@@ -232,7 +229,6 @@ const {
   border-radius: 8px !important;
 }
 @media (max-width: 600px) {
-
   .mobile-search-popup {
     width: 95%;
     padding: 16px;

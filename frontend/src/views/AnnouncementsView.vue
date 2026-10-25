@@ -15,7 +15,11 @@
         </div>
 
         <div class="update-timeline">
-          <div v-for="update in announcements" :key="update.date" class="update-item">
+          <div
+            v-for="update in announcements"
+            :key="update.date"
+            class="update-item"
+          >
             <div class="update-date">{{ update.date }}</div>
             <div class="update-content">
               <h3 v-if="update.heading">
@@ -32,7 +36,8 @@
                       :href="part.href"
                       target="_blank"
                       rel="noopener noreferrer"
-                    >{{ part.text }}</a>
+                      >{{ part.text }}</a
+                    >
                     <template v-else>{{ part.text }}</template>
                   </template>
                 </li>

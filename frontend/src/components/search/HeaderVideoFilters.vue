@@ -102,15 +102,21 @@ const {
   handleMobileAuthorBlur,
 } = useHeaderSearchContext();
 
-const rowClass = computed(() => props.mobile ? "mobile-filter-item" : "filter-row");
-const labelClass = computed(() => props.mobile ? "mobile-filter-label" : "filter-label");
-const inputClass = computed(() => props.mobile ? "mobile-filter-input" : "filter-input");
-const selectAuthor = value => props.mobile
-  ? handleMobileAuthorSelection(value)
-  : handleAuthorSelection(value);
-const blurAuthor = event => props.mobile
-  ? handleMobileAuthorBlur(event)
-  : handleAuthorBlur(event);
+const rowClass = computed(() =>
+  props.mobile ? "mobile-filter-item" : "filter-row",
+);
+const labelClass = computed(() =>
+  props.mobile ? "mobile-filter-label" : "filter-label",
+);
+const inputClass = computed(() =>
+  props.mobile ? "mobile-filter-input" : "filter-input",
+);
+const selectAuthor = (value) =>
+  props.mobile
+    ? handleMobileAuthorSelection(value)
+    : handleAuthorSelection(value);
+const blurAuthor = (event) =>
+  props.mobile ? handleMobileAuthorBlur(event) : handleAuthorBlur(event);
 </script>
 
 <style scoped>
@@ -195,7 +201,6 @@ const blurAuthor = event => props.mobile
 }
 
 @media (max-width: 600px) {
-
   .filters-section {
     padding: 10px;
   }
@@ -268,7 +273,6 @@ const blurAuthor = event => props.mobile
 }
 
 @media (max-width: 600px) {
-
   .filters-section {
     padding: 16px;
   }

@@ -107,7 +107,6 @@ onMounted(() => {
   font-weight: 500;
 }
 @media (max-width: 768px) {
-
   .stats-grid {
     grid-template-columns: 1fr; /* Single column on mobile */
   }

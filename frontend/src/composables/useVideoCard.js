@@ -44,7 +44,9 @@ export function useVideoCard(props, emit) {
     translationStatus: props.video.translationStatus,
   }));
 
-  const formattedDuration = computed(() => formatVideoDuration(effectiveVideo.value.duration));
+  const formattedDuration = computed(() =>
+    formatVideoDuration(effectiveVideo.value.duration),
+  );
 
   const videoHref = computed(() => {
     const url = effectiveVideo.value.url;
@@ -54,7 +56,14 @@ export function useVideoCard(props, emit) {
   const handleClick = (event) => {
     if (videoHref.value) {
       // Let the browser handle modified clicks using the native link.
-      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      if (
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
       event.preventDefault();
       emit("click", props.video.url);
     }
@@ -123,5 +132,18 @@ export function useVideoCard(props, emit) {
     }
   });
 
-  return { effectiveVideo, formattedDuration, videoHref, handleClick, videoSource, showTranslationStatus, translationStatusText, translationStatusClass, isRepostDead, needsSpecialAttributes, handleThumbnailLoad, handleThumbnailError };
+  return {
+    effectiveVideo,
+    formattedDuration,
+    videoHref,
+    handleClick,
+    videoSource,
+    showTranslationStatus,
+    translationStatusText,
+    translationStatusClass,
+    isRepostDead,
+    needsSpecialAttributes,
+    handleThumbnailLoad,
+    handleThumbnailError,
+  };
 }

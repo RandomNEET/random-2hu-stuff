@@ -1,6 +1,12 @@
 import { normalizeTextForSearch } from "./searchText.js";
 
-const compareTitles = (titleA, titleB, normalizeTitle, locales, extraOptions = {}) => {
+const compareTitles = (
+  titleA,
+  titleB,
+  normalizeTitle,
+  locales,
+  extraOptions = {},
+) => {
   if (
     titleA.length === titleB.length &&
     titleA.length > 0 &&
@@ -33,7 +39,9 @@ const compareTitles = (titleA, titleB, normalizeTitle, locales, extraOptions = {
 
     const calculateSimilarity = (str1, str2) => {
       const normalize = (str) =>
-        normalizeTitle(str).replace(/[1-9一二三四五六七八九]/g, "").trim();
+        normalizeTitle(str)
+          .replace(/[1-9一二三四五六七八九]/g, "")
+          .trim();
       const normalized1 = normalize(str1);
       const normalized2 = normalize(str2);
 
@@ -93,5 +101,9 @@ const compareTitles = (titleA, titleB, normalizeTitle, locales, extraOptions = {
 };
 
 // These pages historically use different normalization and locale priorities.
-export const compareAuthorVideoTitles = (a, b) => compareTitles(a, b, text => text, ["ja-JP", "en-US"]);
-export const compareSearchVideoTitles = (a, b) => compareTitles(a, b, normalizeTextForSearch, ["zh-CN", "ja-JP", "en-US"], { usage: "sort" });
+export const compareAuthorVideoTitles = (a, b) =>
+  compareTitles(a, b, (text) => text, ["ja-JP", "en-US"]);
+export const compareSearchVideoTitles = (a, b) =>
+  compareTitles(a, b, normalizeTextForSearch, ["zh-CN", "ja-JP", "en-US"], {
+    usage: "sort",
+  });

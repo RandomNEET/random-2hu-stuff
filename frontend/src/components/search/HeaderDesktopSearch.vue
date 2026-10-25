@@ -139,7 +139,6 @@ const {
   color: var(--color-overlay) !important; /* Catppuccin Mocha Overlay0 */
 }
 @media (max-width: 960px) {
-
   .search-container {
     display: none; /* Hide desktop search bar */
   }
@@ -293,7 +292,6 @@ const {
   box-shadow: 0 4px 12px var(--color-blue-40) !important;
 }
 @media (max-width: 600px) {
-
   .limit-section {
     padding: 16px;
   }

@@ -4,14 +4,14 @@
 
 ## 各入口的边界
 
-| 文件 | 职责 |
-| --- | --- |
-| `deploy.sh` | 将源码构建并部署到既有 Debian 环境，支持 all、frontend、backend、status |
-| `replace-database.sh` | 接收单独上传的一致快照，校验、备份、切换并在失败时恢复 |
-| `get-db.sh` | 从 DoltHub 导出 SQLite，删除并重建目标输出文件 |
-| `nginx.conf` | HTTPS、SPA 路由、API 代理与静态缓存配置样例 |
-| `../backend/ecosystem.config.js` | PM2 进程与日志配置 |
-| `../update/scripts/upload.sh` | 本地打包、源码上传、远程调用部署或单独上传数据库 |
+| 文件                             | 职责                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| `deploy.sh`                      | 将源码构建并部署到既有 Debian 环境，支持 all、frontend、backend、status |
+| `replace-database.sh`            | 接收单独上传的一致快照，校验、备份、切换并在失败时恢复                  |
+| `get-db.sh`                      | 从 DoltHub 导出 SQLite，删除并重建目标输出文件                          |
+| `nginx.conf`                     | HTTPS、SPA 路由、API 代理与静态缓存配置样例                             |
+| `../backend/ecosystem.config.js` | PM2 进程与日志配置                                                      |
+| `../update/scripts/upload.sh`    | 本地打包、源码上传、远程调用部署或单独上传数据库                        |
 
 ## 代码部署不变量
 

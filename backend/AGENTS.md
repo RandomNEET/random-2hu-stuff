@@ -4,16 +4,16 @@
 
 ## 模块与启动
 
-| 模块 | 职责 |
-| --- | --- |
-| `server.cjs` | 打开数据库、监听端口、注册退出和启动失败处理 |
-| `src/app.cjs` | `createApp` 注入 repository，注册路由、CORS、响应缓存与错误响应 |
-| `src/database.cjs` | 只读连接与 Promise 查询封装，创建 repository |
-| `src/queries.cjs` | 作者、视频、搜索快照和统计 SQL |
-| `src/search.cjs` | query 解析、过滤、完整数据快照与 Fuse 索引复用 |
-| `src/search-options.cjs` | Fuse 权重、阈值及翻译状态文案 |
-| `src/cache.cjs` | TTL、LRU、容量预算及并发加载合并 |
-| `ecosystem.config.js` | PM2 进程配置，默认名 `r2s-api` |
+| 模块                     | 职责                                                            |
+| ------------------------ | --------------------------------------------------------------- |
+| `server.cjs`             | 打开数据库、监听端口、注册退出和启动失败处理                    |
+| `src/app.cjs`            | `createApp` 注入 repository，注册路由、CORS、响应缓存与错误响应 |
+| `src/database.cjs`       | 只读连接与 Promise 查询封装，创建 repository                    |
+| `src/queries.cjs`        | 作者、视频、搜索快照和统计 SQL                                  |
+| `src/search.cjs`         | query 解析、过滤、完整数据快照与 Fuse 索引复用                  |
+| `src/search-options.cjs` | Fuse 权重、阈值及翻译状态文案                                   |
+| `src/cache.cjs`          | TTL、LRU、容量预算及并发加载合并                                |
+| `ecosystem.config.js`    | PM2 进程配置，默认名 `r2s-api`                                  |
 
 根目录执行 `node backend/server.cjs`。默认数据库为本目录的 `random-2hu-stuff.db`，可用 `DATABASE_PATH` 指定已有文件；端口由 `PORT` 指定，默认 3000。导入模块不应自行启动服务，测试优先使用 `createApp` 的注入接口及返回的 `close()` 清理定时器。
 

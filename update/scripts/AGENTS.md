@@ -4,18 +4,18 @@
 
 ## 工具分工
 
-| 入口 | 职责及联动 |
-| --- | --- |
-| `csv-import.py`、`csv-cleaner.py` | 导入视频及清理输入 CSV；检查作者匹配、原/转载链接匹配、覆盖确认和表格列格式 |
-| `metadata-updater.py` | 更新视频元数据；检查并发、ID 范围、失效链接状态与重试策略 |
-| `update-author-info.py`、`author_links.py` | 作者名称、头像及缺失平台链接发现与规范化 |
-| `clean-authors.py` | 根据已部署作者边界清理和整理作者，涉及引用及 ID |
-| `find-duplicate-authors.py`、`find-duplicate-videos.py` | 查重检查；结果不能直接视为可删除数据 |
-| `check-repost-urls.py`、`fix-urls.py`、`av-to-bv.py` | 链接检查或修复，各自读写行为不同 |
-| `import-author-comments.py`、`export-author-comments.py`、`import-date.py`、`export-database.py` | 备注、日期及数据导入导出 |
-| `updatelog.py`、`content.log` | 根据统计生成公告并记录历史统计 |
-| `upload.sh`、`dolt-push.sh` | 发布工具；不是测试入口 |
-| `dump-cookies.sh` | 获取本地认证材料，不记录其输出内容到文档或测试 |
+| 入口                                                                                             | 职责及联动                                                                  |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `csv-import.py`、`csv-cleaner.py`                                                                | 导入视频及清理输入 CSV；检查作者匹配、原/转载链接匹配、覆盖确认和表格列格式 |
+| `metadata-updater.py`                                                                            | 更新视频元数据；检查并发、ID 范围、失效链接状态与重试策略                   |
+| `update-author-info.py`、`author_links.py`                                                       | 作者名称、头像及缺失平台链接发现与规范化                                    |
+| `clean-authors.py`                                                                               | 根据已部署作者边界清理和整理作者，涉及引用及 ID                             |
+| `find-duplicate-authors.py`、`find-duplicate-videos.py`                                          | 查重检查；结果不能直接视为可删除数据                                        |
+| `check-repost-urls.py`、`fix-urls.py`、`av-to-bv.py`                                             | 链接检查或修复，各自读写行为不同                                            |
+| `import-author-comments.py`、`export-author-comments.py`、`import-date.py`、`export-database.py` | 备注、日期及数据导入导出                                                    |
+| `updatelog.py`、`content.log`                                                                    | 根据统计生成公告并记录历史统计                                              |
+| `upload.sh`、`dolt-push.sh`                                                                      | 发布工具；不是测试入口                                                      |
+| `dump-cookies.sh`                                                                                | 获取本地认证材料，不记录其输出内容到文档或测试                              |
 
 ## 数据写入边界
 

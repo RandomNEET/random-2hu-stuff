@@ -6,9 +6,15 @@ BACKEND_DIR="${DATABASE_BACKEND_DIR:-/var/www/random-2hu-stuff/backend}"
 PM2_APP_NAME="${PM2_APP_NAME:-r2s-api}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/health}"
 DATABASE="$BACKEND_DIR/random-2hu-stuff.db"
-[[ $CANDIDATE == "$BACKEND_DIR"/.database-upload.* ]] || { echo 'Unexpected upload path' >&2; exit 1; }
+[[ $CANDIDATE == "$BACKEND_DIR"/.database-upload.* ]] || {
+  echo 'Unexpected upload path' >&2
+  exit 1
+}
 for tool in python3 pm2 curl; do command -v "$tool" >/dev/null; done
-[[ -f $DATABASE && -f $CANDIDATE ]] || { echo 'Existing and uploaded databases required' >&2; exit 1; }
+[[ -f $DATABASE && -f $CANDIDATE ]] || {
+  echo 'Existing and uploaded databases required' >&2
+  exit 1
+}
 trap 'rm -f -- "$CANDIDATE" "$CANDIDATE-wal" "$CANDIDATE-shm"' EXIT
 pm2 describe "$PM2_APP_NAME" >/dev/null
 # Reject damaged files or incompatible schemas before stopping the current app.
@@ -37,7 +43,10 @@ cleanup() {
     if [[ $REPLACED == 1 ]]; then
       pm2 stop "$PM2_APP_NAME" >/dev/null || true
       rm -f -- "$DATABASE-wal" "$DATABASE-shm"
-      cp -p -- "$BACKUP" "$DATABASE" || { echo "Restore failed. Backup: $BACKUP" >&2; exit 1; }
+      cp -p -- "$BACKUP" "$DATABASE" || {
+        echo "Restore failed. Backup: $BACKUP" >&2
+        exit 1
+      }
     fi
     pm2 restart "$PM2_APP_NAME" || true
   fi

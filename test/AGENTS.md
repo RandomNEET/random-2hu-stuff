@@ -4,16 +4,16 @@
 
 ## 组织与工具
 
-| 路径 | 职责 |
-| --- | --- |
-| `frontend/unit/` | Vitest：纯逻辑、Vue 生命周期、请求封装和基础设施 |
-| `frontend/e2e/` | Playwright：交互行为与多宽度截图 |
-| `frontend/fixtures/` | 固定 API 数据、浏览器请求模拟与旧前端逻辑参照 |
-| `backend/` | Node test runner：缓存、搜索、API 对照及合成数据 benchmark |
-| `backend/fixtures/` | SQLite 数据构造与冻结旧后端的沙箱 |
-| `update/` | unittest：公告生成及 autofetch 行为 |
-| `deploy/` | unittest：代码部署、数据库上传替换及 Nginx 集成 |
-| `results/`、`reports/`、`.cache/` | 本地产物，受 Git 忽略 |
+| 路径                              | 职责                                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| `frontend/unit/`                  | Vitest：纯逻辑、Vue 生命周期、请求封装和基础设施           |
+| `frontend/e2e/`                   | Playwright：交互行为与多宽度截图                           |
+| `frontend/fixtures/`              | 固定 API 数据、浏览器请求模拟与旧前端逻辑参照              |
+| `backend/`                        | Node test runner：缓存、搜索、API 对照及合成数据 benchmark |
+| `backend/fixtures/`               | SQLite 数据构造与冻结旧后端的沙箱                          |
+| `update/`                         | unittest：公告生成及 autofetch 行为                        |
+| `deploy/`                         | unittest：代码部署、数据库上传替换及 Nginx 集成            |
+| `results/`、`reports/`、`.cache/` | 本地产物，受 Git 忽略                                      |
 
 新增测试、夹具、测试专用依赖和配置都放在本目录。生产目录和根目录保留转发命令即可；不要另设不被现有命令发现的测试目录。
 
@@ -21,16 +21,16 @@
 
 根目录分别安装 frontend、backend、test 的依赖；Python 依赖和浏览器需单独准备。根目录命令与本目录脚本对应关系为：
 
-| 根目录命令 | 实际覆盖 |
-| --- | --- |
-| `npm --prefix test test` | 前端 Vitest 单元测试 |
-| `npm run test:backend` | `node --test backend/*.test.cjs` |
-| `npm run test:python` | `update/` 下 Python unittest |
-| `npm run test:deploy` | `deploy/` 下 Python unittest |
-| `npm test` | 上述四类依次执行，不包含浏览器和 benchmark |
-| `npm run test:e2e` | behavior.spec.js |
-| `npm run test:visual` | visual.spec.js，与已有本地基线比较 |
-| `npm run bench:backend` | 合成内存数据性能对照与结果一致性检查 |
+| 根目录命令               | 实际覆盖                                   |
+| ------------------------ | ------------------------------------------ |
+| `npm --prefix test test` | 前端 Vitest 单元测试                       |
+| `npm run test:backend`   | `node --test backend/*.test.cjs`           |
+| `npm run test:python`    | `update/` 下 Python unittest               |
+| `npm run test:deploy`    | `deploy/` 下 Python unittest               |
+| `npm test`               | 上述四类依次执行，不包含浏览器和 benchmark |
+| `npm run test:e2e`       | behavior.spec.js                           |
+| `npm run test:visual`    | visual.spec.js，与已有本地基线比较         |
+| `npm run bench:backend`  | 合成内存数据性能对照与结果一致性检查       |
 
 - Python 测试使用 requests、json5，公告测试还调用 Node。部署测试需要 rsync；Nginx 测试没有二进制时会跳过，可通过 `NGINX_BIN` 指定。
 - Playwright 自动启动 `127.0.0.1:4173` 的 Vite 服务；使用 Chromium，可通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定程序。配置固定 locale 为 zh-CN、时区为 Asia/Shanghai。

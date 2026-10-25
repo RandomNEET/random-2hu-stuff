@@ -112,7 +112,11 @@
 </template>
 
 <script setup>
-import { translationOptions, defaultAuthorFilters, defaultVideoFilters } from "@/utils/filters.js";
+import {
+  translationOptions,
+  defaultAuthorFilters,
+  defaultVideoFilters,
+} from "@/utils/filters.js";
 
 import { computed, reactive, ref } from "vue";
 import RangeFilterFields from "@/components/filters/RangeFilterFields.vue";
@@ -133,7 +137,8 @@ const emit = defineEmits(["apply"]);
 const open = ref(false);
 const draft = reactive({});
 
-const defaults = () => props.mode === "authors" ? defaultAuthorFilters() : defaultVideoFilters();
+const defaults = () =>
+  props.mode === "authors" ? defaultAuthorFilters() : defaultVideoFilters();
 const copyIntoDraft = (source) => Object.assign(draft, defaults(), source);
 const handleOpen = (value) => {
   if (value) copyIntoDraft(props.modelValue);

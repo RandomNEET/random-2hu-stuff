@@ -4,17 +4,17 @@
 
 ## 从哪里修改
 
-| 入口 | 职责 |
-| --- | --- |
-| `src/main.js`、`src/App.vue` | 注册应用与全局布局 |
-| `src/router/index.js` | history 路由和懒加载页面 |
-| `src/views/` | 作者列表、作者视频、搜索、公告及关于页面 |
-| `src/composables/` | 页面状态、watch、生命周期和浏览器事件 |
-| `src/utils/` | 排序、筛选、视频分组、参数转换、格式化等纯逻辑 |
-| `src/components/` | 按 layout、authors、videos、search、filters、common、about、widgets 分组的组件 |
-| `src/services/api.js`、`src/config/api.js` | 请求与 API 地址配置 |
-| `src/data/announcements.js` | 按新到旧排列的公告数据 |
-| `src/styles/` | 主题及跨组件共享样式 |
+| 入口                                       | 职责                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `src/main.js`、`src/App.vue`               | 注册应用与全局布局                                                             |
+| `src/router/index.js`                      | history 路由和懒加载页面                                                       |
+| `src/views/`                               | 作者列表、作者视频、搜索、公告及关于页面                                       |
+| `src/composables/`                         | 页面状态、watch、生命周期和浏览器事件                                          |
+| `src/utils/`                               | 排序、筛选、视频分组、参数转换、格式化等纯逻辑                                 |
+| `src/components/`                          | 按 layout、authors、videos、search、filters、common、about、widgets 分组的组件 |
+| `src/services/api.js`、`src/config/api.js` | 请求与 API 地址配置                                                            |
+| `src/data/announcements.js`                | 按新到旧排列的公告数据                                                         |
+| `src/styles/`                              | 主题及跨组件共享样式                                                           |
 
 新增逻辑先寻找相同职责的模块。页面状态分别由 `useAuthorsPage`、`useAuthorVideosPage`、`useSearchPage` 管理；不要在展示组件重复实现筛选和请求。
 

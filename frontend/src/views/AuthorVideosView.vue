@@ -67,7 +67,7 @@ const {
   totalPages,
   paginatedVideoGroups,
   goToPage,
-  jumpToPage
+  jumpToPage,
 } = useAuthorVideosPage();
 </script>
 

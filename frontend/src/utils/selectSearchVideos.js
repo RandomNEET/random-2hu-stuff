@@ -60,12 +60,8 @@ export const selectSearchVideos = (items, sortField, sortDirection) => {
       const titleB = b.original_name || "";
       return compareVideoTitles(titleA, titleB);
     } else if (sortField === "relevance") {
-      const indexA = items.findIndex(
-        (v) => v.id === a.id,
-      );
-      const indexB = items.findIndex(
-        (v) => v.id === b.id,
-      );
+      const indexA = items.findIndex((v) => v.id === a.id);
+      const indexB = items.findIndex((v) => v.id === b.id);
 
       const comparison = indexA - indexB;
       return sortDirection === "asc" ? comparison : -comparison;
