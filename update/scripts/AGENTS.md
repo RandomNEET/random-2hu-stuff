@@ -32,7 +32,7 @@
 - `updatelog.py` 读取数据库统计和 `content.log`，向 `frontend/src/data/announcements.js` 前置条目，再追加统计记录；还会查询本地 Dolt 历史生成链接。
 - 保持公告数据结构与 `AnnouncementsView.vue` 一致，文本和链接须正确序列化，不能拼接 Vue 模板 HTML。调整统计时同时核对 `backend/src/queries.cjs`。
 - `content.log` 为 Git 明确保留的业务历史文件，不应在测试或格式化中顺带改写。
-- `upload.sh` 默认上传代码并远程部署；`database-only` 走独立快照与替换流程。修改它时阅读 [部署指南](../../deploy/AGENTS.md)，同步运行包清单与部署测试；不要执行真实上传验证。
+- `upload.sh` 默认（无参数或 `all`）部署前后端代码后更新数据库；`database-only` 走独立快照与替换流程。修改它时阅读 [部署指南](../../deploy/AGENTS.md)，同步运行包清单与部署测试；不要执行真实上传验证。
 
 ## 验证
 

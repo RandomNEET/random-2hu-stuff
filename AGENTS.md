@@ -65,7 +65,7 @@ node backend/server.cjs
 - 修改更新工具前检查输入格式、匹配和覆盖规则、数据库连接方式及副作用。部分脚本会写库、请求外部平台、读取 cookies 或上传在线表格；不得用真实导入、清理、抓取上传来代替回归测试。
 - 使用固定夹具、内存库或临时数据库验证。即使脚本支持 `--dry-run`，也先确认实现是否仍连接数据库、请求网络或生成文件。
 - `deploy/deploy.sh` 部署代码，依赖既有 Debian、Nginx 和 PM2 环境；默认目标为 `/var/www/random-2hu-stuff`，PM2 名为 `r2s-api`。它保留数据库与现有 Nginx 配置，前端复制保留旧哈希资源。修改时维持这些边界。
-- `update/scripts/upload.sh` 默认会上传并执行部署，`upload-only` 只上传源码，`build-only` 本地构建，`database-only` 单独更新数据库。数据库上传使用 SQLite backup 获取包含 WAL 内容的一致快照，再调用 `deploy/replace-database.sh` 校验、备份、替换和失败恢复。
+- `update/scripts/upload.sh` 默认（无参数或 `all`）更新前端、后端和数据库，`upload-only` 只上传源码，`build-only` 本地构建，`database-only` 单独更新数据库。数据库上传使用 SQLite backup 获取包含 WAL 内容的一致快照，再调用 `deploy/replace-database.sh` 校验、备份、替换和失败恢复。
 - `deploy/get-db.sh` 从 DoltHub 导出 SQLite，会删除既有输出文件再生成。不要作为普通启动或测试步骤执行。
 - 后端新增或移动运行时文件时，同步检查部署与上传脚本的复制清单；当前运行包需要 `server.cjs`、完整 `src/`、依赖清单及 PM2 配置。
 - 不将 `.env`、cookies、凭据、数据库、node_modules、构建及测试产物加入版本控制。保留 `.gitignore` 的明确例外：`backend/full-data.csv` 和 `update/scripts/content.log`。
