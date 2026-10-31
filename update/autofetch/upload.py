@@ -104,7 +104,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--time-range",
         type=parse_time_range,
-        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+        help="覆盖配置中的时间范围：today、yesterday、all、YYYYMMDD 或最近 N 个自然日",
     )
     return parser.parse_args(argv)
 
@@ -113,6 +113,8 @@ def parse_args(argv=None):
 def get_target_dates(time_range_str: str):
     if time_range_str in (None, "today"):
         return [datetime.now().strftime("%Y%m%d")]
+    if time_range_str == "yesterday":
+        return [(datetime.now() - timedelta(days=1)).strftime("%Y%m%d")]
     if time_range_str == "all":
         return []
     if str(time_range_str).isdigit():

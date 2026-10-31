@@ -110,7 +110,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--time-range",
         type=parse_time_range,
-        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+        help="覆盖配置中的时间范围：today、yesterday、all、YYYYMMDD 或最近 N 个自然日",
     )
     return parser.parse_args(argv)
 
@@ -152,6 +152,8 @@ def csv_matches_time_range(csv_path: Path, time_range: Any) -> bool:
         return True
     if time_range == "today":
         return file_date == datetime.now(TZ_BEIJING).date()
+    if time_range == "yesterday":
+        return file_date == datetime.now(TZ_BEIJING).date() - timedelta(days=1)
     if isinstance(time_range, (int, float)):
         days = int(time_range)
         today = datetime.now(TZ_BEIJING).date()

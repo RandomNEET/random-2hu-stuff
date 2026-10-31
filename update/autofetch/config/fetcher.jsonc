@@ -3,7 +3,7 @@
   // "baseurl": "https://rsshub.defnothowl.com",
   "baseurl": "http://127.0.0.1:10120",
   // ========== 时间范围 ==========
-  // "today" | "all" | "YYYYMMDD" | 数字(最近N个自然日，含今天)
+  // "today" | "yesterday" | "all" | "YYYYMMDD" | 数字(最近N个自然日，含今天)
   // 默认检查今天和昨天；已处理的 BV 由状态文件去重
   "time_range": 2,
   // 状态文件用于同日多次运行时仅补抓新投稿

@@ -3,6 +3,7 @@
   //  时间范围 —— 决定处理哪些 CSV 文件
   //  null 或不写      → 从 fetch 配置 (config/fetcher.jsonc) 中读取
   //  "today"         → 仅日期 = 今天的 CSV
+  //  "yesterday"     → 仅日期 = 昨天的 CSV
   //  "all"           → 所有 CSV
   //  数字 (如 3)      → 最近 N 天的 CSV
   //  具体日期 "20260614" → 仅该日期的 CSV

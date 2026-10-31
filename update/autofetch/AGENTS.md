@@ -15,7 +15,7 @@
 
 - fetcher、processor 从脚本目录定位主要配置；upload 的 `config/`、`output/` 及 `config/.env` 相对当前工作目录。运行 upload 时应以本目录为工作目录，不能假定从仓库根目录启动等价。
 - 三个程序均支持 `--time-range`，命令行优先于配置。processor 的空配置回退到指定 fetch 配置；upload 当前加载固定的 `config/fetcher.jsonc`，不能仅凭配置注释推断它支持相同的路径覆盖。
-- 时间范围支持 today、all、具体日期和最近 N 个自然日；fetcher 和 processor 使用北京时间，upload 存在本地 datetime 用法。维护时逐个检查日期边界，不擅自统一历史行为。
+- 时间范围支持 today、yesterday、all、具体日期和最近 N 个自然日；fetcher 和 processor 使用北京时间，upload 存在本地 datetime 用法。维护时逐个检查日期边界，不擅自统一历史行为。
 
 ## 抓取可靠性
 
@@ -23,6 +23,7 @@
 - CSV 及状态文件通过临时文件和 `os.replace` 更新；新视频仅在 CSV 写入成功后进入已处理状态。标签请求失败需允许下次重试，不能当作明确不匹配永久跳过。
 - 翻译状态支持固定值或按标题关键字依次匹配，用户配置覆盖全局默认；空回退需保留为空。标签过滤与标题匹配是不同阶段。
 - 保留 RSS/API 请求 timeout、重试及退避配置。网络失败不应破坏已有 CSV 或阻断其他用户的抓取。
+- `yesterday` 仅选择昨天一个自然日；fetcher 按视频发布时间筛选，processor/upload 按 CSV 文件名日期筛选。补抓昨天的视频仍写入今天的 CSV，后续处理该批数据应使用 `--time-range today`。
 - 输出文件按抓取当天的北京时间命名，不等于视频发布日期；修改选取规则时检查下游按文件日期处理的行为。
 
 ## 信息处理和上传副作用

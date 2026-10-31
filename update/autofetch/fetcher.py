@@ -133,7 +133,7 @@ def parse_args(argv=None):
     parser.add_argument(
         "--time-range",
         type=parse_time_range,
-        help="覆盖配置中的时间范围：today、all、YYYYMMDD 或最近 N 个自然日",
+        help="覆盖配置中的时间范围：today、yesterday、all、YYYYMMDD 或最近 N 个自然日",
     )
     return parser.parse_args(argv)
 
@@ -144,6 +144,7 @@ def is_within_range(
     """
     判断视频发布时间是否在时间范围内。
     - "today": 仅当天（北京时间）
+    - "yesterday": 仅昨天（北京时间）
     - "all":   所有视频
     - int:     最近 N 个自然日（含今天）
     - YYYYMMDD: 指定日期
@@ -158,6 +159,8 @@ def is_within_range(
 
     if time_range == "today":
         return dt_beijing.date() == now.date()
+    if time_range == "yesterday":
+        return dt_beijing.date() == now.date() - timedelta(days=1)
 
     if isinstance(time_range, (int, float)):
         days = int(time_range)

@@ -11,7 +11,7 @@
 | `src/database.cjs`       | 只读连接与 Promise 查询封装，创建 repository                    |
 | `src/queries.cjs`        | 作者、视频、搜索快照和统计 SQL                                  |
 | `src/search.cjs`         | query 解析、过滤、完整数据快照与 Fuse 索引复用                  |
-| `src/search-links.cjs` | 视频编号、视频与作者链接规范化及本地身份索引 |
+| `src/search-links.cjs`   | 视频编号、视频与作者链接规范化及本地身份索引                    |
 | `src/search-options.cjs` | Fuse 权重、阈值及翻译状态文案                                   |
 | `src/cache.cjs`          | TTL、LRU、容量预算及并发加载合并                                |
 | `ecosystem.config.js`    | PM2 进程配置，默认名 `r2s-api`                                  |
