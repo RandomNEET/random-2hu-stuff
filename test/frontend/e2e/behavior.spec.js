@@ -337,3 +337,48 @@ test("video link queries preserve the entire query in the API request", async ({
   );
   await expect(page.locator(".video-row")).toHaveCount(1);
 });
+
+test("Meme controls persist and the widget is limited to home", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto("/");
+  const widget = page.getByRole("complementary", { name: "Meme 挂件" });
+  const image = widget.getByRole("img");
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() => image.evaluate((img) => img.naturalWidth))
+    .toBeGreaterThan(0);
+  const first = await image.getAttribute("src");
+  await page.clock.fastForward(60000);
+  await expect(image).not.toHaveAttribute("src", first);
+  await widget.getByRole("button", { name: "自动轮换" }).click();
+  const paused = await image.getAttribute("src");
+  await page.clock.fastForward(60000);
+  await expect(image).toHaveAttribute("src", paused);
+  await widget.getByRole("button", { name: "随机换图" }).click();
+  await expect(image).not.toHaveAttribute("src", paused);
+  await widget.getByRole("button", { name: "关闭 Meme" }).click();
+  await expect(image).toHaveCount(0);
+  await expect(widget.getByRole("button")).toHaveCount(1);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const bounds = await widget.boundingBox();
+    expect(bounds.width).toBe(32);
+    expect(bounds.height).toBe(32);
+    expect(bounds.x).toBe(8);
+    expect(bounds.y + bounds.height).toBe(892);
+  }
+  await page.reload();
+  await expect(widget.getByRole("button")).toHaveCount(1);
+  await widget.getByRole("button", { name: "显示 Meme" }).click();
+  await expect(
+    widget.getByRole("button", { name: "自动轮换" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await page.goto("/about");
+  await expect(widget).toHaveCount(0);
+  await page.goto("/");
+  await expect(
+    widget.getByRole("button", { name: "自动轮换" }),
+  ).toHaveAttribute("aria-pressed", "false");
+});

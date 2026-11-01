@@ -51,7 +51,7 @@ Python 测试也可直接运行：`python -m unittest discover -s test/update -v
 
 ## 截图基线
 
-截图比较覆盖 390、768、834、1440 像素宽度，要求相同浏览器、系统和字体。截图时仅隐藏动态 Sakana 挂件。
+截图比较覆盖 390、768、834、1440 像素宽度，要求相同浏览器、系统和字体。截图时仅隐藏动态 Meme GIF，保留控制按钮。
 
 `frontend/e2e/*-snapshots/` 的基线、`results/` 的实际图片和差异图片均被 Git 忽略。基线仅留本地，新检出项目需先在认可的代码版本运行 `npm run test:visual:update`，再修改代码并运行 `npm run test:visual`。缺少基线时比较会失败，不会自动接受新图片；不要用更新基线掩盖未解释的差异。
 

@@ -44,3 +44,8 @@
 - 验证命令在仓库根目录执行：`npm --prefix test test`、`npm --prefix frontend run build`。交互或组件边界修改另运行 `npm run test:e2e`，布局、样式和 DOM 修改另运行 `npm run test:visual`。
 - 所有测试与工具依赖在 `test/`；本目录的测试命令仅作转发。环境、浏览器及本地截图基线说明见 [测试文档](../test/README.md) 和 [测试指南](../test/AGENTS.md)。
 - `test/frontend/fixtures/legacy-logic.js` 是冻结参照；不跟随重构修改它来消除差异。
+
+## Meme 挂件
+
+- 首页挂件自动收集 `src/assets/meme/` 中的 GIF 和 WebP，新增素材后需重新构建。原始 GIF 保存在该目录的 `originals/` 子目录，不参与轮换；处理后的动画使用 200×200 透明画布。旧 Sakana PNG 归档在 `src/assets/sakana/`。处理素材前阅读 [素材维护指南](src/assets/meme/AGENTS.md)。
+- 提供随机换图、自动轮换和显示开关三个圆形图标按钮；关闭后只保留贴近左下角的显示开关，容器收缩为按钮尺寸。显示和自动轮换开关保存在 `memeWidget-settings`；每次等待 10～60 秒后随机换图，间隔独立随机，关闭挂件或页面隐藏时停止计时。

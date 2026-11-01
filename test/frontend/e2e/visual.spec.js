@@ -16,15 +16,14 @@ for (const width of [390, 768, 834, 1440]) {
       await page.goto(path);
       await expect(page.locator(ready).first()).toBeVisible();
       await page.addStyleTag({
-        content: '[class*="sakana"] { visibility: hidden !important; }',
+        content: ".meme-display img { visibility: hidden !important; }",
       });
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(1800);
       await expect(page).toHaveScreenshot(`${name}-${width}.png`, {
         fullPage: true,
         animations: "disabled",
-        style:
-          ".sakana-container, .sakana-container * { visibility: hidden !important; }",
+        style: ".meme-display img { visibility: hidden !important; }",
       });
     });
   }
@@ -37,15 +36,14 @@ for (const width of [390, 1440]) {
     await page.goto("/");
     await expect(page.locator(".card-item").first()).toBeVisible();
     await page.addStyleTag({
-      content: '[class*="sakana"] { visibility: hidden !important; }',
+      content: ".meme-display img { visibility: hidden !important; }",
     });
     if (width === 390) await page.locator(".mobile-search-btn").click();
     else await page.locator(".desktop-search input").click();
     await page.waitForTimeout(800);
     await expect(page).toHaveScreenshot(`search-panel-${width}.png`, {
       animations: "disabled",
-      style:
-        ".sakana-container, .sakana-container * { visibility: hidden !important; }",
+      style: ".meme-display img { visibility: hidden !important; }",
     });
   });
 }

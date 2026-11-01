@@ -32,8 +32,8 @@
     <!-- Back to top button -->
     <BackToTop />
 
-    <!-- SakanaWidget widget -->
-    <SakanaWidget character="chisato" />
+    <!-- Meme GIF widget -->
+    <MemeWidget />
   </div>
 </template>
 
@@ -42,7 +42,7 @@ import AuthorSortControls from "@/components/authors/AuthorSortControls.vue";
 import AuthorGrid from "@/components/authors/AuthorGrid.vue";
 import ListPagination from "@/components/common/ListPagination.vue";
 import BackToTop from "@/components/common/BackToTop.vue";
-import SakanaWidget from "@/components/widgets/SakanaWidget.vue";
+import MemeWidget from "@/components/widgets/MemeWidget.vue";
 import { useAuthorsPage } from "@/composables/useAuthorsPage.js";
 
 const {
