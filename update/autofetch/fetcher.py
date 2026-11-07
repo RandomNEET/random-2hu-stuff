@@ -20,6 +20,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 import requests
+from env import load_dotenv
 from requests.adapters import HTTPAdapter
 from time_range import parse_time_range
 from urllib3.util.retry import Retry
@@ -135,6 +136,10 @@ def parse_args(argv=None):
         type=parse_time_range,
         help="覆盖配置中的时间范围：today、yesterday、all、YYYYMMDD 或最近 N 个自然日",
     )
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--output-date", help="定时任务固定输出日期 YYYYMMDD")
+    parser.add_argument("--state-file", type=Path)
+    parser.add_argument("--report", type=Path)
     return parser.parse_args(argv)
 
 
@@ -398,6 +403,7 @@ def parse_rss(xml_content: str) -> tuple[str | None, list[dict]]:
 def main(argv=None):
     args = parse_args(argv)
     script_dir = Path(__file__).resolve().parent
+    load_dotenv(script_dir / "config" / ".env", quiet=True)
 
     # 配置文件位于 config/ 子目录
     config_path = script_dir / "config" / "fetcher.jsonc"
@@ -414,7 +420,7 @@ def main(argv=None):
         if args.time_range is not None
         else config.get("time_range", "today")
     )
-    state_path = Path(config.get("state_file", "state/fetcher.json"))
+    state_path = args.state_file or Path(config.get("state_file", "state/fetcher.json"))
     if not state_path.is_absolute():
         state_path = script_dir / state_path
     state = load_state(state_path)
@@ -426,7 +432,7 @@ def main(argv=None):
         retries=int(config.get("request_retries", 3)),
         backoff_factor=float(config.get("retry_backoff_factor", 1.0)),
     )
-    output_dir = script_dir / "output"
+    output_dir = args.output_dir or script_dir / "output"
     os.makedirs(output_dir, exist_ok=True)
     existing_bvids = load_existing_bvids(output_dir)
     defaults = {
@@ -441,12 +447,18 @@ def main(argv=None):
         print("[错误] 配置文件中 users 为空，请至少指定一个用户")
         sys.exit(1)
 
+    failures = []
+
+    def fail(stage, uid, bvid=None):
+        failures.append({"stage": stage, "uid": uid, "bvid": bvid})
+
     users = []
     for entry in raw_users:
         try:
             users.append(normalize_user_config(entry, defaults))
         except (ValueError, TypeError) as e:
             print(f"[警告] 跳过无效用户条目: {e}")
+            fail("config", "invalid-entry")
 
     if not users:
         print("[错误] 没有有效的用户配置")
@@ -455,6 +467,55 @@ def main(argv=None):
     # ---------- 收集视频数据 ----------
     grouped_rows = defaultdict(list)
     total_matched = 0
+
+    today_str = args.output_date or datetime.now(TZ_BEIJING).strftime("%Y%m%d")
+
+    def flush_rows():
+        for author, rows in grouped_rows.items():
+            safe_author = re.sub(r'[\\/:*?"<>|]', "_", author)
+            filename = f"{safe_author}-{today_str}.csv"
+            filepath = output_dir / filename
+
+            try:
+                added_count, row_count = update_csv(filepath, rows)
+            except OSError:
+                if not args.report:
+                    raise
+                for row in rows:
+                    fail("csv", row["uid"], row["bvid"])
+                continue
+
+            for row in rows:
+                user_state = state["users"][row["uid"]]
+                seen = set(user_state.get("seen_bvids", []))
+                seen.add(row["bvid"])
+                existing_bvids.add(row["bvid"])
+                user_state["seen_bvids"] = sorted(seen)
+
+            print(
+                f"\n✓ 已更新: {filepath}  "
+                f"(新增 {added_count} 条，共 {row_count} 条)"
+            )
+        grouped_rows.clear()
+
+    pending_users = [u["id"] for u in users]
+
+    def progress():
+        if args.report:
+            save_state(
+                args.report,
+                {
+                    "complete": not failures and not pending_users,
+                    "failures": failures
+                    + [{"stage": "pending", "uid": uid} for uid in pending_users],
+                    "users": len(users),
+                    "matched": total_matched,
+                    "time_range": time_range,
+                    "coverage": "仅验证 RSS 返回内容，不保证平台投稿完整覆盖",
+                },
+            )
+
+    progress()
 
     for user_cfg in users:
         uid = user_cfg["id"]
@@ -466,11 +527,16 @@ def main(argv=None):
                 baseurl, uid, retry_session, timeout=request_timeout
             )
             author, items = parse_rss(xml_content)
+            if author is None:
+                raise ValueError("RSS 缺少 channel")
             print(f"  作者: {author}  |  RSS 共返回 {len(items)} 条")
 
             matched = 0
             for item in items:
                 pub_dt = parse_pub_date(item["pubDate"])
+                if pub_dt is None:
+                    fail("publication_date", uid)
+                    continue
                 if not is_within_range(pub_dt, time_range):
                     continue
 
@@ -478,6 +544,7 @@ def main(argv=None):
                     bvid = extract_bvid(item["link"])
                 except ValueError as e:
                     print(f"  [警告] {e}")
+                    fail("bvid", uid)
                     continue
                 if bvid in seen_bvids or bvid in existing_bvids:
                     seen_bvids.add(bvid)
@@ -490,6 +557,7 @@ def main(argv=None):
                             item["link"], retry_session, timeout=request_timeout
                         )
                     except (requests.RequestException, ValueError, RuntimeError) as e:
+                        fail("tags", uid, bvid)
                         print(f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}")
                         continue
                     if not matches_tag_keywords(tags, user_cfg):
@@ -513,39 +581,56 @@ def main(argv=None):
             user_state["seen_bvids"] = sorted(seen_bvids)
 
         except requests.RequestException as e:
+            fail("rss", uid)
             print(f"  [警告] 网络请求失败: {e}")
             continue
         except ET.ParseError as e:
+            fail("rss", uid)
             print(f"  [警告] XML 解析失败: {e}")
             continue
         except Exception as e:
+            fail("rss", uid)
             print(f"  [警告] 未知错误: {e}")
             continue
+        finally:
+            if args.report:
+                flush_rows()
+                try:
+                    save_state(state_path, state)
+                except OSError:
+                    fail("state", uid)
+                pending_users.remove(uid)
+                progress()
 
     # ---------- 按作者输出 CSV 到 output/ 目录 ----------
-    today_str = datetime.now(TZ_BEIJING).strftime("%Y%m%d")
 
-    for author, rows in grouped_rows.items():
-        safe_author = re.sub(r'[\\/:*?"<>|]', "_", author)
-        filename = f"{safe_author}-{today_str}.csv"
-        filepath = output_dir / filename
+    flush_rows()
 
-        added_count, row_count = update_csv(filepath, rows)
-
-        for row in rows:
-            user_state = state["users"][row["uid"]]
-            seen = set(user_state.get("seen_bvids", []))
-            seen.add(row["bvid"])
-            user_state["seen_bvids"] = sorted(seen)
-
-        print(f"\n✓ 已更新: {filepath}  " f"(新增 {added_count} 条，共 {row_count} 条)")
-
-    save_state(state_path, state)
+    try:
+        save_state(state_path, state)
+    except OSError:
+        fail("state", "all")
+        if not args.report:
+            raise
+    if args.report:
+        save_state(
+            args.report,
+            {
+                "complete": not failures,
+                "failures": failures,
+                "users": len(users),
+                "matched": total_matched,
+                "time_range": time_range,
+                "coverage": "仅验证 RSS 返回内容，不保证平台投稿完整覆盖",
+            },
+        )
 
     if total_matched == 0:
         print("\n没有发现尚未处理且符合条件的视频。")
 
     print(f"\n完成！共处理 {len(users)} 个用户，输出 {total_matched} 条视频。")
+    if args.report and failures:
+        sys.exit(2)
 
 
 if __name__ == "__main__":

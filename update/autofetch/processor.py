@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+from env import load_dotenv
 from time_range import parse_time_range
 
 # ==================== JSONC 解析 ====================
@@ -112,6 +113,8 @@ def parse_args(argv=None):
         type=parse_time_range,
         help="覆盖配置中的时间范围：today、yesterday、all、YYYYMMDD 或最近 N 个自然日",
     )
+    parser.add_argument("--csv-dir", type=Path)
+    parser.add_argument("--report", type=Path)
     return parser.parse_args(argv)
 
 
@@ -379,6 +382,7 @@ def ensure_columns(row: list, min_cols: int = 5) -> list:
 def main(argv=None):
     args = parse_args(argv)
     script_dir = Path(__file__).resolve().parent
+    load_dotenv(script_dir / "config" / ".env", quiet=True)
     config_path = script_dir / "config" / "processor.jsonc"
 
     if not config_path.exists():
@@ -401,7 +405,7 @@ def main(argv=None):
         else resolve_time_range(process_config)
     )
 
-    csv_dir = Path(process_config.get("csv_dir", "output"))
+    csv_dir = args.csv_dir or Path(process_config.get("csv_dir", "output"))
     if not csv_dir.is_absolute():
         csv_dir = script_dir / csv_dir
 
@@ -432,6 +436,10 @@ def main(argv=None):
 
     if not matched_csv:
         print("[警告] 没有找到匹配时间范围的 CSV 文件")
+        if args.report:
+            from fetcher import save_state
+
+            save_state(args.report, {"complete": True, "failures": []})
         return
 
     print(f"→ 匹配到 {len(matched_csv)} 个 CSV 文件:\n")
@@ -442,6 +450,7 @@ def main(argv=None):
     total_processed = 0
     total_skipped = 0
     total_errors = 0
+    failures = []
 
     for csv_path in matched_csv:
         print(f"\n{'='*60}")
@@ -451,6 +460,8 @@ def main(argv=None):
         try:
             rows = read_csv_rows(csv_path)
         except Exception as e:
+            failures.append({"stage": "csv", "file": csv_path.name})
+            total_errors += 1
             print(f"  [错误] 读取失败: {e}")
             continue
 
@@ -467,8 +478,31 @@ def main(argv=None):
             if not bilibili_link:
                 continue
 
-            if skip_existing and existing_original:
+            if (
+                skip_existing
+                and existing_original
+                and (not args.report or row[0].strip())
+            ):
                 total_skipped += 1
+                continue
+
+            if args.report and skip_existing and existing_original:
+                # Preserve a manually entered original URL while retrying its author.
+                author_name = get_author_from_original_link(
+                    existing_original,
+                    process_config,
+                    cookies_file=cookies_file,
+                )
+                if author_name:
+                    row[0] = author_name
+                    rows[row_idx] = row
+                    modified = True
+                    file_processed += 1
+                    total_processed += 1
+                else:
+                    failures.append({"stage": "author", "video": bilibili_link})
+                    total_errors += 1
+                time.sleep(request_delay)
                 continue
 
             title = row[2][:80] if row[2] else "(无标题)"
@@ -480,6 +514,9 @@ def main(argv=None):
             description = get_description(bilibili_link, cookies_file)
             if not description:
                 print(f"    [警告] 无法获取简介，跳过")
+                failures.append(
+                    {"stage": "description_or_link", "video": bilibili_link}
+                )
                 total_errors += 1
                 time.sleep(request_delay)
                 continue
@@ -489,6 +526,9 @@ def main(argv=None):
                 print(f"    [警告] 未能从简介中提取原视频链接，跳过")
                 preview = description[:200].replace("\n", "\\n")
                 print(f"    简介预览: {preview}...")
+                failures.append(
+                    {"stage": "description_or_link", "video": bilibili_link}
+                )
                 total_errors += 1
                 time.sleep(request_delay)
                 continue
@@ -513,6 +553,8 @@ def main(argv=None):
                 print(f"    作者频道: {author_name}")
                 row[0] = author_name
             else:
+                failures.append({"stage": "author", "video": bilibili_link})
+                total_errors += 1
                 print(f"    [警告] 未能获取原作者频道名")
 
             rows[row_idx] = row
@@ -533,6 +575,13 @@ def main(argv=None):
     print(f"  跳过(已有): {total_skipped} 条")
     print(f"  失败/跳过: {total_errors} 条")
     print(f"{'='*60}")
+
+    if args.report:
+        from fetcher import save_state
+
+        save_state(args.report, {"complete": not total_errors, "failures": failures})
+        if total_errors:
+            sys.exit(2)
 
 
 if __name__ == "__main__":
