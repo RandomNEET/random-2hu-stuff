@@ -49,6 +49,11 @@ def clean_niconico_url(url_or_id):
 
     # If already a complete URL
     if url_or_id.startswith("http"):
+        parsed = urlparse(url_or_id)
+        if parsed.hostname == "nico.ms":
+            match = re.fullmatch(r"/([a-z]{2}[0-9]+)/?", parsed.path)
+            if match:
+                return f"https://www.nicovideo.jp/watch/{match.group(1)}"
         if "nicovideo.jp" in url_or_id:
             # Extract video ID
             match = re.search(r"/watch/([a-z]{2}[0-9]+)", url_or_id)
@@ -132,7 +137,11 @@ def clean_url(url):
         return clean_twitter_url(url)
 
     # NicoNico
-    if "nicovideo.jp" in url or re.match(r"^[a-z]{2}[0-9]+$", url):
+    if (
+        "nicovideo.jp" in url
+        or urlparse(url).hostname == "nico.ms"
+        or re.match(r"^[a-z]{2}[0-9]+$", url)
+    ):
         return clean_niconico_url(url)
 
     # Bilibili (including b23.tv short links)

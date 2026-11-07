@@ -813,14 +813,12 @@ def fix_existing_http_thumbnails(conn, debug=False, dry_run=False):
     cursor = conn.cursor()
 
     # Find all thumbnail records containing http://i2.hdslb.com
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT id, original_thumbnail, repost_thumbnail 
         FROM videos 
         WHERE (original_thumbnail LIKE 'http://i%.hdslb.com%' OR 
                repost_thumbnail LIKE 'http://i%.hdslb.com%')
-    """
-    )
+    """)
 
     videos = cursor.fetchall()
 

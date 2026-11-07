@@ -35,6 +35,16 @@
 - 保留完全相同行去重、分组、空行及表格单元格转换规则；在线整理涉及批量修改，测试应核对请求内容和顺序，不能拿真实表格试运行。
 - `config/.env` 中的腾讯文档认证、cookies、状态和输出仅留本地。不要在报错、夹具或文档中复制令牌及 cookie 内容。
 
+- `env.py` 共享 `.env` 读取逻辑，已有环境变量优先；fetcher/processor 从脚本目录读取，upload 保留工作目录语义。标准小写代理变量同时作用于 requests 和 yt-dlp；部署清单须包含该模块。
+
+## 定时自动运行
+
+- `deploy-autofetch.py` 支持本地/SSH 部署，默认保留 JSONC、凭据和状态；仅在本地检查通过后安装 cron，不能用真实部署代替回归测试。
+- `automation.py` 是 cron 入口，调度、周批次、上传检查点及 163 邮件设置见 [定时运行说明](AUTOMATION.md)。不修改 oix，不默认安装或启用任务。
+- 运行状态和分周输出在 `state/automation/`；禁止删除检查点后盲目重传。上传结果不确定时先核对远端，凌晨收尾失败后等人工处理。
+- `--report` 为 fetcher/processor 的严格运行模式：记录未解决失败，部分失败返回非零；fetcher 逐用户持久化进度。手动运行不带该参数时保留原有退出行为。定时任务的 `--output-date` 固定目标日期，不改变手动抓取默认按当天命名的规则。
+- 完成报告只证明 RSS 返回内容处理完成，不代表平台投稿完整性；邮件不得包含原始响应、日志、cookies 或授权码。
+
 ## 验证
 
 从根目录运行 `python -m unittest discover -s test/update/autofetch -v` 或 `npm run test:python`。现有测试覆盖请求超时、重试配置、时间范围 CLI、状态与 CSV 合并等；不代表对处理与在线上传全部行为完成回归。新增验证放入 `test/update/autofetch/`，使用临时路径和模拟 requests/yt-dlp。

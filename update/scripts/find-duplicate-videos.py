@@ -41,8 +41,7 @@ def main():
 
     con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
 
-    groups = con.execute(
-        """
+    groups = con.execute("""
         SELECT author, original_name, GROUP_CONCAT(id ORDER BY id) AS ids, COUNT(*) AS cnt
         FROM videos
         WHERE original_name IS NOT NULL AND original_name != ''
@@ -51,8 +50,7 @@ def main():
         HAVING cnt > 1
           AND COUNT(DISTINCT COALESCE(original_url, '')) > 1
         ORDER BY author, original_name
-        """
-    ).fetchall()
+        """).fetchall()
 
     print("=" * 60)
     print(f"(author, original_name) 相同但 original_url 不同的组: {len(groups)} 个")

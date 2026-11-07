@@ -25,26 +25,10 @@ from typing import Any, List
 
 import json5
 import requests
+from env import load_dotenv
 from time_range import parse_time_range
 
-
 # ==================== 1. 加载 .env ====================
-def load_dotenv(dotenv_path: Path = Path("config/.env")):
-    if not dotenv_path.exists():
-        print(f"[提示] 未找到 {dotenv_path}，将使用已存在的环境变量")
-        return
-    with open(dotenv_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key and value and key not in os.environ:
-                os.environ[key] = value
 
 
 load_dotenv()
@@ -332,7 +316,9 @@ def find_last_content_row(file_id: str, sheet_id: str, row_count: int) -> int:
 
 
 # ==================== 8. 上传功能 ====================
-def upload_to_tdocs(processed_rows: List[List[str]], config: dict, dry_run=False):
+def upload_to_tdocs(
+    processed_rows: List[List[str]], config: dict, dry_run=False, start_row=None
+):
     file_id = config.get("file_id")
     sheet_id = config.get("sheet_id")
     if not file_id or not sheet_id:
@@ -342,7 +328,7 @@ def upload_to_tdocs(processed_rows: List[List[str]], config: dict, dry_run=False
     if dry_run:
         start_row = 0
         print(f"\n[DRY RUN] 起始行: 第 1 行（0-based: 0）")
-    else:
+    elif start_row is None:
         row_count, _ = get_sheet_info(file_id, sheet_id)
         if row_count > 0:
             last_content = find_last_content_row(file_id, sheet_id, row_count)

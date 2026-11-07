@@ -67,16 +67,14 @@ def create_connection(db_path):
 def get_current_stats(conn):
     """Get current database statistics (same query as /api/stats endpoint)"""
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT 
             COUNT(DISTINCT a.id) as totalAuthors,
             COUNT(v.id) as totalVideos,
             COUNT(CASE WHEN v.translation_status IN (1, 2) THEN 1 END) as translatedVideos
         FROM authors a
         LEFT JOIN videos v ON a.id = v.author
-    """
-    )
+    """)
 
     result = cursor.fetchone()
     if result:

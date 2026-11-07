@@ -69,14 +69,12 @@ class UpdateLogIntegrationTests(unittest.TestCase):
         self.before = self.data.read_text(encoding="utf-8")
         self.db = self.root / "stats.db"
         with closing(sqlite3.connect(self.db)) as conn:
-            conn.executescript(
-                """
+            conn.executescript("""
                 CREATE TABLE authors (id INTEGER PRIMARY KEY);
                 CREATE TABLE videos (id INTEGER PRIMARY KEY, author INTEGER, translation_status INTEGER);
                 INSERT INTO authors VALUES (1), (2);
                 INSERT INTO videos VALUES (1, 1, 1), (2, 2, 2), (3, 2, 5);
-            """
-            )
+            """)
         # Return a deterministic Dolt commit; never invoke the real repository.
         bin_dir = self.root / "bin"
         bin_dir.mkdir()
