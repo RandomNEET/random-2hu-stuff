@@ -1,6 +1,25 @@
 // Newest first. Text segments preserve the existing rendered whitespace.
 export const announcements = [
   {
+    date: "2026.11.08",
+    items: [
+      [
+        {
+          text: "新收录作者12位，视频72个，熟肉64个",
+        },
+      ],
+      [
+        {
+          text: "本次更新详情: ",
+        },
+        {
+          text: "dolthub",
+          href: "https://www.dolthub.com/repositories/randomneet/random-2hu-stuff/compare/main/5hv39inigjc7gsomvmftdeo2imdabk36",
+        },
+      ],
+    ],
+  },
+  {
     date: "2026.11.01",
     items: [
       [
