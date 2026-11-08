@@ -14,6 +14,8 @@ python deploy-autofetch.py --host server --target /home/user/autofetch
 python deploy-autofetch.py --host server --target /home/user/autofetch --with-secrets
 ```
 
+使用 `--with-secrets` 更新 `.env` 时，本地代理字段缺失、注释或值为空（含空引号），均保留服务器的对应代理；本地非空值才覆盖。适用于大小写形式的 `http_proxy`、`https_proxy`、`all_proxy` 和 `no_proxy`。需要清除代理时直接编辑服务器 `.env`。其他认证字段仍按本地文件更新。
+
 默认不传凭据，不覆盖服务器已有 JSONC，不同步或删除 state/output。需要更新配置规则时显式加 `--replace-config`。支持 `--target /绝对路径` 和 `--backend nix|venv`。如果已在目标服务器上，省略 `--host` 就是本地部署；请以拥有部署目录写入权限的普通用户运行，不用 sudo。
 
 部署会保留无关 cron 条目，并用 `# autofetch-managed` 标记替换自身条目。部署前的 crontab 保存在 `state/automation/crontab.before-deploy.txt`。若任务正在运行则拒绝部署，等待任务结束后重试。配置校验失败不替换 cron；已有源码和运行环境可能已更新，修正后须重新部署完成检查。
@@ -89,4 +91,4 @@ cd /home/user/autofetch
 
 这是新的一套独立运行状态。启用前不要在同一周混用手动上传与自动上传；已有在线数据须先人工核对，避免迁移首次运行时重复收录。不要删除状态文件、把自动任务当成抓齐整周的证明，或以真实表格试运行代码。
 
-邮件使用 Python 自带 `smtplib`，通过 `smtp.163.com:465` 的 TLS 连接发送。只有最终失败时发送，正文限阶段代码、失败 UID/BV、目标日期和本地路径，不附原始日志或凭据。未执行真实测试发信；需确认收件地址后单独授权。
+邮件使用 Python 自带 `smtplib`，通过 `smtp.163.com:465` 的 TLS 连接发送。上传阶段首次失败立即发送；抓取和补全仍在最终失败时发送。每个任务最多通知一次，上传失败后仍保留原有重试和检查点核对。正文限阶段代码、失败 UID/BV、目标日期和本地路径，不附原始日志或凭据。未执行真实测试发信；需确认收件地址后单独授权。

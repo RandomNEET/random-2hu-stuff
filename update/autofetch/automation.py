@@ -290,6 +290,10 @@ def attempt(key, job):
                     log,
                     deadline,
                 )
+            except RuntimeError as error:
+                errors.append(str(error))
+                continue
+            try:
                 execute(
                     [
                         sys.executable,
@@ -302,6 +306,8 @@ def attempt(key, job):
                 )
             except RuntimeError as error:
                 errors.append(str(error))
+                job["error"] = "upload: " + str(error)
+                alert(key, job)
         if errors:
             raise RuntimeError("; ".join(errors))
 
@@ -341,6 +347,27 @@ def notify(key, job):
             os.environ["AUTOFETCH_MAIL_USER"], os.environ["AUTOFETCH_MAIL_PASSWORD"]
         )
         smtp.send_message(message)
+
+
+def alert(key, job):
+    """Send at most one failure mail per job, persisting before sending."""
+    if job.get("notified"):
+        return
+    job["notified"] = True
+    state_path = DATA / "jobs.json"
+    state = load(state_path, {})
+    state[key] = job
+    save(state_path, state)
+    try:
+        notify(key, job)
+        job["mail"] = "sent"
+    except Exception as error:
+        job["mail"] = f"failed: {type(error).__name__}"
+        print(
+            f"{key}: 邮件发送失败（{type(error).__name__}），请查看本地状态",
+            file=sys.stderr,
+        )
+    save(state_path, state)
 
 
 def tick(retry=None):
@@ -399,19 +426,8 @@ def tick(retry=None):
                 else:
                     job["status"] = "complete"
         save(state_path, state)
-        if job["status"] == "failed" and not job.get("notified"):
-            job["notified"] = True
-            save(state_path, state)
-            try:
-                notify(key, job)
-                job["mail"] = "sent"
-            except Exception as error:
-                job["mail"] = f"failed: {type(error).__name__}"
-                print(
-                    f"{key}: 邮件发送失败（{type(error).__name__}），请查看本地状态",
-                    file=sys.stderr,
-                )
-            save(state_path, state)
+        if job["status"] == "failed":
+            alert(key, job)
     summary = {key: job for key, job in state.items() if job["kind"] == "closeout"}
     save(DATA / "closeout.json", summary)
 

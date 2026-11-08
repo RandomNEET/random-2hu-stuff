@@ -46,6 +46,45 @@ def copy_file(source, target):
     temporary.replace(target)
 
 
+def copy_dotenv(source, target):
+    """Update credentials but retain server proxies absent/empty in the source."""
+    if source.resolve() == target.resolve():
+        return
+    families = {"http_proxy", "https_proxy", "all_proxy", "no_proxy"}
+
+    def entry(line):
+        if line.lstrip().startswith("#") or "=" not in line:
+            return None, ""
+        key, value = line.split("=", 1)
+        return key.strip(), value.strip().strip('"').strip("'")
+
+    incoming = source.read_text().splitlines()
+    existing = target.read_text().splitlines() if target.exists() else []
+    selected = {}
+    for line in incoming:
+        key, value = entry(line)
+        if key and key.lower() in families and value:
+            selected.setdefault(key.lower(), value)
+    preserved = {}
+    for line in existing:
+        key, value = entry(line)
+        if key and key.lower() in families and value:
+            preserved.setdefault(key.lower(), value)
+    lines = [
+        line for line in incoming if (entry(line)[0] or "").lower() not in families
+    ]
+    for key in sorted(families):
+        value = selected.get(key, preserved.get(key))
+        if value:
+            # Values come from the same dotenv format; never execute or log them.
+            lines.append(f"{key}={value}")
+    temporary = target.with_name(target.name + ".deploy.tmp")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary.write_text("\n".join(lines) + "\n")
+    temporary.chmod(0o600)
+    temporary.replace(target)
+
+
 def cron_text(old, target, python):
     # Percent is special even inside shell quotes in a crontab command.
     if any(c in str(target) + str(python) for c in "\n\r%"):
@@ -134,7 +173,10 @@ def install(target, backend, replace_config=False, with_secrets=False):
         if with_secrets:
             for name in SECRETS:
                 if (SOURCE / name).is_file():
-                    copy_file(SOURCE / name, target / name)
+                    if name == "config/.env":
+                        copy_dotenv(SOURCE / name, target / name)
+                    else:
+                        copy_file(SOURCE / name, target / name)
         dotenv = target / "config" / ".env"
         if not dotenv.exists():
             copy_file(SOURCE / "config/.env.example", dotenv)
