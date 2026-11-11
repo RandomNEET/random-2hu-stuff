@@ -9,7 +9,7 @@
 | RSS 抓取、标签过滤和去重     | `fetcher.py`、`config/fetcher.jsonc`     |
 | 获取简介、提取原链接和作者   | `processor.py`、`config/processor.jsonc` |
 | 本地合并、上传及在线表格整理 | `upload.py`、`config/upload.jsonc`       |
-| CLI 时间范围解析             | `time_range.py`，三个主程序共用          |
+| CLI 时间范围解析             | `time-range.py`，三个主程序共用          |
 
 配置是 JSONC/JSON5，保留注释和人工维护的用户规则。不要为了统一格式丢失关键字顺序或覆盖优先级。
 
@@ -32,6 +32,7 @@
 - processor 调用 yt-dlp，并可能原地写 CSV。仅运行解析测试不应触发实际视频请求。
 - upload 默认执行本地合并 → 上传 → 在线整理。`--check-only`（别名 `--local-only`）仍写本地 combined CSV，但不上传；`--upload-only` 上传既有合并文件并整理；`--order-only` 直接整理在线表格。
 - `--dry-run` 不能当成无副作用执行：常规流程仍生成合并 CSV，在线整理可能读取远程表格。测试必须模拟网络并将输出定位到临时目录。
+- 上传前及在线整理共享作者名/视频标题自然排序，忽略大小写、阿拉伯数字和中文数字（含十百千万亿单位）按数值比较，其余字符按 Unicode 排列，同键保持原序。
 - 保留完全相同行去重、分组、空行及表格单元格转换规则；在线整理涉及批量修改，测试应核对请求内容和顺序，不能拿真实表格试运行。
 - `config/.env` 中的腾讯文档认证、cookies、状态和输出仅留本地。不要在报错、夹具或文档中复制令牌及 cookie 内容。
 

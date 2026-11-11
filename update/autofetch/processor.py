@@ -20,12 +20,14 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from env import load_dotenv
-from time_range import parse_time_range
+
+parse_time_range = import_module("time-range").parse_time_range
 
 # ==================== JSONC 解析 ====================
 

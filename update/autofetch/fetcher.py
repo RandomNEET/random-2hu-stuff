@@ -15,6 +15,7 @@ import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -22,7 +23,8 @@ from xml.etree import ElementTree as ET
 import requests
 from env import load_dotenv
 from requests.adapters import HTTPAdapter
-from time_range import parse_time_range
+
+parse_time_range = import_module("time-range").parse_time_range
 from urllib3.util.retry import Retry
 
 # ==================== JSONC 解析 ====================

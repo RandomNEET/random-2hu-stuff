@@ -17,7 +17,7 @@ FILES = [
     "fetcher.py",
     "processor.py",
     "upload.py",
-    "time_range.py",
+    "time-range.py",
     "env.py",
     "automation.py",
     "deploy-autofetch.py",

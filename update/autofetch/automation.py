@@ -390,7 +390,7 @@ def tick(retry=None):
             job.update(
                 status="pending",
                 error="interrupted",
-                next=(now() + timedelta(minutes=20)).isoformat(),
+                next=(now() + timedelta(minutes=10)).isoformat(),
             )
         if job["status"] == "pending":
             expired = job["deadline"] and now() >= datetime.fromisoformat(
@@ -398,7 +398,7 @@ def tick(retry=None):
             )
             exhausted = (job["kind"] != "closeout" or not job["deadline"]) and job[
                 "attempts"
-            ] >= 3
+            ] >= 6
             if expired or exhausted:
                 job.update(status="failed", error=job.get("error", "deadline"))
             elif now() >= datetime.fromisoformat(job["next"]):
@@ -414,10 +414,10 @@ def tick(retry=None):
                         else type(error).__name__
                     )
                     job["status"] = "pending"
-                    job["next"] = (now() + timedelta(minutes=20)).isoformat()
+                    job["next"] = (now() + timedelta(minutes=10)).isoformat()
                     if (
                         (job["kind"] != "closeout" or not job["deadline"])
-                        and job["attempts"] >= 3
+                        and job["attempts"] >= 6
                     ) or (
                         job["deadline"]
                         and now() >= datetime.fromisoformat(job["deadline"])

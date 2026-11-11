@@ -85,6 +85,8 @@ class EnvironmentTests(unittest.TestCase):
             fileobj=io.BytesIO(run.call_args.kwargs["input"]), mode="r:gz"
         ) as archive:
             self.assertIn("env.py", archive.getnames())
+            self.assertIn("time-range.py", archive.getnames())
+            self.assertNotIn("time_range.py", archive.getnames())
             self.assertNotIn("config/.env", archive.getnames())
 
 

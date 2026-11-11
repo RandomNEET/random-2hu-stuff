@@ -20,13 +20,15 @@ import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
+from importlib import import_module
 from pathlib import Path
 from typing import Any, List
 
 import json5
 import requests
 from env import load_dotenv
-from time_range import parse_time_range
+
+parse_time_range = import_module("time-range").parse_time_range
 
 # ==================== 1. 加载 .env ====================
 
@@ -166,13 +168,47 @@ def deduplicate(rows):
 
 
 # ==================== 6. 分组、整理与冲突检查 ====================
+CHINESE_DIGITS = {char: number for number, char in enumerate("零一二三四五六七八九")}
+CHINESE_DIGITS.update({"〇": 0, "两": 2, "兩": 2})
+NUMBER_PARTS = re.compile(r"(\d+|[零〇一二两兩三四五六七八九十百千万萬亿億廿卅卌]+)")
+
+
+def number_value(text: str) -> int:
+    """解析阿拉伯数字、中文逐位数字及带十百千万亿单位的数字。"""
+    if text.isdecimal():
+        return int(text)
+    text = text.replace("萬", "万").replace("億", "亿")
+    text = text.replace("廿", "二十").replace("卅", "三十").replace("卌", "四十")
+    for unit, scale in (("亿", 100000000), ("万", 10000)):
+        if unit in text:
+            left, _, right = text.rpartition(unit)
+            return (number_value(left) if left else 1) * scale + (
+                number_value(right) if right else 0
+            )
+    if not any(char in "十百千" for char in text):
+        return int("".join(str(CHINESE_DIGITS[char]) for char in text))
+    total = digit = 0
+    for char in text:
+        if char in CHINESE_DIGITS:
+            digit = CHINESE_DIGITS[char]
+        else:
+            total += (digit or 1) * {"十": 10, "百": 100, "千": 1000}[char]
+            digit = 0
+    return total + digit
+
+
+def natural_sort_key(value: str) -> tuple:
+    """忽略大小写，中英文数字均按数值比较，其余字符按 Unicode 排序。"""
+    return tuple(
+        number_value(part) if index % 2 else part
+        for index, part in enumerate(NUMBER_PARTS.split(value.strip().casefold()))
+    )
+
+
 def process_rows(rows: List[List[str]]) -> List[List[str]]:
     groups = defaultdict(list)
-    order = []
     for r in rows:
         author = r[0].strip() if r and r[0] else ""
-        if author not in groups:
-            order.append(author)
         groups[author].append(r)
 
     COLLISION_COL = 6
@@ -212,7 +248,10 @@ def process_rows(rows: List[List[str]]) -> List[List[str]]:
                 r[COLLISION_COL] = existing + "；" + note if existing else note
 
     combined = []
-    for author in order:
+    for author in sorted(groups, key=natural_sort_key):
+        groups[author].sort(
+            key=lambda row: natural_sort_key(row[2] if len(row) > 2 else "")
+        )
         if not author:
             combined.extend(groups[author])
             continue
@@ -520,7 +559,7 @@ def deduplicate_in_groups(groups: dict, order: list) -> dict:
 
 def reorganize_rows(rows):
     """
-    丢弃空行 → 按原作者分组 → 组内去重 → 组间插入空行占位符 None
+    丢弃空行 → 按原作者分组 → 组内去重 → 作者/标题自然排序 → 组间插空行
     返回 (sorted_rows, max_columns)
     """
     groups = defaultdict(list)
@@ -540,11 +579,17 @@ def reorganize_rows(rows):
         f"原始数据行 {sum(len(groups[a]) for a in order_of_authors)} 行"
     )
 
+    order_of_authors.sort(key=natural_sort_key)
     groups = deduplicate_in_groups(groups, order_of_authors)
 
     result = []
     for author in order_of_authors:
-        grp = groups[author]
+        grp = sorted(
+            groups[author],
+            key=lambda row: natural_sort_key(
+                _cell_value_to_text(row[2]) if len(row) > 2 else ""
+            ),
+        )
         if not grp:
             continue
         if result:

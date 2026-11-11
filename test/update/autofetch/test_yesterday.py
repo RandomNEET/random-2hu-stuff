@@ -8,10 +8,13 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "update" / "autofetch"))
 
+from importlib import import_module
+
 import fetcher
 import processor
 import upload
-from time_range import parse_time_range
+
+parse_time_range = import_module("time-range").parse_time_range
 
 
 class YesterdayTests(unittest.TestCase):
