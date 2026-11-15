@@ -117,6 +117,9 @@ def parse_args(argv=None):
     )
     parser.add_argument("--csv-dir", type=Path)
     parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--resume", action="store_true", help="只继续未完成视频；需配合 --report"
+    )
     return parser.parse_args(argv)
 
 
@@ -367,9 +370,10 @@ def read_csv_rows(filepath: Path) -> list[list[str]]:
 
 
 def write_csv_rows(filepath: Path, rows: list[list[str]]):
-    with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
+    temporary = filepath.with_suffix(filepath.suffix + ".tmp")
+    with temporary.open("w", newline="", encoding="utf-8-sig") as stream:
+        csv.writer(stream).writerows(rows)
+    os.replace(temporary, filepath)
 
 
 def ensure_columns(row: list, min_cols: int = 5) -> list:
@@ -383,6 +387,8 @@ def ensure_columns(row: list, min_cols: int = 5) -> list:
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.resume and not args.report:
+        raise ValueError("--resume 需要 --report")
     script_dir = Path(__file__).resolve().parent
     load_dotenv(script_dir / "config" / ".env", quiet=True)
     config_path = script_dir / "config" / "processor.jsonc"
@@ -448,142 +454,149 @@ def main(argv=None):
     for f in matched_csv:
         print(f"   {f.name}")
 
-    # ---------- 逐文件处理 ----------
-    total_processed = 0
-    total_skipped = 0
-    total_errors = 0
-    failures = []
+    from fetcher import save_state
 
+    previous = (
+        json.loads(args.report.read_text())
+        if args.resume and args.report.exists()
+        else {}
+    )
+    saved = previous.get("videos", {})
+    records = {}
+    file_failures = []
+    inputs = []
     for csv_path in matched_csv:
-        print(f"\n{'='*60}")
-        print(f"处理: {csv_path.name}")
-        print(f"{'='*60}")
-
         try:
             rows = read_csv_rows(csv_path)
-        except Exception as e:
-            failures.append({"stage": "csv", "file": csv_path.name})
-            total_errors += 1
-            print(f"  [错误] 读取失败: {e}")
-            continue
-
-        modified = False
-        file_processed = 0
-
-        for row_idx, row in enumerate(rows):
-            row = ensure_columns(row, 5)
-
-            # 列索引：0=作者频道, 1=原链接, 2=标题, 3=B站链接, 4=翻译状态
-            bilibili_link = row[3].strip()
-            existing_original = row[1].strip()
-
-            if not bilibili_link:
-                continue
-
-            if (
-                skip_existing
-                and existing_original
-                and (not args.report or row[0].strip())
-            ):
-                total_skipped += 1
-                continue
-
-            if args.report and skip_existing and existing_original:
-                # Preserve a manually entered original URL while retrying its author.
-                author_name = get_author_from_original_link(
-                    existing_original,
-                    process_config,
-                    cookies_file=cookies_file,
-                )
-                if author_name:
-                    row[0] = author_name
-                    rows[row_idx] = row
-                    modified = True
-                    file_processed += 1
-                    total_processed += 1
-                else:
-                    failures.append({"stage": "author", "video": bilibili_link})
-                    total_errors += 1
-                time.sleep(request_delay)
-                continue
-
-            title = row[2][:80] if row[2] else "(无标题)"
-            print(f"\n  [{row_idx+1}/{len(rows)}] {title}")
-            print(f"    B站链接: {bilibili_link}")
-
-            # ---- 阶段一：获取简介 → 提取原链接 ----
-            print(f"    → 获取简介 ...")
-            description = get_description(bilibili_link, cookies_file)
-            if not description:
-                print(f"    [警告] 无法获取简介，跳过")
-                failures.append(
-                    {"stage": "description_or_link", "video": bilibili_link}
-                )
-                total_errors += 1
-                time.sleep(request_delay)
-                continue
-
-            original_url = extract_original_link(description, extraction_rules)
-            if not original_url:
-                print(f"    [警告] 未能从简介中提取原视频链接，跳过")
-                preview = description[:200].replace("\n", "\\n")
-                print(f"    简介预览: {preview}...")
-                failures.append(
-                    {"stage": "description_or_link", "video": bilibili_link}
-                )
-                total_errors += 1
-                time.sleep(request_delay)
-                continue
-
-            print(f"    原始提取: {original_url}")
-
-            # ---- 格式化链接 ----
-            formatted_url = format_link(original_url, link_format_cfg)
-            print(f"    格式化后: {formatted_url}")
-
-            row[1] = formatted_url
-
-            # ---- 阶段二：获取原作者频道名 ----
-            print(f"    → 获取原作者频道名 ...")
-            author_name = get_author_from_original_link(
-                formatted_url,
-                process_config,
-                cookies_file=cookies_file,
-                description=description,
+        except Exception:
+            file_failures.append(
+                {"stage": "csv", "file": csv_path.name, "retryable": True}
             )
-            if author_name:
-                print(f"    作者频道: {author_name}")
-                row[0] = author_name
+            continue
+        for index, raw in enumerate(rows):
+            row = ensure_columns(raw, 5)
+            if not row[3].strip():
+                continue
+            key = f"{csv_path.name}:{index + 1}"
+            prior = saved.get(key, {})
+            if prior.get("fingerprint") == row:
+                records[key] = prior
             else:
-                failures.append({"stage": "author", "video": bilibili_link})
-                total_errors += 1
-                print(f"    [警告] 未能获取原作者频道名")
+                records[key] = {"status": "pending", "fingerprint": row.copy()}
+            inputs.append((csv_path, rows, index, key))
 
-            rows[row_idx] = row
-            modified = True
-            file_processed += 1
-            total_processed += 1
+    def problems():
+        result = list(file_failures)
+        for key, record in records.items():
+            if record["status"] != "complete":
+                result.append(
+                    record.get(
+                        "failure",
+                        {
+                            "stage": "pending",
+                            "file": key.split(":")[0],
+                            "video": record["fingerprint"][3],
+                            "title": record["fingerprint"][2],
+                            "retryable": True,
+                        },
+                    )
+                )
+        return result
 
+    def progress():
+        if args.report:
+            issues = problems()
+            save_state(
+                args.report,
+                {
+                    "version": 2,
+                    "complete": not issues,
+                    "failures": issues,
+                    "videos": records,
+                    "completed_videos": sum(
+                        r["status"] == "complete" for r in records.values()
+                    ),
+                    "total_videos": len(records),
+                },
+            )
+
+    progress()
+    processed = skipped = 0
+    for csv_path, rows, index, key in inputs:
+        row = rows[index]
+        record = records[key]
+        if args.resume and record["status"] in ("complete", "manual"):
+            skipped += 1
+            continue
+        video = row[3].strip()
+        issue = None
+        changed = False
+        # Existing manually entered original links are never replaced to retry an author.
+        existing_complete = row[1].strip() and (not args.report or row[0].strip())
+        if skip_existing and existing_complete:
+            skipped += 1
+        else:
+            print(f"→ {csv_path.name}:{index+1} {row[2][:100]} ({video})")
+            try:
+                description = None
+                if not row[1].strip() or not skip_existing:
+                    description = get_description(video, cookies_file)
+                    if not description:
+                        issue = ("description", True)
+                    else:
+                        original = extract_original_link(description, extraction_rules)
+                        if not original:
+                            issue = ("original_link_missing", False)
+                        else:
+                            row[1] = format_link(original, link_format_cfg)
+                            changed = True
+                if not issue:
+                    author = get_author_from_original_link(
+                        row[1],
+                        process_config,
+                        cookies_file=cookies_file,
+                        description=description,
+                    )
+                    if author:
+                        row[0] = author
+                        changed = True
+                    else:
+                        issue = ("author", True)
+            except Exception:
+                issue = ("metadata_request", True)
             time.sleep(request_delay)
-
-        if modified:
-            write_csv_rows(csv_path, rows)
-            print(f"\n  ✓ 已更新 {csv_path.name} ({file_processed} 行)")
-
-    # ---------- 汇总 ----------
-    print(f"\n{'='*60}")
-    print(f"处理完成！")
-    print(f"  成功处理: {total_processed} 条")
-    print(f"  跳过(已有): {total_skipped} 条")
-    print(f"  失败/跳过: {total_errors} 条")
-    print(f"{'='*60}")
-
-    if args.report:
-        from fetcher import save_state
-
-        save_state(args.report, {"complete": not total_errors, "failures": failures})
-        if total_errors:
-            sys.exit(2)
+        try:
+            if changed:
+                rows[index] = row
+                write_csv_rows(csv_path, rows)
+                processed += 1
+        except OSError:
+            issue = ("csv", True)
+        record["fingerprint"] = row.copy()
+        if issue:
+            stage, retryable = issue
+            record["status"] = "pending" if retryable else "manual"
+            record["failure"] = {
+                "stage": stage,
+                "retryable": retryable,
+                "file": csv_path.name,
+                "csv_path": str(csv_path),
+                "row": index + 1,
+                "video": video,
+                "title": row[2],
+                "author": row[0] or csv_path.stem.rsplit("-", 1)[0],
+            }
+            print(f"  {'稍后重试' if retryable else '需要人工补充原链接'}：{video}")
+        else:
+            record["status"] = "complete"
+            record.pop("failure", None)
+        progress()
+    issues = problems()
+    print(
+        f"本轮结束：写入 {processed} 条，跳过 {skipped} 条，未完成 {len(issues)} 项。"
+    )
+    if args.report and issues:
+        sys.exit(2 if any(f.get("retryable", True) for f in issues) else 3)
 
 
 if __name__ == "__main__":

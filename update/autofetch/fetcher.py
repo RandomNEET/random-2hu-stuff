@@ -142,6 +142,11 @@ def parse_args(argv=None):
     parser.add_argument("--output-date", help="定时任务固定输出日期 YYYYMMDD")
     parser.add_argument("--state-file", type=Path)
     parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="根据报告继续未完成作者/视频；需配合 --report",
+    )
     return parser.parse_args(argv)
 
 
@@ -404,6 +409,8 @@ def parse_rss(xml_content: str) -> tuple[str | None, list[dict]]:
 
 def main(argv=None):
     args = parse_args(argv)
+    if args.resume and not args.report:
+        raise ValueError("--resume 需要 --report")
     script_dir = Path(__file__).resolve().parent
     load_dotenv(script_dir / "config" / ".env", quiet=True)
 
@@ -449,10 +456,24 @@ def main(argv=None):
         print("[错误] 配置文件中 users 为空，请至少指定一个用户")
         sys.exit(1)
 
+    previous = {}
+    if args.resume and args.report.exists():
+        previous = json.loads(args.report.read_text())
+        if previous.get("time_range") != time_range:
+            raise ValueError("报告时间范围不同，不能续跑")
+    user_results = previous.get("user_results", {}) if args.resume else {}
     failures = []
 
-    def fail(stage, uid, bvid=None):
-        failures.append({"stage": stage, "uid": uid, "bvid": bvid})
+    def fail(stage, uid, bvid=None, **details):
+        failures.append(
+            {
+                "stage": stage,
+                "uid": uid,
+                "bvid": bvid,
+                "retryable": stage not in ("publication_date", "bvid", "config"),
+                **details,
+            }
+        )
 
     users = []
     for entry in raw_users:
@@ -500,17 +521,38 @@ def main(argv=None):
             )
         grouped_rows.clear()
 
-    pending_users = [u["id"] for u in users]
+    user_results = {
+        u["id"]: user_results.get(
+            u["id"],
+            {
+                "status": "pending",
+                "failures": [{"stage": "pending", "uid": u["id"], "retryable": True}],
+            },
+        )
+        for u in users
+    }
+
+    def all_failures():
+        return [f for f in failures if f["uid"] == "invalid-entry"] + [
+            failure
+            for result in user_results.values()
+            for failure in result.get("failures", [])
+        ]
 
     def progress():
         if args.report:
+            problems = all_failures()
             save_state(
                 args.report,
                 {
-                    "complete": not failures and not pending_users,
-                    "failures": failures
-                    + [{"stage": "pending", "uid": uid} for uid in pending_users],
+                    "version": 2,
+                    "complete": not problems,
+                    "failures": problems,
+                    "user_results": user_results,
                     "users": len(users),
+                    "completed_users": sum(
+                        r.get("status") == "complete" for r in user_results.values()
+                    ),
                     "matched": total_matched,
                     "time_range": time_range,
                     "coverage": "仅验证 RSS 返回内容，不保证平台投稿完整覆盖",
@@ -521,23 +563,48 @@ def main(argv=None):
 
     for user_cfg in users:
         uid = user_cfg["id"]
+        result = user_results[uid]
+        if args.resume and result.get("status") == "complete":
+            print(f"✓ 作者 {result.get('author', uid)} 已完成，跳过网络请求")
+            continue
+        if (
+            args.resume
+            and result.get("failures")
+            and all(not f.get("retryable", True) for f in result["failures"])
+        ):
+            print(f"作者 {result.get('author', uid)} 需要人工核对，保留失败清单")
+            continue
+        failure_start = len(failures)
         user_state = state["users"].setdefault(uid, {"seen_bvids": []})
         seen_bvids = set(user_state.get("seen_bvids", []))
         print(f"→ 正在获取用户 {uid} 的视频 RSS ...")
         try:
-            xml_content = fetch_rss(
-                baseurl, uid, retry_session, timeout=request_timeout
-            )
-            author, items = parse_rss(xml_content)
-            if author is None:
-                raise ValueError("RSS 缺少 channel")
+            if args.resume and result.get("rss_complete"):
+                author, items = result["author"], result["items"]
+                print("  使用已成功读取的 RSS，只继续未完成视频")
+            else:
+                xml_content = fetch_rss(
+                    baseurl, uid, retry_session, timeout=request_timeout
+                )
+                author, items = parse_rss(xml_content)
+                if author is None:
+                    raise ValueError("RSS 缺少 channel")
+                result.update(rss_complete=True, author=author, items=items)
+                user_state["author"] = author
+                progress()
             print(f"  作者: {author}  |  RSS 共返回 {len(items)} 条")
 
             matched = 0
             for item in items:
                 pub_dt = parse_pub_date(item["pubDate"])
                 if pub_dt is None:
-                    fail("publication_date", uid)
+                    fail(
+                        "publication_date",
+                        uid,
+                        video=item["link"],
+                        title=item["title"],
+                        author=author,
+                    )
                     continue
                 if not is_within_range(pub_dt, time_range):
                     continue
@@ -546,7 +613,13 @@ def main(argv=None):
                     bvid = extract_bvid(item["link"])
                 except ValueError as e:
                     print(f"  [警告] {e}")
-                    fail("bvid", uid)
+                    fail(
+                        "bvid",
+                        uid,
+                        video=item["link"],
+                        title=item["title"],
+                        author=author,
+                    )
                     continue
                 if bvid in seen_bvids or bvid in existing_bvids:
                     seen_bvids.add(bvid)
@@ -559,7 +632,14 @@ def main(argv=None):
                             item["link"], retry_session, timeout=request_timeout
                         )
                     except (requests.RequestException, ValueError, RuntimeError) as e:
-                        fail("tags", uid, bvid)
+                        fail(
+                            "tags",
+                            uid,
+                            bvid,
+                            author=author,
+                            title=item["title"],
+                            video=item["link"],
+                        )
                         print(f"  [警告] 无法获取视频 tag，已跳过 {item['link']}: {e}")
                         continue
                     if not matches_tag_keywords(tags, user_cfg):
@@ -601,7 +681,23 @@ def main(argv=None):
                     save_state(state_path, state)
                 except OSError:
                     fail("state", uid)
-                pending_users.remove(uid)
+                result["failures"] = failures[failure_start:]
+                result["status"] = "pending" if result["failures"] else "complete"
+                result["videos"] = {
+                    item["link"]: {
+                        "title": item["title"],
+                        "complete": not any(
+                            failure.get("video") == item["link"]
+                            or (failure.get("bvid") and failure["bvid"] in item["link"])
+                            for failure in result["failures"]
+                        ),
+                    }
+                    for item in result.get("items", [])
+                    if item.get("link")
+                    and is_within_range(
+                        parse_pub_date(item.get("pubDate", "")), time_range
+                    )
+                }
                 progress()
 
     # ---------- 按作者输出 CSV 到 output/ 目录 ----------
@@ -615,23 +711,22 @@ def main(argv=None):
         if not args.report:
             raise
     if args.report:
-        save_state(
-            args.report,
-            {
-                "complete": not failures,
-                "failures": failures,
-                "users": len(users),
-                "matched": total_matched,
-                "time_range": time_range,
-                "coverage": "仅验证 RSS 返回内容，不保证平台投稿完整覆盖",
-            },
-        )
+        if any(f["stage"] == "state" for f in failures):
+            for result in user_results.values():
+                result.update(
+                    status="pending",
+                    failures=[{"stage": "state", "uid": "all", "retryable": True}],
+                )
+        progress()
 
     if total_matched == 0:
         print("\n没有发现尚未处理且符合条件的视频。")
 
-    print(f"\n完成！共处理 {len(users)} 个用户，输出 {total_matched} 条视频。")
-    if args.report and failures:
+    problems = all_failures() if args.report else failures
+    print(
+        f"\n本轮结束：{len(users)} 位作者，新增 {total_matched} 条，未完成问题 {len(problems)} 项。"
+    )
+    if args.report and problems:
         sys.exit(2)
 
 

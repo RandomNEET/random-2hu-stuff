@@ -14,6 +14,7 @@
 import argparse
 import copy
 import csv
+import hashlib
 import json
 import os
 import re
@@ -269,6 +270,10 @@ def _cell_value_to_text(cv) -> str:
         return cv["text"]
     if "link" in cv:
         return cv["link"].get("text") or cv["link"].get("url", "")
+    if "number" in cv:
+        return str(cv["number"])
+    if "formula" in cv:
+        return str(cv["formula"])
     if "location" in cv:
         return cv["location"].get("name", "")
     return ""
@@ -279,65 +284,55 @@ def _is_empty_api_row(row) -> bool:
 
 
 def get_sheet_info(file_id: str, sheet_id: str):
+    """读取失败必须抛错，不能将未知状态当作空表。"""
     if not all([ACCESS_TOKEN, CLIENT_ID, OPEN_ID]):
-        print("[警告] 缺少凭证，无法获取工作表信息")
-        return 0, 0
-    headers = {
-        "Access-Token": ACCESS_TOKEN,
-        "Client-Id": CLIENT_ID,
-        "Open-Id": OPEN_ID,
-    }
-    url = f"https://docs.qq.com/openapi/spreadsheet/v3/files/{file_id}"
-    try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        if resp.status_code != 200:
-            print(f"  [警告] GET files 返回 HTTP {resp.status_code}")
-            return 0, 0
-        data = resp.json()
-        for p in data.get("properties", []):
-            if str(p.get("sheetId")) == str(sheet_id):
-                rc = int(p.get("rowCount", 0))
-                rt = int(p.get("rowTotal", 0))
-                print(
-                    f"  [API] sheetId={p.get('sheetId')}, 标题={p.get('title','')}, rowCount={rc}, rowTotal={rt}"
-                )
-                return rc, rt
-        print(f"  [警告] 未找到 sheetId={sheet_id}")
-        return 0, 0
-    except Exception as e:
-        print(f"  [警告] GET files 异常: {e}")
-        return 0, 0
+        raise RuntimeError("缺少腾讯文档认证信息")
+    headers = {"Access-Token": ACCESS_TOKEN, "Client-Id": CLIENT_ID, "Open-Id": OPEN_ID}
+    response = requests.get(
+        f"https://docs.qq.com/openapi/spreadsheet/v3/files/{file_id}",
+        headers=headers,
+        timeout=15,
+    )
+    response.raise_for_status()
+    data = response.json()
+    if data.get("code", 0) != 0:
+        raise RuntimeError("工作表元数据接口返回错误")
+    matches = [
+        p for p in data.get("properties", []) if str(p.get("sheetId")) == str(sheet_id)
+    ]
+    if len(matches) != 1:
+        raise RuntimeError("未找到唯一的目标工作表")
+    prop = matches[0]
+    row_count, row_total = int(prop["rowCount"]), int(prop["rowTotal"])
+    if row_count < 0 or row_total < row_count:
+        raise RuntimeError("工作表行数无效")
+    print(f"工作表当前行数: {row_count} (总上限: {row_total})")
+    return row_count, row_total
 
 
 def _fetch_all_api_rows(file_id: str, sheet_id: str, total_rows: int) -> list:
-    headers = {
-        "Access-Token": ACCESS_TOKEN,
-        "Client-Id": CLIENT_ID,
-        "Open-Id": OPEN_ID,
-    }
+    """读取完整快照；任一分页失败或缺行时禁止后续写入。"""
+    headers = {"Access-Token": ACCESS_TOKEN, "Client-Id": CLIENT_ID, "Open-Id": OPEN_ID}
     all_rows = []
-    batch_size = 500
-    for start in range(0, total_rows, batch_size):
-        end = min(start + batch_size, total_rows) - 1
-        if start > end:
-            break
-        range_str = f"A{start+1}:Z{end+1}"
-        try:
-            resp = requests.get(
-                f"https://docs.qq.com/openapi/spreadsheet/v3/files/{file_id}/{sheet_id}/{range_str}",
-                headers=headers,
-                timeout=20,
-            )
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            rows_data = data.get("gridData", {}).get("rows", [])
-            for row_obj in rows_data:
-                values = row_obj.get("values", [])
-                row = [cell.get("cellValue", None) for cell in values]
-                all_rows.append(row)
-        except Exception:
-            continue
+    for start in range(0, total_rows, 500):
+        end = min(start + 500, total_rows)
+        response = requests.get(
+            f"https://docs.qq.com/openapi/spreadsheet/v3/files/{file_id}/{sheet_id}/A{start+1}:Z{end}",
+            headers=headers,
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("code", 0) != 0:
+            raise RuntimeError("工作表分页接口返回错误")
+        chunk = data.get("gridData", {}).get("rows")
+        if not isinstance(chunk, list) or len(chunk) != end - start:
+            raise RuntimeError("工作表分页不完整，取消写入")
+        for row in chunk:
+            values = row.get("values")
+            if not isinstance(values, list):
+                raise RuntimeError("工作表行数据无效，取消写入")
+            all_rows.append([cell.get("cellValue") for cell in values])
     return all_rows
 
 
@@ -368,21 +363,25 @@ def upload_to_tdocs(
         start_row = 0
         print(f"\n[DRY RUN] 起始行: 第 1 行（0-based: 0）")
     elif start_row is None:
-        row_count, _ = get_sheet_info(file_id, sheet_id)
-        if row_count > 0:
-            last_content = find_last_content_row(file_id, sheet_id, row_count)
-            if last_content >= 0:
-                start_row = last_content + 2
-                print(f"→ 最后有内容行: 第 {last_content + 1} 行")
-                print(
-                    f"→ 将从第 {start_row + 1} 行开始追加（第 {last_content + 2} 行为空行）"
-                )
+        try:
+            row_count, _ = get_sheet_info(file_id, sheet_id)
+            if row_count > 0:
+                last_content = find_last_content_row(file_id, sheet_id, row_count)
+                if last_content >= 0:
+                    start_row = last_content + 2
+                    print(f"→ 最后有内容行: 第 {last_content + 1} 行")
+                    print(
+                        f"→ 将从第 {start_row + 1} 行开始追加（第 {last_content + 2} 行为空行）"
+                    )
+                else:
+                    start_row = 0
+                    print("→ 表格全空，将从第 1 行开始写入")
             else:
                 start_row = 0
-                print("→ 表格全空，将从第 1 行开始写入")
-        else:
-            start_row = 0
-            print("→ 表格为空，将从第 1 行开始写入")
+                print("→ 表格为空，将从第 1 行开始写入")
+        except Exception as error:
+            print(f"[错误] 无法安全确定追加位置（{type(error).__name__}），取消上传")
+            return False
 
     if not dry_run:
         if not all([ACCESS_TOKEN, CLIENT_ID, OPEN_ID]):
@@ -599,89 +598,108 @@ def reorganize_rows(rows):
     return result, max_cols
 
 
-def build_order_batch_requests(sheet_id, sorted_rows, num_columns, total_rows):
-    """
-    构造 batchUpdate 的 requests：
-      1) 清空整个表格（全部行 × num_columns）
-      2) 写入整理后的数据
-    """
-    reqs = []
+ORDER_STATE_DIR = Path("state/upload-order")
 
-    # 请求1：清空
-    empty_rows = []
-    for _ in range(total_rows):
-        empty_row = [{"cellValue": {"text": ""}} for _ in range(num_columns)]
-        empty_rows.append({"values": empty_row})
-    reqs.append(
-        {
-            "updateRangeRequest": {
-                "sheetId": sheet_id,
-                "gridData": {
-                    "startRow": 0,
-                    "startColumn": 0,
-                    "rows": empty_rows,
-                },
-            }
-        }
-    )
 
-    # 请求2：写入整理后的数据
-    data_rows = []
-    for r in sorted_rows:
-        if r is None:
-            cols = [{"cellValue": {"text": ""}} for _ in range(num_columns)]
-            data_rows.append({"values": cols})
-        else:
-            cols = []
-            for i in range(num_columns):
-                if i < len(r) and r[i] is not None:
-                    cols.append({"cellValue": copy.deepcopy(r[i])})
-                else:
-                    cols.append({"cellValue": {"text": ""}})
-            data_rows.append({"values": cols})
-    reqs.append(
-        {
-            "updateRangeRequest": {
-                "sheetId": sheet_id,
-                "gridData": {
-                    "startRow": 0,
-                    "startColumn": 0,
-                    "rows": data_rows,
-                },
-            }
-        }
-    )
-    return reqs
+def order_plan_path(file_id, sheet_id):
+    identity = json.dumps([file_id, sheet_id]).encode()
+    return ORDER_STATE_DIR / (hashlib.sha256(identity).hexdigest() + ".json")
+
+
+def comparison_cell(row, column):
+    value = row[column] if row and column < len(row) else None
+    return None if not value or value == {"text": ""} else value
+
+
+def resume_order_plan(path, current_rows):
+    """保留原始排序目标，避免部分写入后重新分组时丢失被覆盖的记录。"""
+    plan = json.loads(path.read_text())
+    before, after = plan["before"], plan["after"]
+    for index in range(max(len(before), len(after), len(current_rows))):
+        old = before[index] if index < len(before) else None
+        target = after[index] if index < len(after) else None
+        current = current_rows[index] if index < len(current_rows) else None
+        for column in range(max(len(old or []), len(target or []), len(current or []))):
+            value = comparison_cell(current, column)
+            if value != comparison_cell(old, column) and value != comparison_cell(
+                target, column
+            ):
+                raise RuntimeError("未完成整理期间检测到其他修改，请先核对本地整理快照")
+    return plan
+
+
+def build_order_batch_requests(sheet_id, sorted_rows, original_rows):
+    """仅写值有变化的连续单元格，并合并相邻行相同列范围。"""
+    requests_out = []
+    active = {}
+
+    for index in range(max(len(sorted_rows), len(original_rows))):
+        before = original_rows[index] if index < len(original_rows) else None
+        after = sorted_rows[index] if index < len(sorted_rows) else None
+        width = max(len(before or []), len(after or []))
+        changed = [
+            column
+            for column in range(width)
+            if comparison_cell(before, column) != comparison_cell(after, column)
+        ]
+        spans = []
+        for column in changed:
+            if spans and column == spans[-1][1]:
+                spans[-1] = (spans[-1][0], column + 1)
+            else:
+                spans.append((column, column + 1))
+        next_active = {}
+        for left, right in spans:
+            values = [
+                {
+                    "cellValue": copy.deepcopy(comparison_cell(after, column))
+                    or {"text": ""}
+                }
+                for column in range(left, right)
+            ]
+            if (left, right) in active:
+                grid = active[(left, right)]
+            else:
+                grid = {"startRow": index, "startColumn": left, "rows": []}
+                requests_out.append(
+                    {"updateRangeRequest": {"sheetId": sheet_id, "gridData": grid}}
+                )
+            grid["rows"].append({"values": values})
+            next_active[(left, right)] = grid
+        active = next_active
+    return requests_out
 
 
 def order_sheet(file_id, sheet_id, dry_run=False):
     """
-    整理在线表格：下载 → 清理 URL → 去重 → 分组 → 空行分隔 → 清空+写入
+    整理在线表格：完整下载 → 清理 URL → 去重/排序/分隔 → 差异写入
     """
     if not all([ACCESS_TOKEN, CLIENT_ID, OPEN_ID]):
         print("[错误] 缺少认证信息，无法整理")
         return False
 
-    # 1. 获取行数
-    row_count, row_total = get_sheet_info(file_id, sheet_id)
-    print(f"工作表当前行数: {row_count} (总上限: {row_total})")
-    if row_count == 0:
-        print("没有数据，无需整理")
-        return True
-
-    # 2. 下载全部数据
-    print("→ 正在下载全部数据 ...")
-    rows = _fetch_all_api_rows(file_id, sheet_id, row_count)
-    print(f"  成功获取 {len(rows)} 行")
-
-    # 3. 清理单元格内重复URL
-    print("→ 正在清理单元格内重复URL ...")
-    rows = [clean_row_cells(row) for row in rows]
-
-    # 4. 整理：分组、去重、分隔
-    print("→ 正在整理（分组 + 去重 + 分隔）...")
-    sorted_rows, max_cols = reorganize_rows(rows)
-    num_columns = max(max_cols, 8)  # 至少保证8列
+    try:
+        row_count, row_total = get_sheet_info(file_id, sheet_id)
+        print("→ 正在下载完整数据 ...")
+        original_rows = _fetch_all_api_rows(file_id, sheet_id, row_count)
+        if len(original_rows) != row_count:
+            raise RuntimeError("工作表数据不完整")
+    except Exception as error:
+        print(f"[错误] 读取失败（{type(error).__name__}），取消整理，未写入")
+        return False
+    plan_path = order_plan_path(file_id, sheet_id)
+    try:
+        if plan_path.exists():
+            plan = resume_order_plan(plan_path, original_rows)
+            sorted_rows = plan["after"]
+            print("→ 继续未完成的整理计划")
+        else:
+            rows = [clean_row_cells(row) for row in original_rows]
+            sorted_rows, _ = reorganize_rows(rows)
+            plan = {"before": original_rows, "after": sorted_rows}
+    except Exception as error:
+        print(f"[错误] 无法安全恢复整理（{type(error).__name__}），请核对 {plan_path}")
+        return False
 
     data_rows = sum(1 for r in sorted_rows if r is not None)
     sep_rows = sum(1 for r in sorted_rows if r is None)
@@ -690,14 +708,19 @@ def order_sheet(file_id, sheet_id, dry_run=False):
         f"（数据 {data_rows} 行 + 分隔空行 {sep_rows} 行）"
     )
 
-    # 5. 构造请求并写回
-    batch_reqs = build_order_batch_requests(
-        sheet_id, sorted_rows, num_columns, row_count
+    # 5. 比较原始快照，不重写未变化的单元格或空白区域。
+    batch_reqs = build_order_batch_requests(sheet_id, sorted_rows, original_rows)
+    if not batch_reqs:
+        print("✓ 数据已整理，无需写入")
+        if not dry_run and plan_path.exists():
+            plan_path.unlink()
+        return True
+    changed_cells = sum(
+        len(row["values"])
+        for request in batch_reqs
+        for row in request["updateRangeRequest"]["gridData"]["rows"]
     )
-    payload = {"requests": batch_reqs}
-    clear_rows = row_count - len(sorted_rows)
-    print(f"  将清空全部 {row_count} 行，写入 {len(sorted_rows)} 行")
-    print(f"→ 正在发送 batchUpdate ({len(batch_reqs)} 个请求)...")
+    print(f"→ 仅更新 {changed_cells} 个变化单元格（{len(batch_reqs)} 个范围）")
 
     if dry_run:
         print(f"\n[DRY RUN] 整理后 {len(sorted_rows)} 行（原 {row_count} 行）")
@@ -723,31 +746,41 @@ def order_sheet(file_id, sheet_id, dry_run=False):
     }
     url = f"https://docs.qq.com/openapi/spreadsheet/v3/files/{file_id}/batchUpdate"
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=120)
-        if resp.status_code == 200:
-            body = resp.json()
-            if "responses" in body:
-                errors = [r.get("error") for r in body["responses"] if "error" in r]
-                if errors:
-                    print(f"  部分错误: {json.dumps(errors, ensure_ascii=False)[:500]}")
-                    return False
-                updated = sum(
-                    r.get("updateRangeResponse", {}).get("updatedCells", 0)
-                    for r in body["responses"]
+        if not plan_path.exists():
+            plan_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = plan_path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(plan, ensure_ascii=False))
+            temporary.chmod(0o600)
+            os.replace(temporary, plan_path)
+        updated = 0
+        for start in range(0, len(batch_reqs), 100):
+            chunk = batch_reqs[start : start + 100]
+            response = requests.post(
+                url, json={"requests": chunk}, headers=headers, timeout=120
+            )
+            response.raise_for_status()
+            body = response.json()
+            results = body.get("responses")
+            if (
+                body.get("code", 0) != 0
+                or not isinstance(results, list)
+                or len(results) != len(chunk)
+                or any(
+                    "error" in result or "updateRangeResponse" not in result
+                    for result in results
                 )
-                print(f"✓ 整理完成，更新了 {updated} 个单元格")
-                return True
-            elif "code" in body and body.get("code") != 0:
-                print(f"  错误: {body.get('code')} - {body.get('message')}")
+            ):
+                print("[错误] 整理写入结果不完整或失败，停止后续请求")
                 return False
-            else:
-                print(f"  未知响应: {json.dumps(body, ensure_ascii=False)[:300]}")
-                return False
-        else:
-            print(f"  请求失败 HTTP {resp.status_code}: {resp.text[:500]}")
-            return False
-    except Exception as e:
-        print(f"  请求异常: {e}")
+            updated += sum(
+                result["updateRangeResponse"].get("updatedCells", 0)
+                for result in results
+            )
+        plan_path.unlink()
+        print(f"✓ 整理完成，更新了 {updated} 个单元格")
+        return True
+    except Exception as error:
+        print(f"[错误] 整理写入失败（{type(error).__name__}），请核对后重试")
         return False
 
 

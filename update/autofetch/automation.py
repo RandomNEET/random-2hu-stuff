@@ -195,7 +195,11 @@ def upload_week(directory):
         save(ledger_path, ledger)
     rows = []
     for path in sorted((directory / "output").glob("*.csv")):
-        rows.extend(upload.read_csv(path))
+        rows.extend(
+            row
+            for row in upload.read_csv(path)
+            if len(row) >= 4 and all(row[i].strip() for i in (0, 1, 3))
+        )
     # Use all five columns, preserving split/merged works and human-maintained cells.
     confirmed = {signature(r) for r in ledger["confirmed"]}
     pending = [
@@ -242,6 +246,7 @@ def upload_week(directory):
 
 
 def attempt(key, job):
+    job["upload_failed"] = False
     directory = DATA / "jobs" / key
     directory.mkdir(parents=True, exist_ok=True)
     deadline = now() + timedelta(minutes=15)
@@ -269,9 +274,12 @@ def attempt(key, job):
                 str(DATA / "fetcher.json"),
                 "--report",
                 str(directory / f"fetch-{date}.json"),
+                "--resume",
             ]
             try:
-                execute(command, log, deadline)
+                report = load(directory / f"fetch-{date}.json", {})
+                if report.get("complete") is not True:
+                    execute(command, log, deadline)
             except RuntimeError as error:
                 errors.append(str(error))
         for batch in sorted(weeks):
@@ -286,13 +294,13 @@ def attempt(key, job):
                         str(batch / "output"),
                         "--report",
                         str(directory / f"process-{batch.name}.json"),
+                        "--resume",
                     ],
                     log,
                     deadline,
                 )
             except RuntimeError as error:
                 errors.append(str(error))
-                continue
             try:
                 execute(
                     [
@@ -306,10 +314,35 @@ def attempt(key, job):
                 )
             except RuntimeError as error:
                 errors.append(str(error))
+                job["upload_failed"] = True
                 job["error"] = "upload: " + str(error)
                 alert(key, job)
         if errors:
             raise RuntimeError("; ".join(errors))
+
+
+def report_details(key):
+    issues, summaries = [], []
+    for path in sorted((DATA / "jobs" / key).glob("*.json")):
+        if not path.name.startswith(("fetch-", "process-")):
+            continue
+        report = load(path, {})
+        is_fetch = path.name.startswith("fetch-")
+        date = path.stem.split("-", 1)[1]
+        if is_fetch:
+            summaries.append(
+                f"抓取 {date}：{report.get('completed_users', '未知')}/{report.get('users', '未知')} 位作者完成"
+            )
+        else:
+            summaries.append(
+                f"信息补全：{report.get('completed_videos', '未知')}/{report.get('total_videos', '未知')} 条视频完成"
+            )
+        for failure in report.get("failures", []):
+            issue = dict(failure, date=date if is_fetch else "")
+            result = report.get("user_results", {}).get(str(issue.get("uid")), {})
+            issue.setdefault("author", result.get("author"))
+            issues.append(issue)
+    return issues, summaries
 
 
 def notify(key, job):
@@ -317,29 +350,81 @@ def notify(key, job):
 
     upload.load_dotenv(ROOT / "config" / ".env")
     message = EmailMessage()
-    message["Subject"] = f"[autofetch] {key} 未完成"
+    issues, summaries = report_details(key)
+    manual_only = issues and all(not issue.get("retryable", True) for issue in issues)
+    reason = (
+        "上传失败"
+        if str(job.get("error", "")).startswith("upload:")
+        else ("需要人工补充" if manual_only else "仍有未完成项")
+    )
+    message["Subject"] = f"[autofetch] {key}：{reason}"
     message["From"] = os.environ["AUTOFETCH_MAIL_FROM"]
     message["To"] = os.environ["AUTOFETCH_MAIL_TO"]
     report_dir = DATA / "jobs" / key
-    # Never include raw logs, exception bodies, cookies or environment variables.
-    details = []
-    for path in sorted(report_dir.glob("*.json")):
-        report = load(path, {})
-        details.append(
-            {
-                "report": path.name,
-                "complete": report.get("complete"),
-                "failures": report.get("failures", []),
-            }
+    labels = {
+        "rss": "RSS 请求失败（超时、HTTP 错误或响应无法解析）",
+        "tags": "视频标签请求失败",
+        "description": "视频简介请求失败",
+        "description_or_link": "简介获取或原链接提取失败（旧报告）",
+        "original_link_missing": "简介中没有可提取的原链接，请人工填写 CSV 的原视频链接和作者",
+        "author": "原作者获取失败，可手动填写作者",
+        "csv": "CSV 读取或写入失败，请检查文件权限",
+        "state": "进度保存失败，请检查磁盘和权限",
+        "pending": "尚未完成，可能被超时或进程中断打断",
+        "metadata_request": "视频信息请求失败",
+        "publication_date": "视频日期无法解析，需人工核对",
+        "bvid": "视频链接无法解析，需人工核对",
+        "config": "作者配置无效，需人工修正",
+    }
+    lines = [
+        f"任务：{key}",
+        f"目标投稿日期：{', '.join(job['dates'])}",
+        f"已执行：{job['attempts']} 轮",
+        "",
+        "累计处理结果：",
+        *summaries,
+        "",
+        "未完成清单：",
+    ]
+    for issue in issues:
+        identity = issue.get("author") or (
+            f"UID {issue['uid']}" if issue.get("uid") else "视频"
         )
-    message.set_content(
-        f"目标日期：{', '.join(job['dates'])}\n重试轮数：{job['attempts']}\n"
-        f"状态：{job['status']}\n阶段结果：{job.get('error', 'interrupted')}\n"
-        f"日志目录：{report_dir}\n"
-        f"手动续跑：cd {ROOT} && {sys.executable} automation.py --retry {key}\n"
-        + json.dumps(details, ensure_ascii=False, indent=2)
-        + "\n本报告只验证 RSS 返回内容，不能证明平台投稿完整覆盖。\n"
-    )
+        location = f"{issue.get('csv_path') or issue.get('file', '')}" + (
+            f" 第 {issue['row']} 行" if issue.get("row") else ""
+        )
+        lines.append(
+            f"- {issue.get('date', '')} {identity}：{labels.get(issue.get('stage'), '处理未完成')}"
+        )
+        if issue.get("title"):
+            lines.append(f"  标题：{issue['title']}")
+        if issue.get("video"):
+            lines.append(f"  视频：{issue['video']}")
+        if location:
+            lines.append(f"  文件：{location}")
+        lines.append(
+            "  处理方式："
+            + (
+                "自动重试只处理此未完成项"
+                if issue.get("retryable", True)
+                else "需人工修改，不重复网络请求"
+            )
+        )
+    if not issues:
+        lines.append(
+            "- 上传/整理或程序执行未完成，请查看下方日志；不会自动重复追加结果不确定的上传。"
+        )
+    elif str(job.get("error", "")).startswith("upload:"):
+        lines.append("- 上传/在线整理也发生失败，请查看日志中的具体响应。")
+    lines += [
+        "",
+        "下一步：",
+        "成功的作者/视频已保存，续跑不会重新请求它们。先修复配置或补齐上述 CSV，再执行：",
+        f"cd {ROOT} && {sys.executable} automation.py --retry {key}",
+        f"详细日志：{report_dir / 'run.log'}",
+        "报告只核对 RSS 返回内容，不保证平台历史投稿完整覆盖。",
+    ]
+    message.set_content("\n".join(lines))
     with smtplib.SMTP_SSL(
         "smtp.163.com", 465, timeout=30, context=ssl.create_default_context()
     ) as smtp:
@@ -414,19 +499,39 @@ def tick(retry=None):
                         else type(error).__name__
                     )
                     job["status"] = "pending"
-                    job["next"] = (now() + timedelta(minutes=10)).isoformat()
+                    issues, _ = report_details(key)
                     if (
-                        (job["kind"] != "closeout" or not job["deadline"])
-                        and job["attempts"] >= 6
-                    ) or (
-                        job["deadline"]
-                        and now() >= datetime.fromisoformat(job["deadline"])
+                        issues
+                        and all(not issue.get("retryable", True) for issue in issues)
+                        and not job.get("upload_failed")
+                        and not any(
+                            marker in str(job.get("error", ""))
+                            for marker in (
+                                "exit 1",
+                                "timeout",
+                                "deadline",
+                                "interrupted",
+                            )
+                        )
+                    ):
+                        job["status"] = "needs_attention"
+                    job["next"] = (now() + timedelta(minutes=10)).isoformat()
+                    if job["status"] == "pending" and (
+                        (
+                            (job["kind"] != "closeout" or not job["deadline"])
+                            and job["attempts"] >= 6
+                        )
+                        or (
+                            job["deadline"]
+                            and now() >= datetime.fromisoformat(job["deadline"])
+                        )
                     ):
                         job["status"] = "failed"
                 else:
                     job["status"] = "complete"
+                    job.pop("error", None)
         save(state_path, state)
-        if job["status"] == "failed":
+        if job["status"] in ("failed", "needs_attention"):
             alert(key, job)
     summary = {key: job for key, job in state.items() if job["kind"] == "closeout"}
     save(DATA / "closeout.json", summary)
