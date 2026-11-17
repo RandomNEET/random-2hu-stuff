@@ -405,7 +405,13 @@ def upload_to_tdocs(
             for i, cell in enumerate(row):
                 cell = cell.strip()
                 if cell.startswith(("http://", "https://")):
-                    vals.append({"cellValue": {"link": {"url": cell, "text": cell}}})
+                    vals.append(
+                        {
+                            "cellValue": {
+                                "link": {"url": cell, "text": cell, "overwrite": True}
+                            }
+                        }
+                    )
                 elif i == 4 and cell:
                     try:
                         num = float(cell)
@@ -608,7 +614,17 @@ def order_plan_path(file_id, sheet_id):
 
 def comparison_cell(row, column):
     value = row[column] if row and column < len(row) else None
+    if value and isinstance(value.get("link"), dict):
+        value = copy.deepcopy(value)
+        value["link"].pop("overwrite", None)
     return None if not value or value == {"text": ""} else value
+
+
+def replacement_cell(value):
+    value = copy.deepcopy(value) or {"text": ""}
+    if isinstance(value.get("link"), dict):
+        value["link"]["overwrite"] = True
+    return value
 
 
 def resume_order_plan(path, current_rows):
@@ -651,10 +667,7 @@ def build_order_batch_requests(sheet_id, sorted_rows, original_rows):
         next_active = {}
         for left, right in spans:
             values = [
-                {
-                    "cellValue": copy.deepcopy(comparison_cell(after, column))
-                    or {"text": ""}
-                }
+                {"cellValue": replacement_cell(comparison_cell(after, column))}
                 for column in range(left, right)
             ]
             if (left, right) in active:
@@ -668,6 +681,61 @@ def build_order_batch_requests(sheet_id, sorted_rows, original_rows):
             next_active[(left, right)] = grid
         active = next_active
     return requests_out
+
+
+def safe_api_message(value):
+    """仅展示错误摘要，避免接口回显认证信息或整段响应。"""
+    if not isinstance(value, (str, int, float)):
+        return "(无错误说明)"
+    message = str(value)
+    for secret in (ACCESS_TOKEN, CLIENT_ID, OPEN_ID):
+        if secret:
+            message = message.replace(secret, "[REDACTED]")
+    message = re.sub(
+        r"(?i)(bearer\s+|(?:access[_-]?token|authorization|cookie|password)\s*[:=]\s*)[^\s,;]+",
+        r"\1[REDACTED]",
+        message,
+    )
+    return " ".join(message.split())[:300]
+
+
+def validate_order_response(body, requests_sent, offset=0):
+    """逐项检查写入结果，保留错误码和对应位置，不输出原始响应。"""
+    if not isinstance(body, dict):
+        raise RuntimeError("接口响应应为对象")
+    if body.get("code", 0) != 0:
+        raise RuntimeError(
+            f"接口业务错误 code={safe_api_message(body.get('code'))}, "
+            f"message={safe_api_message(body.get('message', body.get('msg')))}"
+        )
+    results = body.get("responses")
+    if not isinstance(results, list):
+        raise RuntimeError("接口响应缺少 responses 列表")
+    errors = []
+    for index, result in enumerate(results[: len(requests_sent)]):
+        grid = requests_sent[index]["updateRangeRequest"]["gridData"]
+        location = (
+            f"子请求 {offset + index + 1} "
+            f"(起始行 {grid['startRow'] + 1}, 列 {grid['startColumn'] + 1})"
+        )
+        if not isinstance(result, dict):
+            errors.append(f"{location}: 返回项应为对象")
+        elif "error" in result:
+            error = result["error"]
+            error = error if isinstance(error, dict) else {}
+            errors.append(
+                f"{location}: code={safe_api_message(error.get('code'))}, "
+                f"message={safe_api_message(error.get('message', error.get('msg')))}"
+            )
+        elif not isinstance(result.get("updateRangeResponse"), dict):
+            errors.append(f"{location}: 缺少 updateRangeResponse 对象")
+    if len(results) != len(requests_sent):
+        errors.append(
+            f"返回结果数量不符：预期 {len(requests_sent)}，实际 {len(results)}"
+        )
+    if errors:
+        raise RuntimeError("；".join(errors))
+    return results
 
 
 def order_sheet(file_id, sheet_id, dry_run=False):
@@ -753,34 +821,51 @@ def order_sheet(file_id, sheet_id, dry_run=False):
             temporary.chmod(0o600)
             os.replace(temporary, plan_path)
         updated = 0
-        for start in range(0, len(batch_reqs), 100):
-            chunk = batch_reqs[start : start + 100]
+        # 腾讯文档可能拒绝同一批次的多个 updateRangeRequest（BatchSize）。
+        # 每次提交一个范围；快照保证中途失败后可继续完成剩余差异。
+        for start in range(len(batch_reqs)):
+            chunk = batch_reqs[start : start + 1]
             response = requests.post(
                 url, json={"requests": chunk}, headers=headers, timeout=120
             )
             response.raise_for_status()
             body = response.json()
-            results = body.get("responses")
-            if (
-                body.get("code", 0) != 0
-                or not isinstance(results, list)
-                or len(results) != len(chunk)
-                or any(
-                    "error" in result or "updateRangeResponse" not in result
-                    for result in results
-                )
-            ):
-                print("[错误] 整理写入结果不完整或失败，停止后续请求")
-                return False
+            results = validate_order_response(body, chunk, start)
             updated += sum(
                 result["updateRangeResponse"].get("updatedCells", 0)
                 for result in results
+            )
+        row_count, _ = get_sheet_info(file_id, sheet_id)
+        actual_rows = _fetch_all_api_rows(file_id, sheet_id, row_count)
+        if build_order_batch_requests(sheet_id, sorted_rows, actual_rows):
+            raise RuntimeError(
+                "写入后回读与目标不符，保留快照；请核对链接、标题及其他单元格"
             )
         plan_path.unlink()
         print(f"✓ 整理完成，更新了 {updated} 个单元格")
         return True
     except Exception as error:
-        print(f"[错误] 整理写入失败（{type(error).__name__}），请核对后重试")
+        if isinstance(error, requests.HTTPError):
+            response = error.response
+            detail = (
+                f"HTTP {response.status_code}" if response is not None else "HTTP 错误"
+            )
+            if response is not None:
+                try:
+                    body = response.json()
+                    if isinstance(body, dict):
+                        detail += (
+                            f", code={safe_api_message(body.get('code'))}, "
+                            f"message={safe_api_message(body.get('message', body.get('msg')))}"
+                        )
+                except ValueError:
+                    pass
+        elif isinstance(error, requests.RequestException):
+            detail = type(error).__name__
+        else:
+            detail = safe_api_message(str(error))
+        print(f"[错误] 整理写入失败：{detail}")
+        print(f"  已停止后续请求；恢复快照保留在 {plan_path}，核对后可继续重试")
         return False
 
 

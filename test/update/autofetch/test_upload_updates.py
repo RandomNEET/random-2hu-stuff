@@ -1,7 +1,9 @@
 import copy
+import io
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -40,7 +42,10 @@ def apply_requests(original, requests):
                         cell["cellValue"],
                     )
                 )
-                rows[index][column] = cell["cellValue"]
+                value = copy.deepcopy(cell["cellValue"])
+                if isinstance(value.get("link"), dict):
+                    value["link"].pop("overwrite", None)
+                rows[index][column] = value
     return rows, writes
 
 
@@ -89,6 +94,15 @@ class UploadUpdatesTests(unittest.TestCase):
         self.assertEqual(len(writes), 6)
         self.assertEqual(actual[0][2], {"text": "第二话"})
         self.assertEqual(actual[0][1], original[1][1])
+        self.assertTrue(
+            all(
+                cell["cellValue"]["link"]["overwrite"]
+                for request in requests
+                for update in request["updateRangeRequest"]["gridData"]["rows"]
+                for cell in update["values"]
+                if "link" in cell["cellValue"]
+            )
+        )
         self.assertEqual(
             upload.build_order_batch_requests("s", sorted_rows, actual), []
         )
@@ -186,6 +200,70 @@ class UploadUpdatesTests(unittest.TestCase):
                 upload.requests, "post", return_value=response
             ):
                 self.assertFalse(upload.order_sheet("f", "s"))
+
+    def test_failure_log_identifies_request_and_redacts_credentials(self):
+        original = [row("a", "第十话"), row("a", "第二话")]
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "responses": [{"error": {"code": 403, "message": "invalid secret-token"}}]
+        }
+        output = io.StringIO()
+        with patch.multiple(
+            upload, ACCESS_TOKEN="secret-token", CLIENT_ID="client", OPEN_ID="openid"
+        ), patch.object(upload, "get_sheet_info", return_value=(2, 100)), patch.object(
+            upload, "_fetch_all_api_rows", return_value=original
+        ), patch.object(
+            upload.requests, "post", return_value=response
+        ), redirect_stdout(
+            output
+        ):
+            self.assertFalse(upload.order_sheet("f", "s"))
+        message = output.getvalue()
+        self.assertIn("code=403", message)
+        self.assertIn("子请求 1 (起始行 1, 列 3)", message)
+        self.assertIn("invalid [REDACTED]", message)
+        self.assertNotIn("secret-token", message)
+        self.assertTrue(upload.order_plan_path("f", "s").exists())
+
+    def test_business_and_malformed_responses_have_specific_errors(self):
+        requests = upload.build_order_batch_requests("s", [[{"text": "new"}]], [[]])
+        for body, expected in (
+            ({"code": 1001, "message": "permission denied"}, "code=1001"),
+            ({}, "缺少 responses"),
+            ({"responses": []}, "预期 1，实际 0"),
+            ({"responses": [None]}, "返回项应为对象"),
+            ({"responses": [{}]}, "缺少 updateRangeResponse"),
+        ):
+            with self.subTest(body=body), self.assertRaisesRegex(
+                RuntimeError, expected
+            ):
+                upload.validate_order_response(body, requests)
+
+    def test_multiple_ranges_are_submitted_one_at_a_time(self):
+        original = [row("b", "second"), row("a", "first")]
+        expected, _ = upload.reorganize_rows(copy.deepcopy(original))
+        current = copy.deepcopy(original)
+
+        def post(url, json, **kwargs):
+            self.assertEqual(len(json["requests"]), 1)
+            changed, _ = apply_requests(current, json["requests"])
+            current[:] = changed
+            response = Mock()
+            response.raise_for_status.return_value = None
+            response.json.return_value = {"responses": [{"updateRangeResponse": {}}]}
+            return response
+
+        with patch.multiple(
+            upload, ACCESS_TOKEN="test", CLIENT_ID="test", OPEN_ID="test"
+        ), patch.object(upload, "get_sheet_info", return_value=(2, 100)), patch.object(
+            upload, "_fetch_all_api_rows", side_effect=lambda *args: current
+        ), patch.object(
+            upload.requests, "post", side_effect=post
+        ) as requests:
+            self.assertTrue(upload.order_sheet("f", "s"))
+            self.assertGreater(requests.call_count, 1)
+        self.assertEqual(upload.build_order_batch_requests("s", expected, current), [])
 
     def test_partial_sort_recovers_original_target_without_losing_overwritten_row(self):
         original = [row("a", "第十话", "u10", "b10"), row("a", "第二话", "u2", "b2")]
