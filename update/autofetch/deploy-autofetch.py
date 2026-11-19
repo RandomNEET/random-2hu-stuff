@@ -7,9 +7,11 @@ import io
 import os
 import shlex
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tarfile
+import time
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent
@@ -25,7 +27,7 @@ FILES = [
     "config/.env.example",
 ]
 CONFIGS = [f"config/{name}.jsonc" for name in ("fetcher", "processor", "upload")]
-SECRETS = ["config/.env", "cookies.txt"]
+SECRETS = ["config/.env", "cookies.txt", "bcookies.txt"]
 MARKER = "# autofetch-managed"
 NIX_ENV = """let
   pkgs = (builtins.getFlake "nixpkgs").legacyPackages.${builtins.currentSystem};
@@ -44,6 +46,107 @@ def copy_file(source, target):
     shutil.copyfile(source, temporary)
     temporary.chmod(0o600)
     temporary.replace(target)
+
+
+def export_cookies(profile):
+    """Read a qutebrowser cookie DB without executing or printing cookie values."""
+    database = profile.expanduser() / "webengine" / "Cookies"
+    connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+    try:
+        records = connection.execute(
+            "SELECT host_key, path, is_secure, expires_utc, name, value FROM cookies"
+        ).fetchall()
+    finally:
+        connection.close()
+    lines = ["# Netscape HTTP Cookie File"]
+    bili = {}
+    for domain, path, secure, expires, name, value in records:
+        if not value:
+            continue
+        if any(
+            c in str(part) for part in (domain, path, name, value) for c in "\t\r\n"
+        ):
+            raise ValueError("cookies 包含无效换行或制表符")
+        expiry = int(expires / 1000000 - 11644473600) if expires else 0
+        if expiry and expiry <= time.time():
+            continue
+        lines.append(
+            "\t".join(
+                [
+                    domain,
+                    "TRUE" if domain.startswith(".") else "FALSE",
+                    path,
+                    "TRUE" if secure else "FALSE",
+                    str(expiry),
+                    name,
+                    value,
+                ]
+            )
+        )
+        if domain.lstrip(".") == "bilibili.com":
+            bili[name] = value
+    if not bili.get("SESSDATA") or not bili.get("DedeUserID", "").isdigit():
+        raise ValueError(
+            "浏览器中缺少有效 B 站登录 cookies；请先登录（不支持解密的 cookies 不会导出）"
+        )
+    # Validate both exports before replacing either existing file.
+    contents = {
+        "cookies.txt": "\n".join(lines) + "\n",
+        "bcookies.txt": f"BILIBILI_COOKIE_{bili['DedeUserID']}="
+        + "; ".join(f"{name}={value}" for name, value in sorted(bili.items()))
+        + "\n",
+    }
+    for name, content in contents.items():
+        path = SOURCE / name
+        temporary = path.with_name(path.name + ".deploy.tmp")
+        temporary.touch(mode=0o600)
+        temporary.chmod(0o600)
+        temporary.write_text(content)
+        temporary.replace(path)
+    print("已导出 cookies.txt 和 bcookies.txt（未输出凭据）")
+
+
+def update_cookies(target, rsshub_cookie_target=None):
+    """Cookie-only update: preserve .env, cron and all pipeline checkpoints."""
+    target = target.expanduser().absolute()
+    for name in ("cookies.txt", "bcookies.txt"):
+        if not (SOURCE / name).is_file():
+            raise ValueError(f"缺少 {name}；请先使用 --export-cookies 导出")
+    state = target / "state" / "automation"
+    state.mkdir(parents=True, exist_ok=True)
+    with (state / "lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("任务正在运行，请结束后重试更新 cookies") from None
+        for name in ("cookies.txt", "bcookies.txt"):
+            copy_file(SOURCE / name, target / name)
+        if rsshub_cookie_target:
+            destination = rsshub_cookie_target.expanduser().absolute()
+            # Keep unrelated RSSHub settings and cookies for other accounts.
+            incoming = (SOURCE / "bcookies.txt").read_text().splitlines()
+            keys = {
+                line.split("=", 1)[0]
+                for line in incoming
+                if line.startswith("BILIBILI_COOKIE_")
+            }
+            if not keys:
+                raise ValueError("bcookies.txt 缺少 BILIBILI_COOKIE 配置")
+            existing = (
+                destination.read_text().splitlines() if destination.exists() else []
+            )
+            merged = [
+                line for line in existing if line.split("=", 1)[0].strip() not in keys
+            ]
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temporary = destination.with_name(destination.name + ".deploy.tmp")
+            temporary.touch(mode=0o600)
+            temporary.chmod(0o600)
+            temporary.write_text("\n".join(merged + incoming) + "\n")
+            temporary.replace(destination)
+    print(f"已更新 {target} 中的 cookies；未修改 .env 或 cron")
+    if rsshub_cookie_target:
+        print("已更新 RSSHub cookie 文件；需重启 RSSHub 服务才能加载新值")
 
 
 def copy_dotenv(source, target):
@@ -203,11 +306,21 @@ def install(target, backend, replace_config=False, with_secrets=False):
     print(f"已部署到 {target}，已安装每分钟检查任务的 cron；未执行抓取、上传或发信。")
 
 
-def remote(host, target, backend, replace_config=False, with_secrets=False):
+def remote(
+    host,
+    target,
+    backend,
+    replace_config=False,
+    with_secrets=False,
+    cookies_only=False,
+    rsshub_cookie_target=None,
+):
     if host.startswith("-") or any(c in host for c in "\n\r"):
         raise ValueError("无效 SSH 主机名")
     names = FILES + CONFIGS
-    if with_secrets:
+    if cookies_only:
+        names += ["cookies.txt", "bcookies.txt"]
+    elif with_secrets:
         names += [name for name in SECRETS if (SOURCE / name).is_file()]
     payload = io.BytesIO()
     with tarfile.open(fileobj=payload, mode="w:gz") as archive:
@@ -218,6 +331,10 @@ def remote(host, target, backend, replace_config=False, with_secrets=False):
         options.append("--replace-config")
     if with_secrets:
         options.append("--with-secrets")
+    if cookies_only:
+        options.append("--cookies-only")
+    if rsshub_cookie_target:
+        options.extend(["--rsshub-cookie-target", str(rsshub_cookie_target)])
     # stdin carries only our allowlisted archive. All dynamic shell arguments are quoted.
     script = """set -eu
 umask 077
@@ -251,9 +368,40 @@ def main():
         action="store_true",
         help="同时复制现有 .env、邮件认证与 cookies；默认不传凭据",
     )
+    parser.add_argument(
+        "--export-cookies",
+        action="store_true",
+        help="从本机 qutebrowser 导出全部可用 cookies，并生成 RSSHub 的 B 站 cookies",
+    )
+    parser.add_argument(
+        "--browser-profile",
+        type=Path,
+        default=Path.home() / ".local/share/qutebrowser",
+        help="qutebrowser 配置目录（含 webengine/Cookies）",
+    )
+    parser.add_argument(
+        "--cookies-only",
+        action="store_true",
+        help="只更新 cookies.txt、bcookies.txt；不更新源码、.env 或 cron",
+    )
+    parser.add_argument(
+        "--rsshub-cookie-target",
+        type=Path,
+        help="目标主机 RSSHub env 文件路径；合并 B 站 cookie，保留其他配置",
+    )
     args = parser.parse_args()
+    if args.rsshub_cookie_target and not args.cookies_only:
+        parser.error("--rsshub-cookie-target 需与 --cookies-only 一起使用")
     os.umask(0o077)
     try:
+        if args.export_cookies:
+            if not args.cookies_only and not args.with_secrets:
+                parser.error("--export-cookies 需配合 --cookies-only 或 --with-secrets")
+            export_cookies(args.browser_profile)
+        if args.cookies_only:
+            for name in ("cookies.txt", "bcookies.txt"):
+                if not (SOURCE / name).is_file():
+                    raise ValueError(f"缺少 {name}；请先使用 --export-cookies 导出")
         if args.host:
             remote(
                 args.host,
@@ -261,12 +409,22 @@ def main():
                 args.backend,
                 args.replace_config,
                 args.with_secrets,
+                cookies_only=args.cookies_only,
+                rsshub_cookie_target=args.rsshub_cookie_target,
             )
+        elif args.cookies_only:
+            update_cookies(Path(args.target), args.rsshub_cookie_target)
         else:
             install(
                 Path(args.target), args.backend, args.replace_config, args.with_secrets
             )
-    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+    except (
+        OSError,
+        RuntimeError,
+        ValueError,
+        sqlite3.Error,
+        subprocess.CalledProcessError,
+    ) as error:
         # Do not echo CalledProcessError.cmd: it may contain secrets in future extensions.
         print(
             f"部署未完成：{error if isinstance(error, (RuntimeError, ValueError)) else type(error).__name__}",

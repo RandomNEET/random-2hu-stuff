@@ -41,6 +41,7 @@
 
 ## 定时自动运行
 
+- `deploy-autofetch.py` 支持 `--export-cookies --cookies-only` 从 qutebrowser 导出并单独同步 `cookies.txt`、`bcookies.txt`；`--target` 指定 autofetch 目录，`--rsshub-cookie-target` 合并 RSSHub env 的同账号 B 站 cookie，保留其他设置，不自动重启服务。
 - `deploy-autofetch.py` 支持本地/SSH 部署，默认保留 JSONC、凭据和状态；显式更新 `.env` 时仅本地非空代理覆盖服务器代理；仅在本地检查通过后安装 cron，不能用真实部署代替回归测试。
 - `automation.py` 是 cron 入口，调度、周批次、上传检查点及 163 邮件设置见 [定时运行说明](AUTOMATION.md)。不修改 oix，不默认安装或启用任务。
 - 运行状态和分周输出在 `state/automation/`；禁止删除检查点后盲目重传。上传结果不确定时先核对远端，凌晨收尾失败后等人工处理。

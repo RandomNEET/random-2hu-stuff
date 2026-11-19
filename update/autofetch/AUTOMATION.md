@@ -108,3 +108,22 @@ cd /home/user/autofetch
 processor 的 `--report ... --resume` 按 CSV 文件及行保存视频结果和完整行快照。已成功的视频不再请求；网络失败的视频下轮单独重试。简介存在但没有可提取原链接时标记为人工处理，不再反复请求同一条。人工补齐原链接和作者后，行内容变化会使旧记录失效，执行 `automation.py --retry <任务编号>` 即可重新核对。
 
 只有人工问题剩余时，任务进入 `needs_attention`，立即发一次邮件并停止自动重试；仍有网络问题时保留 10 分钟间隔、最多 6 轮和周末截止规则。上传首次失败仍立即通知。邮件列出日期、累计完成数、作者/视频标题、链接、CSV 路径和行号、失败原因及续跑命令，不再附整段 JSON。成功后清除旧 `error`，以 `status` 判断最终结果。报告里的 RSS 缓存和完成记录是重试检查点，不要随意删除；它们不证明 RSS 覆盖平台全部投稿。
+
+## 导出并更新 cookies
+
+部署脚本可以从本机 qutebrowser 的 `webengine/Cookies` 数据库导出未过期、可读取的 cookies。`cookies.txt` 为供 yt-dlp 使用的 Netscape 文件，包含所有站点；`bcookies.txt` 为 RSSHub 的 B 站环境变量文件，包含登录账号的 B 站 cookies。浏览器使用加密存储时，此导出方式不支持解密；缺少 B 站登录信息会停止并保留原文件。
+
+只导出并同步 cookies，不覆盖 `.env`、源码或 cron：
+
+```sh
+python deploy-autofetch.py --host server --target /home/user/autofetch \
+  --export-cookies --cookies-only \
+  --rsshub-cookie-target /home/user/.vault/rsshub
+```
+
+- `--target` 指定目标主机的 autofetch 目录，接收 `cookies.txt`、`bcookies.txt`；默认 processor 读取其中的 `cookies.txt`。如果修改了 processor 的 `cookies.file`，需要自行确保该路径指向同步的文件。
+- `--rsshub-cookie-target` 指定 RSSHub 实际加载的 env 文件，仅与 `--cookies-only` 一起使用。更新同账号的 B 站 cookie，保留其他账号和其他设置。路径由目标主机用户解析；省略时只更新 autofetch 目录中的文件。
+- `--browser-profile /path/to/qutebrowser` 可指定本机浏览器目录，默认 `~/.local/share/qutebrowser`。
+- 省略 `--export-cookies` 则同步已有文件；完整部署时可用 `--export-cookies --with-secrets` 同时导出和同步 `.env`、`cookies.txt`、`bcookies.txt`。
+
+请在任务空闲时更新。文件权限为 `600`，脚本不输出 cookie 内容。RSSHub 需要重启才能加载 env 文件的新值；脚本仅提示，不自动重启。更新 cookies 也不保证解除 B 站风控。
